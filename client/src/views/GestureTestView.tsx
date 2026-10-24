@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { GestureController, type DebugFrame } from "../gesture/GestureController";
+import { SpellPreview } from "./SpellPreview";
 import type { GestureActionEvent, GestureObservation, Landmark } from "../gesture/types";
 
 // Bone pairs for drawing the 21-point hand skeleton.
@@ -103,6 +104,7 @@ export function GestureTestView() {
         <button className="secondary-button" onClick={stop} disabled={status === "CAMERA_OFF"}>Stop</button>
       </div>
       {error && <p className="error-message">{error}</p>}
+      <SpellPreview lastAction={log[0] ?? null} />
       <dl className="gesture-stats">
         <div><dt>STATUS</dt><dd>{status}</dd></div>
         <div><dt>POSE</dt><dd>{observation?.pose ?? "NONE"}</dd></div>
