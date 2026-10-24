@@ -6,15 +6,16 @@ import type { PlayerSlot, PowerUpId, SpellId } from "@spellcaster/shared";
  * `slot` is only needed for local hotseat play; leave it out to act as the local wizard.
  */
 export type SpellIntent =
-  | { kind: "cast"; spell: SpellId; slot?: PlayerSlot }
+  | { kind: "cast"; spell: SpellId; slot?: PlayerSlot; power?: number }
   | { kind: "powerUp"; powerUp: PowerUpId; slot?: PlayerSlot };
 
 type Listener = (intent: SpellIntent) => void;
 const listeners = new Set<Listener>();
 
 export const spellInput = {
-  cast(spell: SpellId, slot?: PlayerSlot) {
-    listeners.forEach((listener) => listener({ kind: "cast", spell, slot }));
+  /** `power` (0–1) is the charge level for charged spells like Six Seven. */
+  cast(spell: SpellId, slot?: PlayerSlot, power?: number) {
+    listeners.forEach((listener) => listener({ kind: "cast", spell, slot, power }));
   },
   powerUp(powerUp: PowerUpId, slot?: PlayerSlot) {
     listeners.forEach((listener) => listener({ kind: "powerUp", powerUp, slot }));
@@ -29,8 +30,8 @@ export const spellInput = {
 export type KeySet = "primary" | "secondary";
 
 export const KEY_BINDINGS: Record<KeySet, Record<string, SpellId>> = {
-  primary: { q: "fireball", w: "shield", e: "ice", r: "ultimate" },
-  secondary: { u: "fireball", i: "shield", o: "ice", p: "ultimate" },
+  primary: { q: "fireball", w: "shield", e: "ice", r: "ultimate", t: "sixSeven" },
+  secondary: { u: "fireball", i: "shield", o: "ice", p: "ultimate", j: "sixSeven" },
 };
 
 /** Demo keys that stand in for the voice track until it is wired up. */

@@ -84,7 +84,9 @@ io.on("connection", (socket) => {
       return;
     }
     // Evaluate before the optional call: `callback?.(f())` skips f() when there is no ack.
-    const ack = runner.cast(slot, request.spell, request.clientActionId);
+    // Clients choose their charge power; clamp it so a bad value can't exceed full damage.
+    const power = typeof request.power === "number" && Number.isFinite(request.power) ? Math.min(1, Math.max(0, request.power)) : undefined;
+    const ack = runner.cast(slot, request.spell, request.clientActionId, power);
     callback?.(ack);
   });
 

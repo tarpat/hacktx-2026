@@ -11,6 +11,8 @@ export interface SpellConfig {
   /** Milliseconds a projectile takes to cross the arena. */
   travelMs: number;
   offensive: boolean;
+  /** Damage is multiplied by the cast's charge power (0–1), floored at `minPowerFactor`. */
+  charged?: boolean;
 }
 
 export interface PowerUpConfig {
@@ -42,7 +44,7 @@ export interface MatchConfig {
   powerUps: Record<PowerUpId, PowerUpConfig>;
 }
 
-export const SPELL_ORDER: SpellId[] = ["fireball", "shield", "ice", "ultimate"];
+export const SPELL_ORDER: SpellId[] = ["fireball", "shield", "ice", "ultimate", "sixSeven"];
 
 export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   maxHp: 100,
@@ -64,6 +66,7 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
     shield: { id: "shield", name: "Protego", incantation: "Protego!", damage: 0, cooldownMs: 5_000, travelMs: 0, offensive: false },
     ice: { id: "ice", name: "Glacius", incantation: "Glacius!", damage: 10, cooldownMs: 7_000, travelMs: 700, offensive: true },
     ultimate: { id: "ultimate", name: "Fulmen", incantation: "Fulmen!", damage: 30, cooldownMs: 0, travelMs: 1_200, offensive: true },
+    sixSeven: { id: "sixSeven", name: "Six Seven", incantation: "Six seven!", damage: 40, cooldownMs: 8_000, travelMs: 800, offensive: true, charged: true },
   },
   powerUps: {
     empower: { id: "empower", name: "Empowered", durationMs: 8_000 },

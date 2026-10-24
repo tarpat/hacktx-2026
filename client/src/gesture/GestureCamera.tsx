@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { SpellId } from "@spellcaster/shared";
 import { spellInput } from "../game/input";
-import { drawHand } from "./drawHand";
+import { spellGlyph } from "../theme";
+import { ChargeOrb, type ActiveCharge, type ChargeOutcome } from "./ChargeOrb";
+import { SixSevenBar } from "./SixSevenBar";
+import { drawHands } from "./drawHand";
 import { GestureController } from "./GestureController";
+import type { ChargeKind } from "./gestureStateMachine";
 import type { GestureAction, HandPose, TrackingStatus } from "./types";
 
 /** Gesture action → engine spell. Charge start/cancel are local feedback only. */
@@ -11,13 +15,12 @@ const ACTION_SPELLS: Partial<Record<GestureAction, SpellId>> = {
   SHIELD_CAST: "shield",
   ICE_CAST: "ice",
   ULTIMATE_CAST: "ultimate",
+  SIX_SEVEN_CAST: "sixSeven",
 };
 
-const SPELL_GLYPHS: Record<SpellId, string> = { fireball: "🔥", shield: "🛡️", ice: "❄️", ultimate: "⚡" };
+const POSE_LABELS: Partial<Record<HandPose, string>> = { FIST: "✊", OPEN_PALM: "✋", VICTORY: "✌️", BOTH_FISTS: "✊✊", BOTH_PALMS: "🙌" };
 
-const POSE_LABELS: Partial<Record<HandPose, string>> = { FIST: "✊", OPEN_PALM: "✋", VICTORY: "✌️", POINT: "☝️" };
-
-const LEGEND = "✊→✋ fireball · ✋ shield · ✌️ ice · ☝️ ultimate";
+const LEGEND = "✊→✋ fireball · ✊✊→🙌 ultimate · ✋ shield · ✌️ ice · 🫴🫴 6-7";
 
 // Remember the opt-in for this tab so the camera follows the player from lobby to arena.
 const STORAGE_KEY = "spellcaster:gestures";
@@ -40,37 +43,56 @@ function writeEnabled(on: boolean) {
  * Floating webcam panel that casts spells for the local wizard through `spellInput`,
  * the same entry point the keyboard fallback uses. Frames never leave the browser.
  */
-export function GestureCamera() {
+export function GestureCamera({ ultimateReady = true }: { ultimateReady?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const controllerRef = useRef<GestureController | null>(null);
   const [enabled, setEnabled] = useState(readEnabled);
   const [status, setStatus] = useState<TrackingStatus>("CAMERA_OFF");
   const [pose, setPose] = useState<HandPose>("NONE");
-  const [charging, setCharging] = useState(false);
+  const [charge, setCharge] = useState<ActiveCharge | null>(null);
+  const [chargeOutcome, setChargeOutcome] = useState<{ kind: ChargeKind; result: ChargeOutcome } | null>(null);
   const [lastCast, setLastCast] = useState<{ id: number; spell: SpellId } | null>(null);
+  const charging = charge !== null;
   const [error, setError] = useState("");
+  const [sixSeven, setSixSeven] = useState({ charge: 0, speed: 0 });
+  const [palmsUp, setPalmsUp] = useState(false);
 
   useEffect(() => {
     const controller = new GestureController();
     controllerRef.current = controller;
     let castId = 0;
+    // Mirrors `charge` so the action handler can read the current kind without a stale closure.
+    let current: ActiveCharge | null = null;
     const unsubscribers = [
       controller.onObservation((o) => {
         setStatus(o.status);
         setPose(o.pose);
+        setSixSeven({ charge: o.sixSevenCharge, speed: o.sixSevenSpeed });
+        setPalmsUp(o.palmsUp);
         if (o.status === "ERROR") setError((e) => e || "Camera stopped. Turn gestures off and on to retry.");
       }),
-      controller.onAction(({ action }) => {
-        if (action === "FIREBALL_CHARGE_START") setCharging(true);
-        if (action === "FIREBALL_CHARGE_CANCEL" || action === "FIREBALL_CAST") setCharging(false);
+      controller.onAction(({ action, localTimestampMs, power }) => {
+        if (action === "FIREBALL_CHARGE_START" || action === "ULTIMATE_CHARGE_START") {
+          const kind: ChargeKind = action === "ULTIMATE_CHARGE_START" ? "ultimate" : "fireball";
+          // An upgrade keeps the original start time, matching the state machine.
+          current = { kind, startedAt: current?.startedAt ?? localTimestampMs };
+          setChargeOutcome(null);
+          setCharge(current);
+        }
+        if (action === "FIREBALL_CAST" || action === "ULTIMATE_CAST" || action === "CHARGE_CANCEL") {
+          const kind: ChargeKind = action === "ULTIMATE_CAST" ? "ultimate" : action === "FIREBALL_CAST" ? "fireball" : current?.kind ?? "fireball";
+          current = null;
+          setCharge(null);
+          setChargeOutcome({ kind, result: action === "CHARGE_CANCEL" ? "fizzle" : "cast" });
+        }
         const spell = ACTION_SPELLS[action];
         if (!spell) return;
-        spellInput.cast(spell);
+        spellInput.cast(spell, undefined, power);
         setLastCast({ id: ++castId, spell });
       }),
       controller.onDebugFrame((frame) => {
-        if (canvasRef.current) drawHand(canvasRef.current, frame.landmarks);
+        if (canvasRef.current) drawHands(canvasRef.current, frame.hands);
       }),
     ];
     return () => {
@@ -85,7 +107,8 @@ export function GestureCamera() {
     if (!controller || !video) return;
     if (!enabled) {
       controller.stop();
-      setCharging(false);
+      setCharge(null);
+      setChargeOutcome(null);
       return;
     }
     setError("");
@@ -95,6 +118,13 @@ export function GestureCamera() {
       writeEnabled(false);
     });
   }, [enabled]);
+
+  useEffect(() => {
+    if (!chargeOutcome) return;
+    // Matches the burst/fizzle animation length.
+    const timeout = setTimeout(() => setChargeOutcome(null), 500);
+    return () => clearTimeout(timeout);
+  }, [chargeOutcome]);
 
   useEffect(() => {
     if (!lastCast) return;
@@ -109,9 +139,12 @@ export function GestureCamera() {
 
   const live = status === "TRACKING" || status === "NO_HAND";
   const label =
-    status === "STARTING" ? "Starting camera…" : status === "NO_HAND" ? "Show your hand" : charging ? "Charging… open to cast" : POSE_LABELS[pose] ?? "";
+    status === "STARTING" ? "Starting camera…" : status === "NO_HAND" ? "Show your hand" : charging ? "Charging… open to cast" : palmsUp ? "🫴🫴 palms up · bob!" : POSE_LABELS[pose] ?? "";
 
   return (
+    <>
+    <ChargeOrb charge={charge} outcome={chargeOutcome} ultimateReady={ultimateReady} />
+    <SixSevenBar charge={sixSeven.charge} speed={sixSeven.speed} active={palmsUp} />
     <aside className={`gesture-cam${enabled ? " on" : ""}${charging ? " is-charging" : ""}`}>
       <div className="gesture-cam-view" hidden={!enabled}>
         <video ref={videoRef} className="mirrored" autoPlay playsInline muted />
@@ -119,7 +152,7 @@ export function GestureCamera() {
         {live && <span className="gesture-cam-label">{label}</span>}
         {lastCast && (
           <span className="gesture-cam-cast" key={lastCast.id}>
-            {SPELL_GLYPHS[lastCast.spell]}
+            {spellGlyph[lastCast.spell]}
           </span>
         )}
       </div>
@@ -129,5 +162,6 @@ export function GestureCamera() {
         {enabled ? "Gestures on · turn off" : "🎥 Cast with gestures"}
       </button>
     </aside>
+    </>
   );
 }

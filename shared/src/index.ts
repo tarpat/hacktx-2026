@@ -35,6 +35,8 @@ export interface CastRequest {
   spell: SpellId;
   /** Unique per intent so retries are never applied twice. */
   clientActionId: string;
+  /** Charge power (0–1) for charged spells such as Six Seven. */
+  power?: number;
 }
 
 export interface PowerUpRequest {

@@ -1,5 +1,6 @@
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
-import { classifyPose, PoseSmoother } from "./poseClassifier";
+import { classifyPose, combinePoses, PoseSmoother } from "./poseClassifier";
+import { SixSevenDetector } from "./sixSeven";
 import { DEFAULT_TIMINGS, resetGesture, stepGesture, type GestureState, type GestureTimings } from "./gestureStateMachine";
 import type { GestureAction, GestureActionEvent, GestureObservation, Handedness, Landmark, TrackingStatus } from "./types";
 
@@ -9,7 +10,8 @@ const MODEL_URL =
 
 /** Local-only debug frame. Never send this over the network. */
 export interface DebugFrame {
-  landmarks: Landmark[] | null;
+  /** One entry per tracked hand (0–2). */
+  hands: Landmark[][];
   fps: number;
   state: GestureState["kind"];
 }
@@ -25,7 +27,7 @@ function loadLandmarker(): Promise<HandLandmarker> {
       HandLandmarker.createFromOptions(fileset, {
         baseOptions: { modelAssetPath: MODEL_URL, delegate },
         runningMode: "VIDEO",
-        numHands: 1,
+        numHands: 2,
       });
     try {
       return await create("GPU");
@@ -54,6 +56,7 @@ export class GestureController {
   private generation = 0;
   private lastVideoTime = -1;
   private smoother = new PoseSmoother();
+  private sixSeven = new SixSevenDetector();
   private gestureState: GestureState = { kind: "IDLE" };
   private hand: Handedness | undefined;
   private status: TrackingStatus = "CAMERA_OFF";
@@ -145,30 +148,38 @@ export class GestureController {
 
       const now = performance.now();
       const result = landmarker.detectForVideo(video, now);
-      const landmarks = (result.landmarks[0] as Landmark[] | undefined) ?? null;
-      this.hand = result.handedness[0]?.[0]?.categoryName as Handedness | undefined;
-      this.processFrame(landmarks, now);
+      const hands = result.landmarks as Landmark[][];
+      // Handedness is only meaningful for one-hand gestures.
+      this.hand = hands.length === 1 ? (result.handedness[0]?.[0]?.categoryName as Handedness | undefined) : undefined;
+      this.processFrame(hands, now);
     };
     this.rafId = requestAnimationFrame(tick);
   }
 
-  private processFrame(landmarks: Landmark[] | null, now: number) {
-    const rawPose = classifyPose(landmarks ?? undefined);
+  private processFrame(hands: Landmark[][], now: number) {
+    const rawPose = combinePoses(hands.map(classifyPose));
     const pose = this.smoother.push(rawPose);
-    this.setStatus(landmarks ? "TRACKING" : "NO_HAND");
+    this.setStatus(hands.length > 0 ? "TRACKING" : "NO_HAND");
 
-    const { state, actions } = stepGesture(this.gestureState, pose, now, this.timings);
+    const video = this.video;
+    const aspect = video && video.videoHeight ? video.videoWidth / video.videoHeight : 4 / 3;
+    const sixSeven = this.sixSeven.update(hands, now, aspect);
+    // While doing 6-7, palms-up hands must not read as shield/ultimate.
+    const { state, actions } = stepGesture(this.gestureState, sixSeven.engaged ? "UNKNOWN" : pose, now, this.timings);
     this.gestureState = state;
     this.emitActions(actions, now);
+    if (sixSeven.castPower !== null) {
+      for (const listener of this.actionListeners) listener({ action: "SIX_SEVEN_CAST", localTimestampMs: now, power: sixSeven.castPower });
+    }
 
     for (const listener of this.observationListeners) {
-      listener({ pose, rawPose, status: this.status, hand: this.hand, timestampMs: now });
+      listener({ pose, rawPose, status: this.status, hand: this.hand, sixSevenCharge: sixSeven.charge, sixSevenSpeed: sixSeven.swapsPerSec, palmsUp: sixSeven.palmsUp, timestampMs: now });
     }
 
     this.frameTimes.push(now);
     while (this.frameTimes.length > 0 && now - this.frameTimes[0] > 1000) this.frameTimes.shift();
     for (const listener of this.debugListeners) {
-      listener({ landmarks, fps: this.frameTimes.length, state: state.kind });
+      listener({ hands, fps: this.frameTimes.length, state: state.kind });
     }
   }
 
@@ -183,6 +194,7 @@ export class GestureController {
     this.emitActions(resetGesture(this.gestureState), performance.now());
     this.gestureState = { kind: "IDLE" };
     this.smoother.reset();
+    this.sixSeven.reset();
   }
 
   private handleTrackEnded = () => {
@@ -213,7 +225,7 @@ export class GestureController {
     if (status === this.status) return;
     this.status = status;
     for (const listener of this.observationListeners) {
-      listener({ pose: "NONE", rawPose: "NONE", status, timestampMs: performance.now() });
+      listener({ pose: "NONE", rawPose: "NONE", status, sixSevenCharge: 0, sixSevenSpeed: 0, palmsUp: false, timestampMs: performance.now() });
     }
   }
 }

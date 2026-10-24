@@ -46,7 +46,7 @@ function Lobby() {
         <div className="join-row"><input aria-label="Room code" placeholder="ENTER ROOM CODE" maxLength={5} value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} /><button className="secondary-button" disabled={code.length < 5} onClick={joinRoom}>Join</button></div>
         {room && <div className="room-ready"><span>ROOM CODE</span><strong>{room.code}</strong><p>{room.players.A && room.players.B ? "Rival joined. Ready when you are." : "Share the code with your rival."}</p><button className="text-button" onClick={continueToCalibration}>Continue to calibration →</button></div>}
         {error && <p className="error-message">{error}</p>}
-        <Link className="practice-link" to="/practice">✧ Practice against the training dummy</Link>
+        <Link className="practice-link" to="/practice?mode=training">✧ Practice against the training dummy</Link>
       </div>
       <div className="hero-foot"><span>✧</span> TWO WIZARDS. ONE ARENA. <span>✧</span></div>
     </section>
