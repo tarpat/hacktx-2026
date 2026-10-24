@@ -3,11 +3,12 @@ import Phaser from "phaser";
 import { DEFAULT_MATCH_CONFIG, opponentOf, type MatchState, type PlayerSlot, type SpellId } from "@spellcaster/shared";
 import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
 import { loadMapChoice, type MapId } from "../arena/maps";
+import { playEvents, sfx } from "../audio/sound";
 import { GestureCamera } from "../gesture/GestureCamera";
 import { SpellStruggle } from "./SpellStruggle";
 import type { DuelSource } from "../game/duelSource";
 import { bindKeyboard, spellInput } from "../game/input";
-import { narrate, rejectionText } from "../game/narration";
+import { rejectionText } from "../game/narration";
 import { playerName } from "../theme";
 import { HealthBar } from "./HealthBar";
 import { CountdownOverlay, MatchClock } from "./MatchClock";
@@ -47,7 +48,6 @@ function useMatchNow(source: DuelSource) {
 
 export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, footer, map = loadMapChoice() }: DuelScreenProps) {
   const [state, setState] = useState<MatchState | null>(() => source.state());
-  const [banner, setBanner] = useState<Banner | null>(null);
   const [toast, setToast] = useState<Banner | null>(null);
   const now = useMatchNow(source);
   const host = useRef<HTMLDivElement>(null);
@@ -67,9 +67,8 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       source.subscribe((next, events) => {
         setState(next);
         scene.current?.pushEvents(events);
+        playEvents(events, source.localSlot, hotseat);
         for (const event of events) {
-          const line = narrate(event);
-          if (line) setBanner({ id: event.id, text: line });
           if (event.type === "CAST_REJECTED" && (hotseat || event.slot === source.localSlot) && rejectionText[event.reason]) {
             setToast({ id: event.id, text: rejectionText[event.reason] });
           }
@@ -82,7 +81,10 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     const unbindKeys = bindKeyboard(source.localSlot, hotseat ? opponentOf(source.localSlot) : null);
     const unsubscribe = spellInput.subscribe((intent) => {
       if (intent.kind === "cast") source.cast(intent.spell, intent.slot, intent.power);
-      else if (intent.kind === "push") source.push(intent.slot);
+      else if (intent.kind === "push") {
+        sfx.push();
+        source.push(intent.slot);
+      }
       else if (intent.kind === "powerUp") source.powerUp(intent.powerUp, intent.slot);
     });
     return () => {
@@ -126,16 +128,16 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   }, [state !== null]);
 
   useEffect(() => {
-    if (!banner) return;
-    const timeout = setTimeout(() => setBanner(null), 2_200);
-    return () => clearTimeout(timeout);
-  }, [banner]);
-
-  useEffect(() => {
     if (!toast) return;
     const timeout = setTimeout(() => setToast(null), 1_200);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  // Tick on each countdown number.
+  const countdownSecond = state?.phase === "countdown" ? Math.ceil((state.phaseEndsAt - now) / 1000) : 0;
+  useEffect(() => {
+    if (countdownSecond > 0) sfx.countdownTick();
+  }, [countdownSecond]);
 
   const castAs = (slot: PlayerSlot) => (slot === left || hotseat ? (spell: SpellId) => spellInput.cast(spell, slot) : undefined);
 
@@ -146,11 +148,6 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
         <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} />
         {state?.struggle && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} />}
         {state && <CountdownOverlay state={state} now={now} />}
-        {banner && state?.phase !== "finished" && (
-          <div className="banner" key={banner.id}>
-            {banner.text}
-          </div>
-        )}
         {toast && (
           <div className="toast" key={toast.id}>
             {toast.text}
