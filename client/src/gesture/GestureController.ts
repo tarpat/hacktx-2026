@@ -178,7 +178,7 @@ export class GestureController {
     }
   }
 
-  /** Force SHIELD_END / CHARGE_CANCEL so the game never sees a dangling interval. */
+  /** Force CHARGE_CANCEL so the game never shows a dangling charge. */
   private flushGestureState() {
     this.emitActions(resetGesture(this.gestureState), performance.now());
     this.gestureState = { kind: "IDLE" };
@@ -193,7 +193,7 @@ export class GestureController {
   };
 
   private handleVisibilityChange = () => {
-    // rAF pauses in background tabs; close out any held shield/charge immediately.
+    // rAF pauses in background tabs; close out any charge immediately.
     if (document.hidden) this.flushGestureState();
   };
 

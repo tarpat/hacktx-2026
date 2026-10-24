@@ -2,35 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { GestureController, type DebugFrame } from "../gesture/GestureController";
 import { SpellPreview } from "./SpellPreview";
-import type { GestureActionEvent, GestureObservation, Landmark } from "../gesture/types";
-
-// Bone pairs for drawing the 21-point hand skeleton.
-const BONES: [number, number][] = [
-  [0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [5, 9], [9, 10], [10, 11], [11, 12],
-  [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17],
-];
-
-function drawHand(canvas: HTMLCanvasElement, landmarks: Landmark[] | null) {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  const { width, height } = canvas;
-  ctx.clearRect(0, 0, width, height);
-  if (!landmarks) return;
-  ctx.strokeStyle = "#d9bd75";
-  ctx.lineWidth = 3;
-  for (const [a, b] of BONES) {
-    ctx.beginPath();
-    ctx.moveTo(landmarks[a].x * width, landmarks[a].y * height);
-    ctx.lineTo(landmarks[b].x * width, landmarks[b].y * height);
-    ctx.stroke();
-  }
-  ctx.fillStyle = "#f4efe5";
-  for (const point of landmarks) {
-    ctx.beginPath();
-    ctx.arc(point.x * width, point.y * height, 4, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
+import { drawHand } from "../gesture/drawHand";
+import type { GestureActionEvent, GestureObservation } from "../gesture/types";
 
 export function GestureTestView() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -47,6 +20,7 @@ export function GestureTestView() {
     const controller = new GestureController();
     controllerRef.current = controller;
     let nextId = 0;
+    let shieldTimer: ReturnType<typeof setTimeout> | undefined;
     const unsubscribers = [
       controller.onObservation((o) => {
         setObservation(o);
@@ -54,8 +28,12 @@ export function GestureTestView() {
       }),
       controller.onAction((event) => {
         setLog((entries) => [{ ...event, id: nextId++ }, ...entries].slice(0, 10));
-        if (event.action === "SHIELD_START") setShieldUp(true);
-        if (event.action === "SHIELD_END") setShieldUp(false);
+        if (event.action === "SHIELD_CAST") {
+          // Mirrors the engine's 900 ms guard window.
+          setShieldUp(true);
+          clearTimeout(shieldTimer);
+          shieldTimer = setTimeout(() => setShieldUp(false), 900);
+        }
         if (event.action === "FIREBALL_CHARGE_START") setCharging(true);
         if (event.action === "FIREBALL_CAST" || event.action === "FIREBALL_CHARGE_CANCEL") setCharging(false);
       }),
@@ -67,6 +45,7 @@ export function GestureTestView() {
     // Cleanup stops camera tracks, including on React Strict Mode's dev remount.
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
+      clearTimeout(shieldTimer);
       controller.stop();
     };
   }, []);
@@ -113,7 +92,7 @@ export function GestureTestView() {
         <div><dt>HAND</dt><dd>{observation?.hand ?? "—"}</dd></div>
         <div><dt>FPS</dt><dd>{live ? debug.fps : "—"}</dd></div>
       </dl>
-      <p className="gesture-hint">✊ hold fist to charge → ✋ open to cast fireball · ✋ hold open palm (no charge) for shield</p>
+      <p className="gesture-hint">✊ hold → ✋ open: fireball · ✋ quick palm: shield · ✌️ peace: ice · ☝️ point up: ultimate</p>
       <ol className="gesture-log">
         {log.length === 0 && <li className="empty">No actions yet</li>}
         {log.map((entry) => <li key={entry.id}><span>{(entry.localTimestampMs / 1000).toFixed(2)}s</span>{entry.action}</li>)}

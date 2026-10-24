@@ -9,22 +9,28 @@ export interface GestureTimings {
   maxChargeMs: number;
   /** After the fist is lost, an open palm within this window still casts. */
   releaseWindowMs: number;
-  /** Open palm (without a preceding charge) must be held this long to raise a shield. */
-  shieldHoldMs: number;
-  /** Shield tolerates the palm disappearing for this long before ending. */
-  shieldGraceMs: number;
-  /** Local debounce after a cast. Server cooldowns are separate and authoritative. */
+  /** Local debounce after a fireball. Server cooldowns are separate and authoritative. */
   recoveryMs: number;
+  /** How long each one-shot pose must be held before its spell casts. */
+  holdMs: Record<HoldPose, number>;
 }
+
+/** Poses that cast a spell by simply being held (no charge/release). */
+export type HoldPose = "OPEN_PALM" | "VICTORY" | "POINT";
+
+export const HOLD_ACTIONS: Record<HoldPose, GestureAction> = {
+  OPEN_PALM: "SHIELD_CAST",
+  VICTORY: "ICE_CAST",
+  POINT: "ULTIMATE_CAST",
+};
 
 export const DEFAULT_TIMINGS: GestureTimings = {
   fistStableMs: 200,
   minChargeMs: 300,
   maxChargeMs: 1800,
   releaseWindowMs: 600,
-  shieldHoldMs: 350,
-  shieldGraceMs: 150,
   recoveryMs: 300,
+  holdMs: { OPEN_PALM: 250, VICTORY: 300, POINT: 500 },
 };
 
 export type GestureState =
@@ -33,8 +39,7 @@ export type GestureState =
   | { kind: "CHARGING"; since: number }
   | { kind: "RELEASE_WINDOW"; chargeSince: number; lostAt: number }
   | { kind: "RECOVERY"; until: number }
-  | { kind: "PALM_PENDING"; since: number }
-  | { kind: "SHIELD_ACTIVE"; lastPalmAt: number }
+  | { kind: "HOLD_PENDING"; pose: HoldPose; since: number }
   /** Wait for the hand to leave these poses before they can trigger again (e.g. after a timed-out charge). */
   | { kind: "REARM"; blockedPoses: HandPose[] };
 
@@ -42,6 +47,8 @@ export interface StepResult {
   state: GestureState;
   actions: GestureAction[];
 }
+
+const isHoldPose = (pose: HandPose): pose is HoldPose => pose in HOLD_ACTIONS;
 
 /**
  * Pure transition function: feed it smoothed poses with monotonic timestamps.
@@ -56,7 +63,7 @@ export function stepGesture(
   switch (state.kind) {
     case "IDLE":
       if (pose === "FIST") return { state: { kind: "FIST_PENDING", since: now }, actions: [] };
-      if (pose === "OPEN_PALM") return { state: { kind: "PALM_PENDING", since: now }, actions: [] };
+      if (isHoldPose(pose)) return { state: { kind: "HOLD_PENDING", pose, since: now }, actions: [] };
       return { state, actions: [] };
 
     case "FIST_PENDING":
@@ -88,17 +95,10 @@ export function stepGesture(
       if (now >= state.until && pose !== "OPEN_PALM") return stepGesture({ kind: "IDLE" }, pose, now, t);
       return { state, actions: [] };
 
-    case "PALM_PENDING":
-      if (pose !== "OPEN_PALM") return stepGesture({ kind: "IDLE" }, pose, now, t);
-      if (now - state.since >= t.shieldHoldMs) {
-        return { state: { kind: "SHIELD_ACTIVE", lastPalmAt: now }, actions: ["SHIELD_START"] };
-      }
-      return { state, actions: [] };
-
-    case "SHIELD_ACTIVE":
-      if (pose === "OPEN_PALM") return { state: { kind: "SHIELD_ACTIVE", lastPalmAt: now }, actions: [] };
-      if (now - state.lastPalmAt > t.shieldGraceMs) {
-        return { state: { kind: "REARM", blockedPoses: ["OPEN_PALM"] }, actions: ["SHIELD_END"] };
+    case "HOLD_PENDING":
+      if (pose !== state.pose) return stepGesture({ kind: "IDLE" }, pose, now, t);
+      if (now - state.since >= t.holdMs[state.pose]) {
+        return { state: { kind: "REARM", blockedPoses: [state.pose] }, actions: [HOLD_ACTIONS[state.pose]] };
       }
       return { state, actions: [] };
 
@@ -117,7 +117,6 @@ function release(chargeSince: number, now: number, t: GestureTimings): StepResul
 
 /** Actions needed to cleanly close out a state on Stop / camera loss. */
 export function resetGesture(state: GestureState): GestureAction[] {
-  if (state.kind === "SHIELD_ACTIVE") return ["SHIELD_END"];
   if (state.kind === "CHARGING" || state.kind === "RELEASE_WINDOW") return ["FIREBALL_CHARGE_CANCEL"];
   return [];
 }

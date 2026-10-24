@@ -1,11 +1,12 @@
-export type HandPose = "NONE" | "FIST" | "OPEN_PALM" | "VICTORY" | "UNKNOWN";
+export type HandPose = "NONE" | "FIST" | "OPEN_PALM" | "VICTORY" | "POINT" | "UNKNOWN";
 
 export type GestureAction =
   | "FIREBALL_CHARGE_START"
   | "FIREBALL_CHARGE_CANCEL"
   | "FIREBALL_CAST"
-  | "SHIELD_START"
-  | "SHIELD_END";
+  | "SHIELD_CAST"
+  | "ICE_CAST"
+  | "ULTIMATE_CAST";
 
 export type TrackingStatus = "CAMERA_OFF" | "STARTING" | "TRACKING" | "NO_HAND" | "ERROR";
 

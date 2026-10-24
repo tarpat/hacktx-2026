@@ -42,6 +42,7 @@ export function classifyPose(landmarks: Landmark[] | undefined): HandPose {
   if (all.every((s) => s === "curled")) return "FIST";
   if (all.every((s) => s === "extended")) return "OPEN_PALM";
   if (index === "extended" && middle === "extended" && ring === "curled" && pinky === "curled") return "VICTORY";
+  if (index === "extended" && middle === "curled" && ring === "curled" && pinky === "curled") return "POINT";
   return "UNKNOWN";
 }
 

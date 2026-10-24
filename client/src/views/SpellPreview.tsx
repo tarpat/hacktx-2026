@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import type { GestureActionEvent } from "../gesture/types";
 
+type Projectile = "fire" | "ice" | "bolt";
+const DAMAGE: Record<Projectile, number> = { fire: 20, ice: 10, bolt: 30 };
+
 /**
  * Throwaway mock of how gesture actions could look in a duel.
  * The real visuals live in the Phaser arena; this only exercises the action events.
@@ -8,29 +11,33 @@ import type { GestureActionEvent } from "../gesture/types";
 export function SpellPreview({ lastAction }: { lastAction: (GestureActionEvent & { id: number }) | null }) {
   const [charging, setCharging] = useState(false);
   const [shield, setShield] = useState(false);
-  const [fireballs, setFireballs] = useState<number[]>([]);
+  const [projectiles, setProjectiles] = useState<{ id: number; kind: Projectile }[]>([]);
   const [rivalHp, setRivalHp] = useState(100);
   const [hitId, setHitId] = useState(0);
+
+  const launch = (id: number, kind: Projectile) => {
+    setProjectiles((p) => [...p, { id, kind }]);
+    // Matches the CSS flight duration.
+    setTimeout(() => {
+      setProjectiles((p) => p.filter((x) => x.id !== id));
+      setRivalHp((hp) => (hp - DAMAGE[kind] <= 0 ? 100 : hp - DAMAGE[kind]));
+      setHitId(id);
+    }, 600);
+  };
 
   useEffect(() => {
     if (!lastAction) return;
     switch (lastAction.action) {
       case "FIREBALL_CHARGE_START": setCharging(true); break;
       case "FIREBALL_CHARGE_CANCEL": setCharging(false); break;
-      case "FIREBALL_CAST": {
-        setCharging(false);
-        const id = lastAction.id;
-        setFireballs((f) => [...f, id]);
-        // Matches the CSS flight duration.
-        setTimeout(() => {
-          setFireballs((f) => f.filter((x) => x !== id));
-          setRivalHp((hp) => (hp - 20 <= 0 ? 100 : hp - 20));
-          setHitId(id);
-        }, 600);
+      case "FIREBALL_CAST": setCharging(false); launch(lastAction.id, "fire"); break;
+      case "ICE_CAST": launch(lastAction.id, "ice"); break;
+      case "ULTIMATE_CAST": launch(lastAction.id, "bolt"); break;
+      case "SHIELD_CAST":
+        setShield(true);
+        // Mirrors the engine's 900 ms guard window.
+        setTimeout(() => setShield(false), 900);
         break;
-      }
-      case "SHIELD_START": setShield(true); break;
-      case "SHIELD_END": setShield(false); break;
     }
   }, [lastAction]);
 
@@ -45,7 +52,7 @@ export function SpellPreview({ lastAction }: { lastAction: (GestureActionEvent &
         {charging && <span className="preview-charge" />}
         {shield && <span className="preview-shield" />}
       </div>
-      {fireballs.map((id) => <span key={id} className="preview-fireball" />)}
+      {projectiles.map(({ id, kind }) => <span key={id} className={`preview-fireball ${kind}`} />)}
       <div key={hitId} className={`preview-wizard rival${hitId ? " is-hit" : ""}`}>🧙‍♂️</div>
     </div>
   </div>;
