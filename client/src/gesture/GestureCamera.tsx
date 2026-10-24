@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { SpellId } from "@spellcaster/shared";
+import { startCharge, stopCharge } from "../audio/sound";
 import { spellInput } from "../game/input";
 import { spellGlyph } from "../theme";
 import { ChargeOrb, type ActiveCharge, type ChargeOutcome } from "./ChargeOrb";
@@ -73,11 +74,13 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
           current = { kind, startedAt: current?.startedAt ?? localTimestampMs };
           setChargeOutcome(null);
           setCharge(current);
+          startCharge(kind);
         }
         if (action === "FIREBALL_CAST" || action === "ULTIMATE_CAST" || action === "CHARGE_CANCEL") {
           const kind: ChargeKind = action === "ULTIMATE_CAST" ? "ultimate" : action === "FIREBALL_CAST" ? "fireball" : current?.kind ?? "fireball";
           current = null;
           setCharge(null);
+          stopCharge(action === "CHARGE_CANCEL" ? 0.4 : 0.06);
           setChargeOutcome({ kind, result: action === "CHARGE_CANCEL" ? "fizzle" : "cast" });
         }
         if (action === "STRUGGLE_PUSH") return spellInput.push();
@@ -93,6 +96,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
       controller.stop();
+      stopCharge();
     };
   }, []);
 
@@ -102,6 +106,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
     if (!controller || !video) return;
     if (!enabled) {
       controller.stop();
+      stopCharge();
       setCharge(null);
       setChargeOutcome(null);
       return;
