@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { MapPicker, useMapChoice } from "../arena/MapPicker";
 import { LocalDuel, type LocalMode } from "../game/duelSource";
-import { Spellbook } from "../gesture/Spellbook";
 import { DuelScreen } from "../hud/DuelScreen";
 
 const MODES: { mode: LocalMode; label: string }[] = [
@@ -19,6 +19,7 @@ export function PracticeView() {
   const requested = params.get("mode");
   const mode: LocalMode = isMode(requested) ? requested : "bot";
   const [source, setSource] = useState<LocalDuel | null>(null);
+  const [map, setMap] = useMapChoice();
   useEffect(() => {
     const duel = new LocalDuel(mode);
     setSource(duel);
@@ -31,10 +32,12 @@ export function PracticeView() {
       key={mode}
       source={source}
       hotseat={mode === "hotseat"}
+      map={map}
       onLeave={() => navigate("/")}
       header={
         <nav className="duel-nav">
           <span className="duel-mode">{mode === "training" ? "TRAINING · DUMMY WON'T FIGHT BACK" : "PRACTICE"}</span>
+          <MapPicker value={map} onChange={setMap} compact />
           {MODES.map(({ mode: m, label }) => (
             <button key={m} className={mode === m ? "active" : ""} onClick={() => setParams(m === "bot" ? {} : { mode: m })}>
               {label}
@@ -43,7 +46,6 @@ export function PracticeView() {
           <Link to="/">Leave</Link>
         </nav>
       }
-      footer={mode !== "hotseat" && <Spellbook />}
     />
   );
 }

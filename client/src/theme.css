@@ -6,25 +6,28 @@
 @import url("https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@500;700&family=Nunito:wght@400;600;700;800&display=swap");
 
 :root {
-  --night: #120d2b;
-  --night-2: #1d1645;
-  --dusk: #2e2163;
-  --plum: #4b2c7a;
+  /* Rapunzel twilight: lantern gold, forest green and royal purple. */
+  --night: #1c1236;
+  --night-2: #2a1a4f;
+  --dusk: #3a2466;
+  --plum: #5b2a86;
   --gold: #f6c453;
   --gold-soft: #ffe7a8;
   --parchment: #fff4dc;
-  --mist: #b8acd9;
-  --muted: #8a80ad;
-  --rose: #f48fb1;
-  --mint: #7fe0c9;
-  --ember: #ff7a59;
-  --frost: #8ec5ff;
-  --leaf: #7ed67a;
+  --mist: #d4c4ee;
+  --muted: #a493c8;
+  --rose: #f4a6c0;
+  --mint: #9be38a;
+  --ember: #ff8a4c;
+  --frost: #b9d4ff;
+  --leaf: #7ccf6b;
+  --forest: #2f6b3f;
+  --lavender: #b28ddb;
   --berry: #ff4f7b;
-  --line: #ffffff1f;
+  --line: #ffffff24;
 
-  --player-a: var(--rose);
-  --player-b: var(--mint);
+  --player-a: #9be38a;
+  --player-b: #cfb2f5;
 
   --font-title: "Cinzel Decorative", serif;
   --font-label: "Cinzel", serif;

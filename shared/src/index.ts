@@ -55,6 +55,8 @@ export interface ClientToServerEvents {
   POWER_UP_REQUEST: (request: PowerUpRequest, callback?: (ack: CastAck) => void) => void;
   /** One push in a spell struggle. The engine rate-limits pushes, so no payload or ack is needed. */
   STRUGGLE_PUSH: () => void;
+  /** The room creator's map pick (0-2); every match in the room uses it. */
+  STAGE_PREFERENCE: (stageId: number) => void;
 }
 
 export interface ServerToClientEvents {
