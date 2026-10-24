@@ -72,3 +72,10 @@ Open `/audio-test` for standalone playback without a room or device permissions.
 In practice or an online duel, click **Enable duel audio** for confirmed fireball,
 shield, block and damage cues. Use the mute and volume controls for each device.
 See [client/AUDIO.md](client/AUDIO.md) for the audio interface, tests and scope.
+
+## Voice casting
+
+Expand **Voice casting** during a duel and click **Speak a spell** to transcribe one
+phrase and request an attack. Say fireball/Incendio, shield/Protego, ice/Glacius, or
+ultimate/Fulmen. On-device recognition is the default; browser speech-service processing
+requires explicit opt-in. See [client/VOICE.md](client/VOICE.md) for support and tests.

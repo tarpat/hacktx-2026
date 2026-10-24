@@ -1,0 +1,11 @@
+.voice-controls{flex-shrink:0;border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--mist);font-size:12px}
+.voice-controls summary{cursor:pointer;color:var(--gold-soft);font-weight:700}
+.voice-body{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:8px}
+.voice-body p{flex-basis:100%;margin:0;line-height:1.5}
+.voice-body label{display:flex;align-items:center;gap:8px}
+.voice-body input{accent-color:var(--gold)}
+.voice-body .voice-privacy{font-size:11px;color:var(--mist)}
+.voice-body button{padding:8px 14px;border:1px solid var(--gold);border-radius:4px;color:var(--night);background:var(--gold-soft);cursor:pointer}
+.voice-body button:disabled{opacity:.5;cursor:not-allowed}
+.voice-transcript output{color:var(--parchment);overflow-wrap:anywhere}
+.voice-controls :focus-visible{outline:2px solid var(--gold);outline-offset:3px}

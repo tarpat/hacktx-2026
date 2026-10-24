@@ -12,6 +12,7 @@ import { CountdownOverlay, MatchClock } from "./MatchClock";
 import { SpellTray } from "./SpellTray";
 import { VictoryOverlay } from "./VictoryOverlay";
 import { CombatAudioControls } from "../audio/CombatAudioControls";
+import { VoiceControls } from "../voice/VoiceControls";
 
 interface DuelScreenProps {
   source: DuelSource;
@@ -140,6 +141,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       </header>
 
       <CombatAudioControls source={source} />
+      <VoiceControls source={source} />
 
       {state && (
         <section className="duel-hud">

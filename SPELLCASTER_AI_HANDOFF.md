@@ -473,7 +473,7 @@ Mark these only after actually testing them; record environment and commands in 
 | Camera preview | **Not verified** | Manual browser test |
 | MediaPipe model | **Not verified** | Inspect dependencies and live recognition |
 | Gesture state machine | **Not verified** | Inspect implementation and unit tests |
-| Voice track | **Owned by teammate; unknown** | Don't edit without agreement |
+| Voice track | **Implemented on `feat/voice-casting`; live microphone accuracy unknown** | User in the audio chat owns transcription-to-attack mapping. See `client/VOICE.md`; automated tests use synthetic speech callbacks. |
 | Phaser visuals | **Owned by teammate; unknown** | Don't edit without agreement |
 | Deployment/demo | **Unknown** | Test live two-device setup |
 
@@ -487,11 +487,43 @@ Mark these only after actually testing them; record environment and commands in 
 
 **Known blockers:** Repo contents, available installed dependencies, actual event contract, and teammate merge status have not been provided to this handoff file.
 
+### Audio-owner session update (2026-10-24)
+
+The earlier Developer A status above is historical. In the audio chat the user explicitly
+confirmed ownership of speech transcription and mapping it to an attack, in addition
+to sound output. This branch combines `origin/main` through `8246b87` (gesture arena)
+with the audio slices. Existing game types and `spellInput.cast` remain canonical.
+Voice is implemented in `client/src/voice/`, mounted in `DuelScreen`, and isolated from
+camera code and server combat rules. Local processing is the default; optional browser
+speech-service processing requires explicit UI opt-in and disclosure. No microphone
+recording or live provider accuracy was tested. See the session entry below for checks.
+
 ---
 
 ## 14. Append-Only Engineering Change Log
 
 > Use newest entry at top. Every AI coding session should add a dated entry after implementation, even if incomplete. Never fabricate tests, commits, or results.
+
+### [2026-10-24] Audio owner: speech transcription mapped to attack requests
+
+- **Branch:** `feat/voice-casting`; includes the first two audio slices and latest gesture integration.
+- **Files:** `client/src/voice/{commands,recognition,VoiceControls,voice.css}`, the narrow mount in
+  `client/src/hud/DuelScreen.tsx`, `client/tests/audio/voice.test.ts`,
+  `client/tests/combat-browser/voice.spec.ts`, `client/VOICE.md`, README/integration notes and this log.
+- **Behavior:** Explicit one-utterance listening, displayed interim/final text, one final command
+  mapped to fireball/shield/ice/ultimate through `spellInput.cast`. Rejections and damage remain
+  authoritative. Unknown/ambiguous speech does not cast. Stop, hidden tab and source cleanup abort
+  listening. Browser-service processing is opt-in; no silent remote fallback.
+- **Final checks:** `npm test` passes 19 engine + 43 audio/voice behavior tests. `npm run typecheck`
+  and `npm run build` pass (existing large-bundle warning). Chrome combat/voice suite passes 10/10,
+  including actual two-session online HP updates from synthetic transcripts; the Chrome playground
+  regression suite passes 9/9. Edge speech integration passes 6/6. The voice panel was visually
+  inspected. No live microphone or external speech service was used by these tests.
+- **Corrections during testing:** Resolved route merge conflicts while retaining `/audio-test` and
+  `/gesture-test`; fixed unsupported-browser messaging being replaced by idle cleanup, and named
+  the voice status separately from the transcript's implicit output status.
+- **Remaining:** Native speech-service/language-pack availability, real microphone permissions,
+  recognition accuracy, cross-talk and physical microphone release need demo-device validation.
 
 ### [2026-10-24] Initial portable handoff created
 
@@ -536,6 +568,16 @@ Mark these only after actually testing them; record environment and commands in 
 ---
 
 ## 15. Next Actions — KEEP CURRENT
+
+### Audio / speech owner
+
+1. On the actual demo laptop, open Voice casting and verify a local English language pack, or
+   explicitly opt in to browser speech-service processing before listening.
+2. Rehearse the four commands and incantations; record accuracy and latency. Test Stop, denied
+   permissions, route leave and microphone indicator behavior. Use headphones or one room output.
+3. Keep the first voice slice to one explicit utterance per click. Continuous listening, voice
+   power-ups and gesture-plus-voice bonuses need separate reliability and integration work.
+4. Playback countdown/victory cues remain the next output slice; do not confuse it with speech input.
 
 ### For the next Developer A work session
 

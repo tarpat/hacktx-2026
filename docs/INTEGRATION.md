@@ -8,7 +8,11 @@ This contract reflects the deterministic duel engine currently on the PR branch.
 - Internal spell IDs are `fireball`, `shield`, `ice`, and `ultimate`; displayed incantations are Incendio, Protego, Glacius, and Fulmen.
 - Power-up IDs are `empower`, `haste`, and `heal`.
 - The server owns the online match engine, clock, health, cooldowns, projectiles, blocks, clashes, and match outcome. Practice uses the same engine locally.
-- Keep camera and microphone media on-device. Send discrete spell or power-up intents only.
+- Keep camera media on-device. Send discrete spell or power-up intents only; microphone
+  processing follows the explicit voice opt-in rules below.
+- Voice defaults to on-device recognition. Only explicit browser-service opt-in permits
+  provider speech processing, disclosed in the voice UI; raw audio and transcripts are
+  never sent to the game server.
 
 ## Client inputs
 
@@ -37,6 +41,15 @@ must deliver each match's countdown because it has no explicit match ID.
 Audio remains optional: the user clicks to enable output, and missing assets or muted
 sound do not block combat. Phaser audio is disabled in this screen because the audio
 module owns output. See [client/AUDIO.md](../client/AUDIO.md) for tests and ownership.
+
+### Speech input
+
+`VoiceControls` uses `VoiceCaster` to display interim/final transcripts and map a complete
+spoken command to `spellInput.cast(spell, source.localSlot)`. Only one final command per
+explicit listening session can submit an intent. Native speech results never apply
+damage, alter cooldowns or trigger playback directly. Rejections still arrive through
+the authoritative stream. See [client/VOICE.md](../client/VOICE.md) for aliases, privacy,
+lifecycle and the distinction between synthetic tests and live speech validation.
 
 ## Current balance and effects
 
