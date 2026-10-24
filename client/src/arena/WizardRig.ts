@@ -32,20 +32,20 @@ interface WizardConfig {
 const WIZARD_CONFIGS: Record<PlayerSlot, WizardConfig> = {
   A: {
     texture: "wizard-green",
-    targetHeight: 230,
+    targetHeight: 138,
     originX: 0.444,
     originY: 1.0,
-    staffX: 93,
-    staffY: -151,
+    staffX: 56,
+    staffY: -91,
     orbColor: 0xffe27a,
   },
   B: {
     texture: "wizard-purple",
-    targetHeight: 250,
+    targetHeight: 150,
     originX: 0.395,
     originY: 1.0,
-    staffX: 79,
-    staffY: -162,
+    staffX: 47,
+    staffY: -97,
     orbColor: 0xc9a8f0,
   },
 };
@@ -101,6 +101,8 @@ export class WizardRig {
   private readonly width: number;
   private readonly height: number;
   private readonly baseScale: number;
+  /** Pose offsets are authored for a 230-unit wizard; this scales them to the actual size. */
+  private readonly px: number;
 
   private readonly slide = new Spring(0, 260, 16);
   private readonly lift = new Spring(0, 260, 18);
@@ -138,6 +140,7 @@ export class WizardRig {
     this.width = source.width;
     this.height = source.height;
     this.baseScale = cfg.targetHeight / Math.max(1, this.height);
+    this.px = cfg.targetHeight / 230;
     // Each strip overlaps the next by a pixel so bending never opens a seam.
     for (let i = 0; i < STRIPS; i++) {
       const y0 = Math.floor((i * this.height) / STRIPS);
@@ -152,12 +155,12 @@ export class WizardRig {
 
     // Casting node attached to the staff head
     this.castNode = scene.add.container(cfg.staffX, cfg.staffY);
-    this.staffGlow = scene.add.circle(0, 0, 24, cfg.orbColor, 0.45).setVisible(false);
+    this.staffGlow = scene.add.circle(0, 0, 14, cfg.orbColor, 0.45).setVisible(false);
 
     this.castOrb = scene.add.container(0, 0);
-    this.castOrbGlow = scene.add.circle(0, 0, 22, palette.gold, 0.3);
-    this.castOrbCore = scene.add.circle(0, 0, 11, palette.gold, 1);
-    this.castOrb.add([this.castOrbGlow, this.castOrbCore, scene.add.circle(0, 0, 4, 0xffffff, 0.9)]);
+    this.castOrbGlow = scene.add.circle(0, 0, 13, palette.gold, 0.3);
+    this.castOrbCore = scene.add.circle(0, 0, 7, palette.gold, 1);
+    this.castOrb.add([this.castOrbGlow, this.castOrbCore, scene.add.circle(0, 0, 2.5, 0xffffff, 0.9)]);
     this.castOrb.setScale(0);
 
     this.castNode.add([this.staffGlow, this.castOrb]);
@@ -238,7 +241,7 @@ export class WizardRig {
     const scaleX = this.widen.step(pose.scaleX, dt);
     this.orb += (pose.orb - this.orb) * (1 - Math.exp(-delta / 30));
 
-    this.rig.setPosition(x, y);
+    this.rig.setPosition(x * this.px, y * this.px);
     this.bend(lean, lean - trail, this.head.value, scaleX, scaleY, now);
     this.castOrb.setScale(Math.max(0, this.orb));
     this.castOrb.rotation += delta / 120;
@@ -407,8 +410,8 @@ export class WizardRig {
         last = Math.max(last, delay + duration);
         scene.tweens.add({
           targets: piece,
-          x: piece.x - 60 - Math.random() * 140,
-          y: piece.y - 50 - Math.random() * 120,
+          x: piece.x - (60 + Math.random() * 140) * this.px,
+          y: piece.y - (50 + Math.random() * 120) * this.px,
           angle: (Math.random() - 0.5) * 240,
           scale: piece.scaleX * 0.2,
           alpha: 0,

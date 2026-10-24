@@ -5,6 +5,8 @@ export interface Ledge {
   x: number;
   y: number;
   width: number;
+  flipX?: boolean;
+  bob?: number;
 }
 
 export interface ArenaMap {
@@ -14,35 +16,40 @@ export interface ArenaMap {
   ledges: Ledge[];
 }
 
-// Ledges sit above the spells' flight path (about 50-60% down) so they never hide a cast.
+// Ledges sit gracefully in the upper forest canopy above the wizards and spells.
 export const MAPS: Record<MapId, ArenaMap> = {
   "twin-ledges": {
     id: "twin-ledges",
     name: "Twin Ledges",
-    blurb: "Two vine ledges flank the tower, with a lookout up top.",
+    blurb: "Symmetrical duelists' balconies frame the arena, crowned by a high spire lookout.",
     ledges: [
-      { x: 0.5, y: 0.17, width: 0.2 },
-      { x: 0.3, y: 0.36, width: 0.24 },
-      { x: 0.7, y: 0.36, width: 0.24 },
+      { x: 0.5, y: 0.13, width: 0.22, bob: 4 },
+      { x: 0.25, y: 0.28, width: 0.21, bob: 5 },
+      { x: 0.75, y: 0.28, width: 0.21, flipX: true, bob: 5 },
+      { x: 0.13, y: 0.44, width: 0.17, bob: 6 },
+      { x: 0.87, y: 0.44, width: 0.17, flipX: true, bob: 6 },
     ],
   },
   "high-plateau": {
     id: "high-plateau",
     name: "High Plateau",
-    blurb: "A long bough spans the clearing beneath a high perch.",
+    blurb: "A grand sky terrace spans the upper canopy with stepped approach boughs.",
     ledges: [
-      { x: 0.32, y: 0.18, width: 0.2 },
-      { x: 0.5, y: 0.35, width: 0.48 },
+      { x: 0.5, y: 0.16, width: 0.36, bob: 4 },
+      { x: 0.22, y: 0.3, width: 0.22, bob: 5 },
+      { x: 0.78, y: 0.3, width: 0.22, flipX: true, bob: 5 },
+      { x: 0.5, y: 0.46, width: 0.22, bob: 6 },
     ],
   },
   "staggered-rise": {
     id: "staggered-rise",
     name: "Staggered Rise",
-    blurb: "Branches climb unevenly toward the lanterns.",
+    blurb: "Vine boughs ascend dynamically across the glade toward the waterfall cliffs.",
     ledges: [
-      { x: 0.52, y: 0.16, width: 0.22 },
-      { x: 0.3, y: 0.35, width: 0.26 },
-      { x: 0.73, y: 0.27, width: 0.26 },
+      { x: 0.17, y: 0.48, width: 0.18, bob: 6 },
+      { x: 0.38, y: 0.36, width: 0.2, bob: 5 },
+      { x: 0.59, y: 0.24, width: 0.21, flipX: true, bob: 5 },
+      { x: 0.81, y: 0.13, width: 0.22, flipX: true, bob: 4 },
     ],
   },
 };
