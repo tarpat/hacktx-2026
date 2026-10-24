@@ -281,7 +281,7 @@ export const sfx = {
       boom(0.3, 0.45);
       play("taurusBellow", { delay: 0.32, volume: 0.9 });
       play("taurusGallop", { delay: 0.34 });
-      rumble(0.34, 1.2, 0.3);
+      rumble(0.34, 1.7, 0.3);
     } else {
       // Calling the storm: a charged hum and thunder gathering far away.
       play("ultimateCast");

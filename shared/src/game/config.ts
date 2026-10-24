@@ -82,7 +82,7 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
     shield: { id: "shield", name: "Protego", incantation: "Protego!", damage: 0, cooldownMs: 4_000, travelMs: 0, offensive: false },
     ice: { id: "ice", name: "Glacius", incantation: "Glacius!", damage: 10, cooldownMs: 9_000, travelMs: 1_300, offensive: true },
     ultimate: { id: "ultimate", name: "Fulmen", incantation: "Fulmen!", damage: 30, cooldownMs: 0, travelMs: 1_900, offensive: true },
-    taurus: { id: "taurus", name: "Taurus", incantation: "Hook 'em!", damage: 15, cooldownMs: 7_000, travelMs: 1_200, offensive: true },
+    taurus: { id: "taurus", name: "Taurus", incantation: "Hook 'em!", damage: 15, cooldownMs: 7_000, travelMs: 1_700, offensive: true },
   },
   powerUps: {
     empower: { id: "empower", name: "Empowered", durationMs: 8_000 },
