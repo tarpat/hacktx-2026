@@ -3,6 +3,7 @@ import { Link, Route, Routes, useNavigate } from "react-router-dom";
 import type { CreateRoomResult, JoinRoomResult, SocketError } from "@spellcaster/shared";
 import { MapPicker, useMapChoice } from "./arena/MapPicker";
 import { MAP_ORDER, type MapId } from "./arena/maps";
+import { Spellbook } from "./gesture/Spellbook";
 import { setSession, useSession } from "./session";
 import { socket } from "./socket";
 import { ArenaView } from "./views/ArenaView";
@@ -61,6 +62,11 @@ function Lobby() {
         <Link className="practice-link" to="/practice?mode=training">✧ Practice against the training dummy</Link>
       </div>
       <div className="hero-foot"><span>✧</span> TWO WIZARDS. ONE ARENA. <span>✧</span></div>
+    </section>
+    <section className="home-spellbook">
+      <p className="eyebrow">YOUR SPELLBOOK</p>
+      <h2>How to cast</h2>
+      <Spellbook />
     </section>
   </main>;
 }

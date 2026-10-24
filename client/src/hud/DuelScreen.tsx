@@ -51,9 +51,13 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   const [toast, setToast] = useState<Banner | null>(null);
   const now = useMatchNow(source);
   const host = useRef<HTMLDivElement>(null);
+  const top = useRef<HTMLDivElement>(null);
+  const bottom = useRef<HTMLElement>(null);
   const scene = useRef<ArenaScene | null>(null);
-  const frame = useRef<ArenaFrame>({ state, now, leftSlot: source.localSlot, map });
-  frame.current = { state, now, leftSlot: source.localSlot, map };
+  // The arena fills the screen; the HUD floats over it, so tell the scene what is covered.
+  const [insets, setInsets] = useState({ top: 0, bottom: 0 });
+  const frame = useRef<ArenaFrame>({ state, now, leftSlot: source.localSlot, map, insets });
+  frame.current = { state, now, leftSlot: source.localSlot, map, insets };
 
   const left = source.localSlot;
   const right = opponentOf(left);
@@ -113,6 +117,15 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   }, []);
 
   useEffect(() => {
+    const measure = () => setInsets({ top: top.current?.offsetHeight ?? 0, bottom: bottom.current?.offsetHeight ?? 0 });
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (top.current) observer.observe(top.current);
+    if (bottom.current) observer.observe(bottom.current);
+    return () => observer.disconnect();
+  }, [state !== null]);
+
+  useEffect(() => {
     if (!banner) return;
     const timeout = setTimeout(() => setBanner(null), 2_200);
     return () => clearTimeout(timeout);
@@ -127,21 +140,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   const castAs = (slot: PlayerSlot) => (slot === left || hotseat ? (spell: SpellId) => spellInput.cast(spell, slot) : undefined);
 
   return (
-    <main className="duel">
-      <header className="duel-header">
-        <span className="brand-mark">✦</span>
-        <span className="duel-brand">SPELLCASTER</span>
-        {header}
-      </header>
-
-      {state && (
-        <section className="duel-hud">
-          <HealthBar slot={left} name={playerName[left]} hp={state.players[left].hp} maxHp={state.players[left].maxHp} side="left" isYou={!hotseat} />
-          <MatchClock state={state} now={now} />
-          <HealthBar slot={right} name={playerName[right]} hp={state.players[right].hp} maxHp={state.players[right].maxHp} side="right" isYou={false} />
-        </section>
-      )}
-
+    <main className="duel" style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
       <div className={`duel-stage ${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
         <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} />
@@ -157,16 +156,31 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
             {toast.text}
           </div>
         )}
-        {state && <VictoryOverlay state={state} localSlot={left} onRematch={() => source.rematch()} onLeave={onLeave} rematchLabel={rematchLabel} />}
+      </div>
+
+      <div className="duel-top" ref={top}>
+        <header className="duel-header">
+          <span className="brand-mark">✦</span>
+          <span className="duel-brand">SPELLCASTER</span>
+          {header}
+        </header>
+        {state && (
+          <section className="duel-hud">
+            <HealthBar slot={left} name={playerName[left]} hp={state.players[left].hp} maxHp={state.players[left].maxHp} side="left" isYou={!hotseat} />
+            <MatchClock state={state} now={now} />
+            <HealthBar slot={right} name={playerName[right]} hp={state.players[right].hp} maxHp={state.players[right].maxHp} side="right" isYou={false} />
+          </section>
+        )}
       </div>
 
       {state && (
-        <section className="duel-trays">
+        <section className="duel-trays" ref={bottom}>
           <SpellTray player={state.players[left]} now={now} onCast={castAs(left)} side="left" keySet="primary" />
           <SpellTray player={state.players[right]} now={now} onCast={castAs(right)} side="right" keySet={hotseat ? "secondary" : null} />
         </section>
       )}
       {footer}
+      {state && <VictoryOverlay state={state} localSlot={left} onRematch={() => source.rematch()} onLeave={onLeave} rematchLabel={rematchLabel} />}
     </main>
   );
 }

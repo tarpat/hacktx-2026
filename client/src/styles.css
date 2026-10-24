@@ -1798,3 +1798,124 @@ img.spell-glyph {
     height: 32px;
   }
 }
+
+/* ---------- full-screen duel: arena behind, HUD and spell cards float over it ---------- */
+
+.duel {
+  position: relative;
+  display: block;
+  height: 100vh;
+  min-height: 560px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.duel .duel-stage {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+}
+
+.duel .duel-stage.suddenDeath {
+  box-shadow: inset 0 0 0 4px var(--berry), inset 0 0 80px #ff4f7b55;
+}
+
+.duel-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  padding: 0 3vw 14px;
+  background: linear-gradient(180deg, #1c1236e6 0%, #1c1236a6 55%, transparent 100%);
+}
+
+.duel-top .duel-header {
+  border-bottom-color: #ffffff1a;
+}
+
+.duel .duel-trays {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18px;
+  padding: 26px 3vw 14px;
+  background: linear-gradient(0deg, #1c1236f2 0%, #1c1236b3 60%, transparent 100%);
+}
+
+.duel .health-name,
+.duel .health-value,
+.duel .meter span {
+  text-shadow: 0 2px 6px #000c;
+}
+
+/* Floating messages stay inside the open band between the HUD and the cards. */
+.duel .banner {
+  top: calc(var(--top-inset) + 10px);
+}
+
+.duel .toast {
+  bottom: calc(var(--bottom-inset) + 12px);
+}
+
+.duel .gesture-cam {
+  top: calc(var(--top-inset) + 10px);
+}
+
+.duel .struggle {
+  top: calc(var(--top-inset) + 10px);
+}
+
+.duel .struggle-orb {
+  top: calc(var(--top-inset) + (100% - var(--top-inset) - var(--bottom-inset)) * 0.62);
+}
+
+.duel .victory {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+}
+
+/* Spellbook on the home page */
+.home-spellbook {
+  max-width: 1180px;
+  margin: 0 auto 56px;
+  text-align: center;
+}
+
+.home-spellbook h2 {
+  font: 900 clamp(24px, 3vw, 34px) var(--font-title);
+  color: var(--gold-soft);
+  margin: 8px 0 18px;
+}
+
+.home-spellbook .spellbook {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  text-align: left;
+}
+
+@media (max-width: 760px) {
+  .duel {
+    height: 100vh;
+  }
+
+  .duel .duel-trays {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding-top: 14px;
+  }
+
+  .home-spellbook .spellbook {
+    grid-template-columns: 1fr;
+  }
+}

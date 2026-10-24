@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { MapPicker, useMapChoice } from "../arena/MapPicker";
 import { LocalDuel, type LocalMode } from "../game/duelSource";
-import { Spellbook } from "../gesture/Spellbook";
 import { DuelScreen } from "../hud/DuelScreen";
 
 const MODES: { mode: LocalMode; label: string }[] = [
@@ -47,7 +46,6 @@ export function PracticeView() {
           <Link to="/">Leave</Link>
         </nav>
       }
-      footer={mode !== "hotseat" && <Spellbook />}
     />
   );
 }

@@ -10,6 +10,8 @@ export interface ArenaFrame {
   /** The wizard drawn on the left; online play puts the local player there. */
   leftSlot: PlayerSlot;
   map: MapId;
+  /** Screen space covered by the floating HUD (top) and spell cards (bottom), in pixels. */
+  insets: { top: number; bottom: number };
 }
 
 interface WizardView {
@@ -112,7 +114,8 @@ export class ArenaScene extends Phaser.Scene {
   // ---------- layout ----------
 
   private sizeKey() {
-    return `${Math.round(this.scale.width)}x${Math.round(this.scale.height)}`;
+    const { top, bottom } = this.getFrame().insets;
+    return `${Math.round(this.scale.width)}x${Math.round(this.scale.height)}:${Math.round(top)}:${Math.round(bottom)}`;
   }
 
   private anchor(slot: PlayerSlot) {
@@ -129,7 +132,9 @@ export class ArenaScene extends Phaser.Scene {
 
   private build() {
     const { width, height } = this.scale;
-    this.unit = Math.max(0.55, Math.min(1.3, height / 520));
+    const { top, bottom } = this.getFrame().insets;
+    // Size wizards to the open band between the floating HUD and the spell cards.
+    this.unit = Math.max(0.5, Math.min(1.3, (height - top - bottom) / 430));
     this.projectiles.clear();
     this.lastPositions.clear();
     this.releases.clear();
@@ -137,20 +142,30 @@ export class ArenaScene extends Phaser.Scene {
     this.builtSize = this.sizeKey();
     this.drawBackdrop(width, height);
     this.wizards = { A: this.makeWizard("A"), B: this.makeWizard("B") };
-    this.drawForeground(width, height);
   }
 
   private drawBackdrop(width: number, height: number) {
-    // Cover the stage with the forest-and-tower painting, anchored so its brick path stays in view.
-    const scale = Math.max(width / BG_SIZE.width, height / BG_SIZE.height);
-    const top = height - BG_SIZE.height * scale;
+    const insets = this.getFrame().insets;
+    // The brick path sits just above the spell cards so the wizards are never covered.
+    this.groundY = height - insets.bottom - 14 * this.unit;
+    // Cover the screen with the forest-and-tower painting, scaled so its path lands on groundY
+    // and the top edge never shows.
+    const scale = Math.max(width / BG_SIZE.width, this.groundY / BG_PATH_Y);
+    const top = this.groundY - BG_PATH_Y * scale;
     this.add.image(width / 2, top, BACKGROUND).setOrigin(0.5, 0).setScale(scale);
-    this.groundY = top + BG_PATH_Y * scale;
+
+    // Below the painting, extend the forest floor behind the spell cards.
+    const paintingBottom = top + BG_SIZE.height * scale;
+    for (let y = paintingBottom - 30 * scale; y < height; ) {
+      const floor = this.add.image(width / 2, y, "ground").setOrigin(0.5, 0);
+      floor.setScale((width * 1.06) / floor.width);
+      y += floor.displayHeight * 0.55;
+    }
 
     // Lanterns drifting up into the sunset.
     this.add.particles(0, 0, SPARK, {
       x: { min: 0, max: width },
-      y: height * 0.75,
+      y: this.groundY,
       speedY: { min: -18, max: -38 },
       speedX: { min: -6, max: 6 },
       lifespan: 14_000,
@@ -162,18 +177,14 @@ export class ArenaScene extends Phaser.Scene {
       advance: 10_000,
     });
 
+    // Ledge heights are fractions of the open band above the path, so they clear the HUD.
+    const band = this.groundY - insets.top;
     for (const ledge of MAPS[this.builtMap ?? "twin-ledges"].ledges) {
-      const branch = this.add.image(width * ledge.x, height * ledge.y, "platform-upper");
+      const y = insets.top + (ledge.y / 0.85) * band;
+      const branch = this.add.image(width * ledge.x, y, "platform-upper");
       branch.setScale((width * ledge.width) / branch.width);
       this.tweens.add({ targets: branch, y: branch.y - 5 * this.unit, duration: 2600 + ledge.x * 1200, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
     }
-  }
-
-  private drawForeground(width: number, height: number) {
-    // Grass, flowers and a fallen log in front of the path frame the duel.
-    const ground = this.add.image(width / 2, this.groundY + 26 * this.unit, "ground").setOrigin(0.5, 0).setDepth(9);
-    ground.setScale((width * 1.04) / ground.width);
-    if (ground.y + 40 > height) ground.setY(height - 40 * this.unit);
   }
 
   private makeWizard(slot: PlayerSlot): WizardView {
