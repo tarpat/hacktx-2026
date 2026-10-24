@@ -1,34 +1,35 @@
 import { useState } from "react";
 import { Link, Route, Routes, useNavigate } from "react-router-dom";
-import type { RoomSnapshot, SocketError } from "@spellcaster/shared";
+import type { CreateRoomResult, JoinRoomResult, SocketError } from "@spellcaster/shared";
+import { setSession, useSession } from "./session";
 import { socket } from "./socket";
 import { ArenaView } from "./views/ArenaView";
+import { PracticeView } from "./views/PracticeView";
 
 function Lobby() {
   const navigate = useNavigate();
   const [code, setCode] = useState("");
-  const [room, setRoom] = useState<RoomSnapshot | null>(null);
+  const room = useSession()?.room ?? null;
   const [error, setError] = useState("");
+
+  const handleResult = (result: CreateRoomResult | JoinRoomResult | SocketError) => {
+    if ("error" in result) return setError(result.error);
+    setError("");
+    setSession({ room: result.room, slot: result.playerSlot });
+  };
 
   const createRoom = () => {
     socket.connect();
-    socket.emit("CREATE_ROOM", (result) => {
-      if ("error" in result) return setError(result.error);
-      setRoom(result.room);
-    });
+    socket.emit("CREATE_ROOM", handleResult);
   };
 
   const joinRoom = () => {
     socket.connect();
-    socket.emit("JOIN_ROOM", code, (result) => {
-      if ("error" in result) return setError((result as SocketError).error);
-      setRoom(result.room);
-    });
+    socket.emit("JOIN_ROOM", code, handleResult);
   };
 
   const continueToCalibration = () => {
-    if (!room) return;
-    navigate("/calibration", { state: { room } });
+    if (room) navigate("/calibration");
   };
 
   return <main className="shell lobby-shell">
@@ -40,8 +41,9 @@ function Lobby() {
         <button className="primary-button" onClick={createRoom}>Create a duel <span>↗</span></button>
         <div className="divider"><span>OR JOIN A FRIEND</span></div>
         <div className="join-row"><input aria-label="Room code" placeholder="ENTER ROOM CODE" maxLength={5} value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} /><button className="secondary-button" disabled={code.length < 5} onClick={joinRoom}>Join</button></div>
-        {room && <div className="room-ready"><span>ROOM CODE</span><strong>{room.code}</strong><p>{room.players.B ? "Rival joined. Ready when you are." : "Share the code with your rival."}</p><button className="text-button" onClick={continueToCalibration}>Continue to calibration →</button></div>}
+        {room && <div className="room-ready"><span>ROOM CODE</span><strong>{room.code}</strong><p>{room.players.A && room.players.B ? "Rival joined. Ready when you are." : "Share the code with your rival."}</p><button className="text-button" onClick={continueToCalibration}>Continue to calibration →</button></div>}
         {error && <p className="error-message">{error}</p>}
+        <Link className="practice-link" to="/practice">✧ Practice against the training dummy</Link>
       </div>
       <div className="hero-foot"><span>✧</span> TWO WIZARDS. ONE ARENA. <span>✧</span></div>
     </section>
@@ -60,5 +62,5 @@ function Calibration() {
 }
 
 export default function App() {
-  return <Routes><Route path="/" element={<Lobby />} /><Route path="/calibration" element={<Calibration />} /><Route path="/arena" element={<ArenaView />} /></Routes>;
+  return <Routes><Route path="/" element={<Lobby />} /><Route path="/calibration" element={<Calibration />} /><Route path="/arena" element={<ArenaView />} /><Route path="/practice" element={<PracticeView />} /></Routes>;
 }

@@ -2,13 +2,10 @@
   "name": "spellcaster-wizard-duel",
   "private": true,
   "version": "0.1.0",
-  "workspaces": [
-    "client",
-    "server",
-    "shared"
-  ],
+  "workspaces": ["client", "server", "shared"],
   "scripts": {
-    "dev": "npm run build --workspace @spellcaster/shared && concurrently -k -n server,client -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
+    "dev": "npm run build --workspace @spellcaster/shared && concurrently -k -n shared,server,client -c magenta,blue,green \"npm run dev:shared\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:shared": "npm run build --workspace @spellcaster/shared -- --watch --preserveWatchOutput",
     "dev:client": "npm run dev --workspace @spellcaster/client",
     "dev:server": "npm run dev --workspace @spellcaster/server",
     "build": "npm run build --workspace @spellcaster/shared && npm run build --workspace @spellcaster/server && npm run build --workspace @spellcaster/client",

@@ -7,7 +7,7 @@ export interface BotOptions {
   thinkMs: [number, number];
 }
 
-export const TRAINING_DUMMY: BotOptions = { reflexes: 0.45, thinkMs: [900, 2_200] };
+export const TRAINING_DUMMY: BotOptions = { reflexes: 0.4, thinkMs: [1_300, 2_800] };
 
 /**
  * A simple opponent for practice mode and demo fallback. Call `decide` every frame;

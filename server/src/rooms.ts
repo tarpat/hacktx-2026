@@ -6,6 +6,7 @@ const RECOVERY_GRACE_MS = 30_000;
 interface Room {
   code: string;
   players: Record<PlayerSlot, RoomPlayer | null>;
+  inMatch: boolean;
   recoveryTimers: Partial<Record<PlayerSlot, ReturnType<typeof setTimeout>>>;
 }
 
@@ -21,6 +22,7 @@ export class RoomManager {
         A: { slot: "A", socketId, connected: true, ready: false },
         B: null,
       },
+      inMatch: false,
       recoveryTimers: {},
     };
     this.rooms.set(code, room);
@@ -45,6 +47,20 @@ export class RoomManager {
     const player = Object.values(room.players).find((entry) => entry?.socketId === socketId);
     if (!player) return null;
     player.ready = ready;
+    return this.snapshot(room);
+  }
+
+  slotOf(code: string, socketId: string): PlayerSlot | null {
+    const room = this.rooms.get(code);
+    return Object.values(room?.players ?? {}).find((entry) => entry?.socketId === socketId)?.slot ?? null;
+  }
+
+  /** Marks a match as running; ending one clears ready flags so both players opt in to a rematch. */
+  setInMatch(code: string, inMatch: boolean): RoomSnapshot | null {
+    const room = this.rooms.get(code);
+    if (!room) return null;
+    room.inMatch = inMatch;
+    if (!inMatch) for (const player of Object.values(room.players)) if (player) player.ready = false;
     return this.snapshot(room);
   }
 
@@ -79,7 +95,8 @@ export class RoomManager {
       A: room.players.A ? { ...room.players.A } : null,
       B: room.players.B ? { ...room.players.B } : null,
     };
-    return { code: room.code, players, status: players.A?.ready && players.B?.ready ? "ready" : "waiting" };
+    const status = room.inMatch ? "in_match" : players.A?.ready && players.B?.ready ? "ready" : "waiting";
+    return { code: room.code, players, status };
   }
 
   private makeCode(): string {

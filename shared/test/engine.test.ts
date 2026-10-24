@@ -195,8 +195,17 @@ describe("power-ups", () => {
     engine.grantPowerUp("B", "heal", LIVE);
     expect(engine.snapshot(LIVE).players.B.hp).toBe(100);
     engine.cast("A", "fireball", LIVE);
-    engine.tick(LIVE + 1_000);
-    engine.grantPowerUp("B", "heal", LIVE + 1_000);
-    expect(engine.snapshot(LIVE + 1_000).players.B.hp).toBe(80 + C.healAmount);
+    const later = LIVE + C.powerUpCooldownMs;
+    engine.tick(later);
+    engine.grantPowerUp("B", "heal", later);
+    expect(engine.snapshot(later).players.B.hp).toBe(80 + C.healAmount);
+  });
+
+  it("allows one power-up per cooldown window", () => {
+    const engine = liveEngine();
+    expect(engine.grantPowerUp("A", "heal", LIVE)).toBe(true);
+    expect(engine.grantPowerUp("A", "empower", LIVE + 1_000)).toBe(false);
+    expect(engine.grantPowerUp("B", "empower", LIVE + 1_000)).toBe(true);
+    expect(engine.grantPowerUp("A", "empower", LIVE + C.powerUpCooldownMs)).toBe(true);
   });
 });

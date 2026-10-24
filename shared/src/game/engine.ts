@@ -23,6 +23,7 @@ function createPlayer(slot: PlayerSlot, config: MatchConfig): PlayerState {
     frozenUntil: 0,
     empoweredUntil: 0,
     hasteUntil: 0,
+    powerUpReadyAt: 0,
     stats: { casts: 0, hits: 0, blocks: 0, damageDealt: 0, clashesWon: 0 },
   };
 }
@@ -80,10 +81,10 @@ export class DuelEngine {
     };
     if (!isLive(this.state)) return reject("not_active");
     const player = this.state.players[slot];
+    if (spellConfig.offensive && now < player.frozenUntil) return reject("frozen");
     if (spell === "ultimate" ? player.ultimate < this.config.ultimateMax : now < player.readyAt[spell]) {
       return reject(spell === "ultimate" ? "meter" : "cooldown");
     }
-    if (spellConfig.offensive && now < player.frozenUntil) return reject("frozen");
 
     player.stats.casts += 1;
     player.readyAt[spell] = now + this.cooldownFor(player, spell, now);
@@ -114,8 +115,9 @@ export class DuelEngine {
 
   grantPowerUp(slot: PlayerSlot, powerUp: PowerUpId, now: number): boolean {
     this.tick(now);
-    if (!isLive(this.state)) return false;
     const player = this.state.players[slot];
+    if (!isLive(this.state) || now < player.powerUpReadyAt) return false;
+    player.powerUpReadyAt = now + this.config.powerUpCooldownMs;
     const { durationMs } = this.config.powerUps[powerUp];
     if (powerUp === "empower") player.empoweredUntil = now + durationMs;
     if (powerUp === "heal") player.hp = Math.min(player.maxHp, player.hp + this.config.healAmount);

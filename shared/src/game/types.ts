@@ -29,6 +29,7 @@ export interface PlayerState {
   /** Empower lasts until this time or until the next attack, whichever comes first. */
   empoweredUntil: number;
   hasteUntil: number;
+  powerUpReadyAt: number;
   stats: PlayerStats;
 }
 

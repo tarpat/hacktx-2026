@@ -15,7 +15,7 @@ Keep what Phase 0 already scaffolded. It fits a 24 to 36 hour build well.
 | Realtime | Node + Socket.IO | Rooms already built; server stays authoritative |
 | Game rules | Pure TypeScript engine in `shared/` | Same code runs on the server (authority) and in the browser (practice mode, bot) |
 | Tests | Vitest (shared workspace only) | Rules are deterministic, so they are cheap to unit test |
-| Styling | Plain CSS with theme tokens (`client/src/theme.css`) | No Tailwind setup cost; palette lives in one place |
+| Styling | Plain CSS with theme tokens (`client/src/theme.css`, mirrored in `client/src/theme.ts` for Phaser) | No Tailwind setup cost; palette lives in one place |
 
 ## Features
 
@@ -49,7 +49,9 @@ spellInput.cast("ice");           // two fingers
 spellInput.powerUp("empower");    // voice track: incantation bonus
 ```
 
-Keyboard fallback: `Q` Fireball, `W` Shield, `E` Ice, `R` Fulmen (hotseat player B: `U I O P`).
+Keyboard fallback: `Q` Fireball, `W` Shield, `E` Ice, `R` Fulmen (hotseat opponent: `U I O P`).
+Power-ups: `1` Empower, `2` Haste, `3` Heal (stand-ins until the voice track calls `spellInput.powerUp`).
+Power-ups are limited to one per player every 12 s so they cannot be spammed.
 
 ## Balance (starting values from the design doc)
 
@@ -61,3 +63,9 @@ Keyboard fallback: `Q` Fireball, `W` Shield, `E` Ice, `R` Fulmen (hotseat player
 | Fulmen | 30 | meter | 1.2 s | Shield halves it |
 
 All values live in `shared/src/game/config.ts`.
+
+## Status
+
+All twelve features above are implemented. Engine behavior is covered by unit tests in `shared/test`.
+Palette is a placeholder storybook night theme; swap the hex values in `client/src/theme.css` and
+`client/src/theme.ts` to match the HackTX opening ceremony slides.

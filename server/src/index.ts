@@ -3,7 +3,8 @@ import cors from "cors";
 import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
-import type { ClientToServerEvents, ServerToClientEvents } from "@spellcaster/shared";
+import { DEFAULT_MATCH_CONFIG, type ClientToServerEvents, type ServerToClientEvents } from "@spellcaster/shared";
+import { MatchRunner } from "./match.js";
 import { RoomManager } from "./rooms.js";
 
 const app = express();
@@ -15,6 +16,24 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   cors: { origin: process.env.CLIENT_ORIGIN?.split(",") ?? "http://localhost:5173" },
 });
 const rooms = new RoomManager();
+const matches = new Map<string, MatchRunner>();
+
+const isActionId = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 64;
+
+function startMatch(code: string) {
+  matches.get(code)?.stop();
+  const runner = new MatchRunner(
+    (state, events) => io.to(code).emit("MATCH_STATE", state, events),
+    () => {
+      matches.delete(code);
+      const snapshot = rooms.setInMatch(code, false);
+      if (snapshot) io.to(code).emit("ROOM_UPDATED", snapshot);
+    },
+  );
+  matches.set(code, runner);
+  const snapshot = rooms.setInMatch(code, true);
+  if (snapshot) io.to(code).emit("ROOM_UPDATED", snapshot);
+}
 
 io.on("connection", (socket) => {
   let roomCode: string | null = null;
@@ -42,8 +61,33 @@ io.on("connection", (socket) => {
 
   socket.on("READY_STATUS", (ready) => {
     if (!roomCode) return;
-    const snapshot = rooms.setReady(roomCode, socket.id, ready);
-    if (snapshot) io.to(roomCode).emit("ROOM_UPDATED", snapshot);
+    const snapshot = rooms.setReady(roomCode, socket.id, ready === true);
+    if (!snapshot) return;
+    io.to(roomCode).emit("ROOM_UPDATED", snapshot);
+    if (snapshot.status === "ready" && !matches.has(roomCode)) startMatch(roomCode);
+  });
+
+  socket.on("CAST_REQUEST", (request, callback) => {
+    const runner = roomCode ? matches.get(roomCode) : undefined;
+    const slot = roomCode ? rooms.slotOf(roomCode, socket.id) : null;
+    if (!runner || !slot || !isActionId(request?.clientActionId) || !Object.hasOwn(DEFAULT_MATCH_CONFIG.spells, request.spell)) {
+      callback?.({ ok: false, clientActionId: String(request?.clientActionId ?? ""), reason: "not_active" });
+      return;
+    }
+    // Evaluate before the optional call: `callback?.(f())` skips f() when there is no ack.
+    const ack = runner.cast(slot, request.spell, request.clientActionId);
+    callback?.(ack);
+  });
+
+  socket.on("POWER_UP_REQUEST", (request, callback) => {
+    const runner = roomCode ? matches.get(roomCode) : undefined;
+    const slot = roomCode ? rooms.slotOf(roomCode, socket.id) : null;
+    if (!runner || !slot || !isActionId(request?.clientActionId) || !Object.hasOwn(DEFAULT_MATCH_CONFIG.powerUps, request.powerUp)) {
+      callback?.({ ok: false, clientActionId: String(request?.clientActionId ?? ""), reason: "not_active" });
+      return;
+    }
+    const ack = runner.powerUp(slot, request.powerUp, request.clientActionId);
+    callback?.(ack);
   });
 
   socket.on("disconnect", () => {

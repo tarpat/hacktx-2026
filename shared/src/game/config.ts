@@ -36,6 +36,8 @@ export interface MatchConfig {
   empowerMultiplier: number;
   hasteCooldownFactor: number;
   healAmount: number;
+  /** One incantation power-up per player per this many milliseconds. */
+  powerUpCooldownMs: number;
   spells: Record<SpellId, SpellConfig>;
   powerUps: Record<PowerUpId, PowerUpConfig>;
 }
@@ -56,6 +58,7 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   empowerMultiplier: 1.5,
   hasteCooldownFactor: 0.6,
   healAmount: 15,
+  powerUpCooldownMs: 12_000,
   spells: {
     fireball: { id: "fireball", name: "Incendio", incantation: "Incendio!", damage: 20, cooldownMs: 3_000, travelMs: 900, offensive: true },
     shield: { id: "shield", name: "Protego", incantation: "Protego!", damage: 0, cooldownMs: 5_000, travelMs: 0, offensive: false },
