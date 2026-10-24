@@ -1,0 +1,32 @@
+/*
+ * Fairy-tale palette. Every color in the app comes from these tokens, so matching the
+ * HackTX opening ceremony slides is a matter of swapping the hex values here
+ * (and the mirrored numbers in src/theme.ts used by the Phaser arena).
+ */
+@import url("https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@500;700&family=Nunito:wght@400;600;700;800&display=swap");
+
+:root {
+  --night: #120d2b;
+  --night-2: #1d1645;
+  --dusk: #2e2163;
+  --plum: #4b2c7a;
+  --gold: #f6c453;
+  --gold-soft: #ffe7a8;
+  --parchment: #fff4dc;
+  --mist: #b8acd9;
+  --muted: #8a80ad;
+  --rose: #f48fb1;
+  --mint: #7fe0c9;
+  --ember: #ff7a59;
+  --frost: #8ec5ff;
+  --leaf: #7ed67a;
+  --berry: #ff4f7b;
+  --line: #ffffff1f;
+
+  --player-a: var(--rose);
+  --player-b: var(--mint);
+
+  --font-title: "Cinzel Decorative", serif;
+  --font-label: "Cinzel", serif;
+  --font-body: "Nunito", system-ui, sans-serif;
+}

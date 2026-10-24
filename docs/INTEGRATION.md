@@ -1,31 +1,30 @@
 # Game integration contract
 
-The PDF concept report is design context. The current implementation provides the first authoritative gameplay slice described by the team: fixed opposing sides, 100 HP, a 60-second round, ready gate/countdown, accepted spell events, server damage, cooldown timestamps, and match end.
+This contract reflects the deterministic duel engine currently on the PR branch. The PDF concept report remains design context; `shared/src/game/config.ts` is the source of truth for implemented balance.
 
 ## Shared vocabulary
 
-- **Player A** is always the left-side wizard and faces right.
-- **Player B** is always the right-side wizard and faces left.
-- Spell IDs are `incendio`, `protego`, and `glacius`.
-- The server is authoritative for match phase, HP, cooldowns, spell travel resolution, and winner.
-- Camera and microphone media remain local; send discrete actions only.
+- **Player A** is displayed on the left and **Player B** on the right. The duel has fixed positions; there is no avatar movement.
+- Internal spell IDs are `fireball`, `shield`, `ice`, and `ultimate`; displayed incantations are Incendio, Protego, Glacius, and Fulmen.
+- Power-up IDs are `empower`, `haste`, and `heal`.
+- The server owns the online match engine, clock, health, cooldowns, projectiles, blocks, clashes, and match outcome. Practice uses the same engine locally.
+- Keep camera and microphone media on-device. Send discrete spell or power-up intents only.
 
-## Client to server
+## Client inputs
 
-- `READY_STATUS(ready)` participates in the both-ready gate. The server emits a three-second countdown and starts the round.
-- `JOIN_ROOM(code, sessionToken, callback)` accepts the token kept in `sessionStorage` under `spellcaster:<ROOMCODE>` to reclaim the same seat for 30 seconds after disconnect/refresh.
-- `CAST_REQUEST({ spell, clientActionId })` submits one spell attempt. Use a new `crypto.randomUUID()` for every attempt. The server rejects duplicate IDs and cooldown violations.
-- `DEFEND_START()` / `DEFEND_END()` open and close a short shield window; the server enforces a five-second guard cooldown.
-- `client/src/gameActions.ts` exports `castSpell(spell)` and `setShieldHeld(held)` as the shared input bridge for gesture recognition, keyboard fallback, and UI buttons.
+- `READY_STATUS(ready)` updates one player's ready state. Both ready starts the authoritative `MatchRunner`.
+- `JOIN_ROOM(code, sessionToken, callback)` accepts the value in `sessionStorage` under `spellcaster:<ROOMCODE>` to reclaim the same seat during the 30-second grace period. Create and join callbacks return the session token.
+- `CAST_REQUEST({ spell, clientActionId }, callback?)` submits a unique spell intent. The optional acknowledgement reports accepted/rejected status; authoritative state and events arrive through `MATCH_STATE`.
+- `POWER_UP_REQUEST({ powerUp, clientActionId }, callback?)` submits an incantation power-up.
+- UI, gesture, and voice code should normally use `spellInput.cast(...)` and `spellInput.powerUp(...)` from `client/src/game/input.ts`. `DuelScreen` routes those intents to the online or practice source. `client/src/gameActions.ts` is a direct socket helper for UI that explicitly needs it.
 
-## Server to clients
+## Server state and presentation
 
-- `MATCH_STATE` / `MATCH_START`: canonical HP, phase, cooldown end timestamps, and server clock timestamp.
-- `SPELL_ACCEPTED`: accepted spell, player slot, action ID, and expected resolve time. Use this to trigger Phaser visuals and audio.
-- `SPELL_REJECTED`: action ID and human-readable reason.
-- `DAMAGE_APPLIED`: canonical resulting HP and damage source/target. Use this for impact, hit reaction, and sound.
-- `MATCH_END`: winner (`A`, `B`, or `draw`) and end reason (`knockout` or `timeout`).
+- `ROOM_UPDATED` reports room occupancy, connectivity, readiness, and match status.
+- `MATCH_STATE(state, events)` carries the authoritative snapshot plus events since the previous snapshot. `state.now` is the server timestamp; use `OnlineDuel.now()` for clock-aligned animation.
+- Important event types include `SPELL_CAST`, `CAST_REJECTED`, `SPELL_BLOCKED`, `DAMAGE_APPLIED`, `FROZEN`, `SPELL_CLASH`, `POWER_UP`, `ULTIMATE_READY`, `PHASE_CHANGED`, and `MATCH_END`.
+- Phaser and audio modules should react to game events from the `DuelSource` subscription. Do not independently apply damage or decide block/clash results.
 
-## Starter balance
+## Current balance and effects
 
-Incendio deals 20 after 850 ms and cools down for 3 seconds. Glacius deals 10 after 500 ms and cools down for 7 seconds. Protego blocks attacks during a 900 ms guard window and cools down for 5 seconds. These are initial values from the report and should be adjusted after two-device play.
+The defaults are 100 HP, a three-second countdown, a 60-second round, 15-second sudden death, a 900 ms shield window, 1.2-second freeze, and a 350 ms clash window. Fireball deals 20 (3-second cooldown, 900 ms travel); Ice deals 10 (7-second cooldown, 700 ms travel); Shield has a 5-second cooldown; Ultimate deals 30, is meter-gated, and deals half damage through a shield. Power-ups are limited to one per 12 seconds. Treat these as testable defaults, not final balance.
