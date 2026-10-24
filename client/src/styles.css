@@ -1757,7 +1757,9 @@ img.spell-glyph {
 }
 
 .duel .struggle-orb {
-  top: calc(var(--top-inset) + (100% - var(--top-inset) - var(--bottom-inset)) * 0.62);
+  top: calc(var(--top-inset) + (100% - var(--top-inset) - var(--bottom-inset)) * 0.78);
+  width: 68px;
+  height: 68px;
 }
 
 .duel .victory {

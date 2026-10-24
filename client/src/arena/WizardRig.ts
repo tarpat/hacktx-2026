@@ -32,20 +32,20 @@ interface WizardConfig {
 const WIZARD_CONFIGS: Record<PlayerSlot, WizardConfig> = {
   A: {
     texture: "wizard-green",
-    targetHeight: 230,
+    targetHeight: 138,
     originX: 0.444,
     originY: 1.0,
-    staffX: 93,
-    staffY: -151,
+    staffX: 56,
+    staffY: -91,
     orbColor: 0xffe27a,
   },
   B: {
     texture: "wizard-purple",
-    targetHeight: 250,
+    targetHeight: 150,
     originX: 0.395,
     originY: 1.0,
-    staffX: 79,
-    staffY: -162,
+    staffX: 47,
+    staffY: -97,
     orbColor: 0xc9a8f0,
   },
 };
@@ -96,12 +96,12 @@ export class WizardRig {
 
     // Casting node attached to the staff head
     this.castNode = scene.add.container(cfg.staffX, cfg.staffY);
-    this.staffGlow = scene.add.circle(0, 0, 24, cfg.orbColor, 0.45).setVisible(false);
+    this.staffGlow = scene.add.circle(0, 0, 14, cfg.orbColor, 0.45).setVisible(false);
 
     this.castOrb = scene.add.container(0, 0);
-    this.castOrbGlow = scene.add.circle(0, 0, 22, palette.gold, 0.3);
-    this.castOrbCore = scene.add.circle(0, 0, 11, palette.gold, 1);
-    this.castOrb.add([this.castOrbGlow, this.castOrbCore, scene.add.circle(0, 0, 4, 0xffffff, 0.9)]);
+    this.castOrbGlow = scene.add.circle(0, 0, 13, palette.gold, 0.3);
+    this.castOrbCore = scene.add.circle(0, 0, 7, palette.gold, 1);
+    this.castOrb.add([this.castOrbGlow, this.castOrbCore, scene.add.circle(0, 0, 2.5, 0xffffff, 0.9)]);
     this.castOrb.setScale(0);
 
     this.castNode.add([this.staffGlow, this.castOrb]);
@@ -151,8 +151,8 @@ export class WizardRig {
         case "throw": {
           if (elapsed < 340) {
             const t = elapsed / 340;
-            targetX = -14 * t;
-            targetY = -3 * t;
+            targetX = -8 * t;
+            targetY = -2 * t;
             targetRot = -0.12 * t;
             targetScaleY = 1 - 0.05 * t;
             targetScaleX = 1 + 0.02 * t;
@@ -160,8 +160,8 @@ export class WizardRig {
           } else if (elapsed < 500) {
             const t = (elapsed - 340) / 160;
             const ease = 1 - Math.pow(1 - t, 2);
-            targetX = -14 + 32 * ease;
-            targetY = -3 + 6 * t;
+            targetX = -8 + 19 * ease;
+            targetY = -2 + 4 * t;
             targetRot = -0.12 + 0.22 * ease;
             targetScaleX = 1.04 - 0.02 * t;
             targetScaleY = 0.95 + 0.03 * t;
@@ -169,8 +169,8 @@ export class WizardRig {
           } else if (elapsed < 750) {
             const t = (elapsed - 500) / 250;
             const ease = t * t * (3 - 2 * t);
-            targetX = 18 * (1 - ease);
-            targetY = 3 * (1 - ease);
+            targetX = 11 * (1 - ease);
+            targetY = 2 * (1 - ease);
             targetRot = 0.1 * (1 - ease);
             targetScaleX = 1.02 * (1 - ease) + ease;
             targetScaleY = 0.98 * (1 - ease) + ease;
@@ -183,16 +183,16 @@ export class WizardRig {
         case "ultimate": {
           if (elapsed < 500) {
             const t = elapsed / 500;
-            targetX = -10 * Math.sin(t * Math.PI);
-            targetY = -18 * t;
+            targetX = -6 * Math.sin(t * Math.PI);
+            targetY = -11 * t;
             targetRot = -0.16 * t;
             targetScaleY = 1 + 0.05 * Math.sin(t * Math.PI * 4);
             targetOrb = t * 1.4;
           } else if (elapsed < 700) {
             const t = (elapsed - 500) / 200;
             const ease = 1 - Math.pow(1 - t, 2);
-            targetX = 22 * ease;
-            targetY = -18 * (1 - t);
+            targetX = 13 * ease;
+            targetY = -11 * (1 - t);
             targetRot = -0.16 + 0.28 * ease;
             targetScaleX = 1.06;
             targetScaleY = 0.94;
@@ -200,7 +200,7 @@ export class WizardRig {
           } else if (elapsed < 1000) {
             const t = (elapsed - 700) / 300;
             const ease = t * t * (3 - 2 * t);
-            targetX = 22 * (1 - ease);
+            targetX = 13 * (1 - ease);
             targetRot = 0.12 * (1 - ease);
             targetScaleX = 1.06 * (1 - ease) + ease;
             targetScaleY = 0.94 * (1 - ease) + ease;
@@ -212,22 +212,22 @@ export class WizardRig {
         case "shield": {
           if (elapsed < 140) {
             const t = elapsed / 140;
-            targetX = -8 * t;
-            targetY = 4 * t;
+            targetX = -5 * t;
+            targetY = 2.5 * t;
             targetScaleY = 1 - 0.06 * t;
             targetScaleX = 1 + 0.04 * t;
             targetRot = -0.05 * t;
           } else if (elapsed < 650) {
-            targetX = -8;
-            targetY = 4;
+            targetX = -5;
+            targetY = 2.5;
             targetScaleY = 0.94;
             targetScaleX = 1.04;
             targetRot = -0.05;
           } else if (elapsed < 850) {
             const t = (elapsed - 650) / 200;
             const ease = t * t * (3 - 2 * t);
-            targetX = -8 * (1 - ease);
-            targetY = 4 * (1 - ease);
+            targetX = -5 * (1 - ease);
+            targetY = 2.5 * (1 - ease);
             targetScaleY = 0.94 * (1 - ease) + ease;
             targetScaleX = 1.04 * (1 - ease) + ease;
             targetRot = -0.05 * (1 - ease);
@@ -239,18 +239,18 @@ export class WizardRig {
         case "hit": {
           if (elapsed < 90) {
             const t = elapsed / 90;
-            targetX = -18 * t;
-            targetY = -4 * t;
+            targetX = -11 * t;
+            targetY = -2.5 * t;
             targetRot = -0.16 * t;
           } else if (elapsed < 240) {
             const t = (elapsed - 90) / 150;
-            targetX = -18 + 10 * t;
-            targetY = -4 + 4 * t;
+            targetX = -11 + 6 * t;
+            targetY = -2.5 + 2.5 * t;
             targetRot = -0.16 + 0.08 * t;
           } else if (elapsed < 450) {
             const t = (elapsed - 240) / 210;
             const ease = t * t * (3 - 2 * t);
-            targetX = -8 * (1 - ease);
+            targetX = -5 * (1 - ease);
             targetRot = -0.08 * (1 - ease);
           } else {
             this.action = null;
@@ -262,7 +262,7 @@ export class WizardRig {
 
     if (this.cheering) {
       const hop = Math.abs(Math.sin(now / 180));
-      targetY += -hop * 20;
+      targetY += -hop * 12;
       targetRot += Math.sin(now / 180) * 0.06;
       targetScaleY *= 1 + (hop > 0.1 ? 0.04 : -0.04);
     } else {
