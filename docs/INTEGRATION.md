@@ -25,6 +25,19 @@ This contract reflects the deterministic duel engine currently on the PR branch.
 - Important event types include `SPELL_CAST`, `CAST_REJECTED`, `SPELL_BLOCKED`, `DAMAGE_APPLIED`, `FROZEN`, `SPELL_CLASH`, `POWER_UP`, `ULTIMATE_READY`, `PHASE_CHANGED`, and `MATCH_END`.
 - Phaser and audio modules should react to game events from the `DuelSource` subscription. Do not independently apply damage or decide block/clash results.
 
+### Combat audio
+
+`DuelScreen` mounts `CombatAudioControls`, which connects `client/src/audio/combat.ts`
+to the `DuelSource` stream. Confirmed fireball/shield casts, explicit blocks and positive
+damage events play cues; intents and rejections are silent. IDs are deduplicated within
+the current match; a newly observed countdown resets that epoch. Events older than
+1.5 seconds are skipped, including after delayed asset loading. The current contract
+must deliver each match's countdown because it has no explicit match ID.
+
+Audio remains optional: the user clicks to enable output, and missing assets or muted
+sound do not block combat. Phaser audio is disabled in this screen because the audio
+module owns output. See [client/AUDIO.md](../client/AUDIO.md) for tests and ownership.
+
 ## Current balance and effects
 
 The defaults are 100 HP, a three-second countdown, a 60-second round, 15-second sudden death, a 900 ms shield window, 1.2-second freeze, and a 350 ms clash window. Fireball deals 20 (3-second cooldown, 900 ms travel); Ice deals 10 (7-second cooldown, 700 ms travel); Shield has a 5-second cooldown; Ultimate deals 30, is meter-gated, and deals half damage through a shield. Power-ups are limited to one per 12 seconds. Treat these as testable defaults, not final balance.

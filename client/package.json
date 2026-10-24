@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:audio": "node --experimental-strip-types --test tests/audio/*.test.ts",
+    "test:audio": "npm run build --workspace @spellcaster/shared && node --experimental-strip-types --test tests/audio/*.test.ts",
     "test:audio:browser": "playwright test --config playwright.audio.config.ts",
+    "test:audio:combat": "npm run build --workspace @spellcaster/shared && npm run build --workspace @spellcaster/server && playwright test --config playwright.combat.config.ts",
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false"

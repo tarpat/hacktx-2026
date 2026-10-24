@@ -10,6 +10,7 @@ import { HealthBar } from "./HealthBar";
 import { CountdownOverlay, MatchClock } from "./MatchClock";
 import { SpellTray } from "./SpellTray";
 import { VictoryOverlay } from "./VictoryOverlay";
+import { CombatAudioControls } from "../audio/CombatAudioControls";
 
 interface DuelScreenProps {
   source: DuelSource;
@@ -92,6 +93,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     scene.current = arena;
     const game = new Phaser.Game({
       type: Phaser.AUTO,
+      audio: { noAudio: true }, // The audio module owns the duel's output context.
       parent: element,
       transparent: true,
       width: element.clientWidth || 960,
@@ -135,6 +137,8 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
         <span className="duel-brand">SPELLCASTER</span>
         {header}
       </header>
+
+      <CombatAudioControls source={source} />
 
       {state && (
         <section className="duel-hud">

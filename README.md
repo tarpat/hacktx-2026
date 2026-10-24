@@ -69,4 +69,6 @@ See [docs/](docs/README.md) for the original report, game design, team assignmen
 ## Audio playground
 
 Open `/audio-test` for standalone playback without a room or device permissions.
+In practice or an online duel, click **Enable duel audio** for confirmed fireball,
+shield, block and damage cues. Use the mute and volume controls for each device.
 See [client/AUDIO.md](client/AUDIO.md) for the audio interface, tests and scope.

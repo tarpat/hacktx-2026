@@ -190,3 +190,17 @@ test("subscriptions can be removed", () => {
   player.setVolume(0.5);
   assert.equal(calls, 1);
 });
+
+test("combat deadline prevents an obsolete cue after a slow asset load", async () => {
+  const { player, backend } = setup();
+  await player.enable();
+  let now = 100;
+  let release!: () => void;
+  backend.pending = new Promise((resolve) => { release = resolve; });
+  const pending = player.play("cast", { expiresAt: 200, now: () => now });
+  now = 201;
+  release();
+  assert.equal(await pending, "cancelled");
+  assert.equal(backend.voices.length, 0);
+  assert.equal(await player.play("cast", { expiresAt: 200, now: () => now }), "cancelled");
+});

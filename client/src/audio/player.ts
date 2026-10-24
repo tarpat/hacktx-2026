@@ -2,6 +2,10 @@ import { cues, type CueId } from "./cues.ts";
 import { WebAudioBackend, type AudioBackend, type Sound, type Voice } from "./backend.ts";
 
 export type PlayResult = "played" | "disabled" | "muted" | "cancelled" | "limited" | "failed";
+export interface PlayDeadline {
+  expiresAt: number;
+  now: () => number;
+}
 export interface AudioState {
   enabled: boolean;
   muted: boolean;
@@ -79,13 +83,15 @@ export class AudioPlayer {
     }
   }
 
-  async play(id: CueId): Promise<PlayResult> {
+  async play(id: CueId, deadline?: PlayDeadline): Promise<PlayResult> {
     if (this.disposed || !this.state.enabled) return "disabled";
     if (this.state.muted || this.state.volume === 0) return "muted";
+    if (deadline && deadline.now() > deadline.expiresAt) return "cancelled";
     const generation = this.generation;
     try {
       const sound = await this.load(id);
       if (this.disposed || generation !== this.generation) return "cancelled";
+      if (deadline && deadline.now() > deadline.expiresAt) return "cancelled";
       if (this.state.muted || this.state.volume === 0) return "muted";
       if (this.voices.size >= this.maxVoices) return "limited";
       const voice = sound.play(this.state.volume * cues[id].gain, () => {
