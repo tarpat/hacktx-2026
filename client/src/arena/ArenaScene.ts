@@ -70,7 +70,7 @@ export class ArenaScene extends Phaser.Scene {
   private anchor(slot: PlayerSlot) {
     const { width, height } = this.scale;
     const left = this.getFrame().leftSlot === slot;
-    return { x: width * (left ? 0.2 : 0.8), y: height * 0.8, facing: left ? 1 : -1 };
+    return { x: width * (left ? 0.1 : 0.9), y: height * 0.8, facing: left ? 1 : -1 };
   }
 
   /** Where spells leave the staff and where they strike. */
