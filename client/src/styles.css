@@ -1800,3 +1800,22 @@ img.spell-glyph {
     grid-template-columns: 1fr;
   }
 }
+
+.sound-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid #f6c45355;
+  background: #1d1645dd;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px #0006;
+}
+
+.sound-toggle:hover {
+  border-color: var(--gold);
+}
