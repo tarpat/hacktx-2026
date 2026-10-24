@@ -281,6 +281,19 @@ kbd {
   background: radial-gradient(ellipse at 50% 55%, #2e216388 0, transparent 60%);
 }
 
+.arena-ready-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding-block: 40px;
+}
+
+.arena-ready-shell .arena-ready-panel {
+  width: 100%;
+  margin: 0 auto;
+}
+
 .calibration {
   max-width: 680px;
   text-align: center;

@@ -53,8 +53,8 @@ function OnlineArena({ session }: { session: Session }) {
 
   if (!hasMatch || !source) {
     return (
-      <main className="shell secondary-shell">
-        <section className="calibration">
+      <main className="shell secondary-shell arena-ready-shell">
+        <section className="calibration arena-ready-panel">
           <p className="eyebrow">ROOM {session.room.code}</p>
           <h1>Take your places</h1>
           <p className="intro">The duel begins with a 3, 2, 1 once both wizards are ready.</p>
