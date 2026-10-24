@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
-import { DEFAULT_MATCH_CONFIG, opponentOf, type MatchState, type PlayerSlot, type SpellId } from "@spellcaster/shared";
+import { DEFAULT_MATCH_CONFIG, opponentOf, type GameEvent, type MatchState, type PlayerSlot, type SpellId } from "@spellcaster/shared";
+import { RisingEmbers } from "../arena/RisingEmbers";
 import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
 import { loadMapChoice, type MapId } from "../arena/maps";
 import { playEvents, setMusic, sfx } from "../audio/sound";
@@ -28,6 +29,8 @@ interface DuelScreenProps {
   footer?: React.ReactNode;
 }
 
+type ClashResult = Extract<GameEvent, { type: "SPELL_CLASH" }>;
+
 interface Banner {
   id: number;
   text: string;
@@ -48,6 +51,7 @@ function useMatchNow(source: DuelSource) {
 
 export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, footer, map = loadMapChoice() }: DuelScreenProps) {
   const [state, setState] = useState<MatchState | null>(() => source.state());
+  const [clashResult, setClashResult] = useState<ClashResult | null>(null);
   const [toast, setToast] = useState<Banner | null>(null);
   const now = useMatchNow(source);
   const host = useRef<HTMLDivElement>(null);
@@ -69,6 +73,8 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
         scene.current?.pushEvents(events);
         playEvents(events, source.localSlot, hotseat);
         for (const event of events) {
+          if (event.type === "SPELL_CLASH") setClashResult(event);
+          if (event.type === "STRUGGLE_START" || (event.type === "PHASE_CHANGED" && event.phase === "countdown")) setClashResult(null);
           if (event.type === "CAST_REJECTED" && (hotseat || event.slot === source.localSlot) && rejectionText[event.reason]) {
             setToast({ id: event.id, text: rejectionText[event.reason] });
           }
@@ -138,6 +144,12 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     return () => clearTimeout(timeout);
   }, [toast]);
 
+  useEffect(() => {
+    if (!clashResult) return;
+    const timeout = setTimeout(() => setClashResult(null), 3_000);
+    return () => clearTimeout(timeout);
+  }, [clashResult]);
+
   // Tick on each countdown number.
   const countdownSecond = state?.phase === "countdown" ? Math.ceil((state.phaseEndsAt - now) / 1000) : 0;
   useEffect(() => {
@@ -150,8 +162,18 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     <main className="duel" style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
       <div className={`duel-stage phase-${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
+        <RisingEmbers />
         <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} />
         {state?.struggle && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} />}
+        {clashResult && !state?.struggle && (
+          <section className={`clash-result ${clashResult.winner ? `player-${clashResult.winner}` : "draw"}`} role="status" key={clashResult.id}>
+            <span>{clashResult.winner ? "✦ CLASH WINNER ✦" : "⚔ CLASH DRAW ⚔"}</span>
+            <strong>{clashResult.winner
+              ? hotseat ? `${playerName[clashResult.winner]} wins!` : clashResult.winner === left ? "You win the clash!" : "Rival wins the clash!"
+              : "Evenly matched!"}</strong>
+            <p>{clashResult.winner ? "Winning spell absorbs both attacks and flies on." : "Both spells cancel out. No winner."}</p>
+          </section>
+        )}
         {state && <CountdownOverlay state={state} now={now} />}
         {toast && (
           <div className="toast" key={toast.id}>

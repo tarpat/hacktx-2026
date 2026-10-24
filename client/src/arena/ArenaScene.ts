@@ -127,6 +127,7 @@ export class ArenaScene extends Phaser.Scene {
   private groundY = 0;
   private builtMap: MapId | null = null;
   private builtSize = "";
+  private lastStrugglePushes: number | null = null;
 
   constructor(getFrame: () => ArenaFrame) {
     super("arena");
@@ -163,6 +164,7 @@ export class ArenaScene extends Phaser.Scene {
     for (const event of this.queue.splice(0)) this.react(event, time);
     for (const slot of ["A", "B"] as PlayerSlot[]) this.updateWizard(slot, state, now, time, delta);
     this.updateProjectiles(state.projectiles, now);
+    this.updateStruggle(state.struggle);
   }
 
   // ---------- layout ----------
@@ -193,6 +195,7 @@ export class ArenaScene extends Phaser.Scene {
     this.lastPositions.clear();
     this.releases.clear();
     this.storms.clear();
+    this.lastStrugglePushes = null;
     this.builtMap = mapFor(this.getFrame());
     this.builtSize = this.sizeKey();
     this.drawBackdrop(width, height);
@@ -472,7 +475,7 @@ export class ArenaScene extends Phaser.Scene {
     this.playFx("lightning-burst", x, y - 110 * this.unit, 360);
     this.burst(x, y, LIGHTNING.glow, 26, 1.6);
     this.cameras.main.flash(220, 220, 240, 255);
-    this.cameras.main.shake(320, 0.014);
+    this.cameras.main.shake(200, 0.006, true);
     if (this.storms.size === 0) this.tweens.add({ targets: this.gloom, alpha: 0, delay: 120, duration: 500 });
   }
 
@@ -551,16 +554,42 @@ export class ArenaScene extends Phaser.Scene {
         this.burst(x, y - 66 * this.unit, palette.frost, 24, 1.0);
         break;
       }
+      case "STRUGGLE_START": {
+        const point = { x: this.scale.width / 2, y: this.groundY - 66 * this.unit };
+        this.flash("clash", point.x, point.y, 180, 500, true);
+        this.burst(point.x, point.y, palette.goldSoft, 20, 1.2);
+        this.cameras.main.shake(140, 0.0035, true);
+        break;
+      }
       case "SPELL_CLASH": {
         const point = event.fizzledIds.map((id) => this.lastPositions.get(id)).find(Boolean) ?? { x: this.scale.width / 2, y: this.groundY - 66 * this.unit };
         this.flash("clash", point.x, point.y, 220, 700, true);
         this.burst(point.x, point.y, palette.goldSoft, 30, 1.6);
-        this.cameras.main.shake(260, 0.012);
+        this.cameras.main.shake(160, 0.005, true);
         this.cameras.main.flash(160, 255, 231, 168);
         break;
       }
       default:
         break;
+    }
+  }
+
+  private updateStruggle(struggle: MatchState["struggle"]) {
+    if (!struggle) {
+      this.lastStrugglePushes = null;
+      return;
+    }
+
+    const pushes = struggle.pushes.A + struggle.pushes.B;
+    const isNewPush = this.lastStrugglePushes !== null && pushes > this.lastStrugglePushes;
+    this.lastStrugglePushes = pushes;
+
+    if (isNewPush) {
+      // Gentle punch on each push/fist pump during the clash struggle
+      this.cameras.main.shake(90, 0.0035, true);
+    } else if (!this.cameras.main.shakeEffect.isRunning || this.cameras.main.shakeEffect.progress > 0.75) {
+      // Subtle continuous tremor during the clash struggle
+      this.cameras.main.shake(250, 0.002, true);
     }
   }
 
@@ -575,7 +604,7 @@ export class ArenaScene extends Phaser.Scene {
     }
     this.burst(x, y - 66 * this.unit, spellColor[spell], 10 + amount / 2, 1.0);
     this.floatText(x, y - 150 * this.unit, `-${amount}`, "#ff4f7b");
-    this.cameras.main.shake(120 + amount * 6, 0.004 + amount * 0.0003);
+    this.cameras.main.shake(120 + Math.min(amount, 30) * 1.5, 0.003 + Math.min(amount, 30) * 0.00006, true);
     view.rig.play("hit", this.time.now);
     this.tweens.add({ targets: view.body, alpha: 0.35, duration: 70, yoyo: true, repeat: 2 });
     this.tweens.add({ targets: view.root, x: x - facing * 10 * this.unit, duration: 90, yoyo: true, ease: "Quad.easeOut" });

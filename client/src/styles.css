@@ -2090,7 +2090,14 @@ img.spell-glyph {
   inset: 0;
   background: linear-gradient(180deg, #1c1236cc 0%, #1c1236ee 55%, var(--night) 100%);
 }
-.home-backdrop i {
+.rising-embers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.duel-stage > .rising-embers { z-index: 2; }
+.rising-embers i {
   position: absolute;
   bottom: -10px;
   border-radius: 50%;
@@ -2166,3 +2173,32 @@ img.spell-glyph {
   color: var(--muted);
 }
 .credits a { color: var(--mist); }
+
+
+/* Keep the clash outcome readable after the tug-of-war disappears. */
+.clash-result {
+  position: absolute;
+  top: calc(var(--top-inset) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: min(520px, calc(100% - 32px));
+  padding: 18px 20px;
+  border: 2px solid var(--clash-color, var(--gold));
+  border-radius: 16px;
+  background: #140c28f5;
+  box-shadow: 0 0 30px color-mix(in srgb, var(--clash-color, var(--gold)) 35%, transparent);
+  text-align: center;
+  color: #fff;
+  pointer-events: none;
+}
+.clash-result.player-A { --clash-color: var(--player-a); }
+.clash-result.player-B { --clash-color: var(--player-b); }
+.clash-result > span { display: block; color: var(--clash-color, var(--gold)); font-weight: 800; letter-spacing: 0.12em; font-size: 0.8rem; }
+.clash-result strong { display: block; margin: 6px 0; font-size: clamp(1.4rem, 4vw, 2rem); line-height: 1.15; }
+.clash-result p { margin: 0; font-size: 0.9rem; }
+.struggle-leader { display: block; margin: 8px 0; font-size: clamp(1.2rem, 3vw, 1.65rem); }
+.struggle-versus { opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) {
+  .rising-embers { display: none; }
+}
