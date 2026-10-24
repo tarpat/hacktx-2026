@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import { opponentOf, type MatchState, type PlayerSlot, type PowerUpId, type SpellId } from "@spellcaster/shared";
 import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
+import { GestureCamera } from "../gesture/GestureCamera";
 import type { DuelSource } from "../game/duelSource";
 import { bindKeyboard, spellInput } from "../game/input";
 import { narrate, rejectionText } from "../game/narration";
@@ -150,6 +151,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
       <div className={`duel-stage ${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
+        <GestureCamera />
         {state && <CountdownOverlay state={state} now={now} />}
         {banner && state?.phase !== "finished" && (
           <div className="banner" key={banner.id}>

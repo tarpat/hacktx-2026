@@ -1121,3 +1121,107 @@ kbd {
   .spell { width: 62px; height: 62px; }
   .victory-actions { grid-template-columns: 1fr; }
 }
+.gesture-test{max-width:680px;margin:40px auto;text-align:center}.gesture-test h1{font:600 clamp(28px,4vw,44px) 'Unbounded',sans-serif;letter-spacing:-.05em;margin:12px 0 20px}.gesture-camera{height:auto;aspect-ratio:4/3;overflow:hidden;transition:box-shadow .15s}.gesture-camera video,.gesture-camera canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.gesture-camera .camera-placeholder{position:relative}.mirrored{transform:scaleX(-1)}.gesture-camera.is-charging{box-shadow:0 0 0 3px #ff8a3d,0 0 40px #ff8a3d80}.gesture-camera.is-shield{box-shadow:0 0 0 3px #72a9c0,0 0 40px #72a9c080}.gesture-controls{display:flex;gap:8px}.gesture-controls .primary-button{flex:1}.gesture-controls button:disabled{opacity:.45;cursor:not-allowed}.gesture-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0}.gesture-stats div{background:#191524;border:1px solid #ffffff16;padding:10px;text-align:left}.gesture-stats dt{font:10px 'DM Mono',monospace;color:#d9bd75;letter-spacing:.1em}.gesture-stats dd{margin:6px 0 0;font:12px 'DM Mono',monospace;overflow-wrap:anywhere}.gesture-hint{color:#aaa3b2;font-size:12px}.gesture-log{list-style:none;padding:0;margin:0;text-align:left;font:12px 'DM Mono',monospace}.gesture-log li{padding:8px 10px;border-bottom:1px solid #ffffff12;display:flex;gap:12px}.gesture-log li span{color:#7e778a}.gesture-log .empty{color:#7e778a}@media(max-width:600px){.gesture-stats{grid-template-columns:repeat(2,1fr)}}
+.spell-preview{margin:16px 0;border:1px solid #ffffff20;background:radial-gradient(ellipse at 50% 85%,#38294b,#171326 72%)}.preview-hud{display:grid;grid-template-columns:auto 1fr 1fr auto;gap:10px;align-items:center;padding:10px 12px;font:10px 'DM Mono',monospace;letter-spacing:.1em}.preview-hud i{height:8px;background:#332c40;border:1px solid #ffffff22}.preview-hud b{display:block;height:100%;background:#9e76cf;transition:width .3s}.preview-hud .rival b{background:#72a9c0;margin-left:auto}.preview-stage{position:relative;height:150px;display:flex;justify-content:space-between;align-items:center;padding:0 12%;overflow:hidden}.preview-wizard{position:relative;font-size:56px;line-height:1}.preview-wizard.rival{transform:scaleX(-1)}.preview-wizard.is-hit{animation:preview-hit .35s}.preview-charge{position:absolute;right:-18px;top:10px;width:22px;height:22px;border-radius:50%;background:radial-gradient(#ffe2a0,#ff8a3d 60%,transparent 70%);animation:preview-pulse .4s infinite alternate}.preview-shield{position:absolute;inset:-18px;border-radius:50%;border:2px solid #72a9c0;background:#72a9c022;box-shadow:0 0 24px #72a9c0}.preview-fireball{position:absolute;left:22%;top:50%;width:26px;height:26px;margin-top:-13px;border-radius:50%;background:radial-gradient(#fff3c4,#ff8a3d 55%,#ff4d1d00 72%);box-shadow:0 0 20px #ff8a3d;animation:preview-fly .6s linear forwards}@keyframes preview-fly{to{left:74%}}@keyframes preview-pulse{to{transform:scale(1.5)}}@keyframes preview-hit{0%,100%{transform:scaleX(-1) translateX(0)}30%{transform:scaleX(-1) translateX(-10px);filter:brightness(2)}60%{transform:scaleX(-1) translateX(6px)}}
+.preview-fireball.ice{background:radial-gradient(#f2fbff,#8ec5ff 55%,#8ec5ff00 72%);box-shadow:0 0 20px #8ec5ff}.preview-fireball.bolt{background:radial-gradient(#ffffff,#fff27a 50%,#fff27a00 72%);box-shadow:0 0 28px #fff27a}
+
+/* ---------- gesture camera ---------- */
+
+.gesture-cam {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: min(200px, 34%);
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.gesture-cam-view {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--night);
+  border: 2px solid #f6c45366;
+  box-shadow: 0 8px 24px #0008;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.gesture-cam.is-charging .gesture-cam-view {
+  border-color: var(--ember);
+  box-shadow: 0 0 0 3px var(--ember), 0 0 30px #ff7a5988;
+}
+
+.gesture-cam-view video,
+.gesture-cam-view canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gesture-cam-label {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #120d2bcc;
+  color: var(--parchment);
+  font: 700 11px var(--font-body);
+}
+
+.gesture-cam-cast {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 48px;
+  pointer-events: none;
+  animation: cast-pop 0.7s ease-out forwards;
+}
+
+.gesture-cam-legend,
+.gesture-cam-error {
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: #120d2bcc;
+  font: 700 10px var(--font-body);
+  color: var(--mist);
+  text-align: right;
+}
+
+.gesture-cam-error {
+  color: #ffc2d1;
+  border: 1px solid var(--berry);
+}
+
+.gesture-cam-toggle {
+  border: 1px solid var(--line);
+  background: #120d2bcc;
+  color: var(--gold-soft);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: 700 11px var(--font-body);
+  cursor: pointer;
+}
+
+.gesture-cam.on .gesture-cam-toggle {
+  color: var(--muted);
+}
+
+@keyframes cast-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  30% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+@media (max-width: 760px) {
+  .gesture-cam { width: 120px; }
+  .gesture-cam-legend { display: none; }
+}
