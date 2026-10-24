@@ -61,7 +61,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     setActiveShake((prev) => ({ type, id: (prev?.id ?? 0) + 1 }));
     shakeTimer.current = window.setTimeout(() => {
       setActiveShake(null);
-    }, type === "hit" ? 180 : 220);
+    }, type === "hit" ? 220 : 280);
   };
 
   useEffect(() => {
