@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import { DEFAULT_MATCH_CONFIG, opponentOf, type MatchState, type PlayerSlot, type SpellId } from "@spellcaster/shared";
 import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
 import { loadMapChoice, type MapId } from "../arena/maps";
-import { playEvents, sfx } from "../audio/sound";
+import { playEvents, setMusic, sfx } from "../audio/sound";
 import { GestureCamera } from "../gesture/GestureCamera";
 import { SpellStruggle } from "./SpellStruggle";
 import type { DuelSource } from "../game/duelSource";
@@ -76,6 +76,11 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       }),
     [source, hotseat],
   );
+
+  useEffect(() => {
+    setMusic("battle");
+    return () => setMusic("menu");
+  }, []);
 
   useEffect(() => {
     const unbindKeys = bindKeyboard(source.localSlot, hotseat ? opponentOf(source.localSlot) : null);
