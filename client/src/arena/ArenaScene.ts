@@ -317,7 +317,6 @@ export class ArenaScene extends Phaser.Scene {
       if (!view.fallen) {
         view.fallen = true;
         for (const layer of [view.shield, view.frost, view.aura, view.empower, view.haste]) layer.setVisible(false);
-        this.cameras.main.shake(260, 0.012);
         view.rig.die(time, () => this.transform(slot, state.loserForm));
       }
       return;
@@ -551,7 +550,6 @@ export class ArenaScene extends Phaser.Scene {
     this.dustBurst(cx, y, 18, 1);
     this.burst(cx, y - 10 * this.unit, BULL.ember, 16, 1);
     this.floatText(x, y - 160 * this.unit, "HOOK 'EM!", "#ff8a3c");
-    this.cameras.main.shake(140, 0.006);
   }
 
   /** A low cloud of kicked-up dirt. */
@@ -579,7 +577,6 @@ export class ArenaScene extends Phaser.Scene {
     ring.setScale(0.4);
     this.tweens.add({ targets: ring, scale: 2.4, alpha: 0, duration: 520, ease: "Quad.easeOut", onComplete: () => ring.destroy() });
     this.dustBurst(x, y, 30, 1.5);
-    this.cameras.main.shake(320, 0.016);
   }
 
   // ---------- fulmen ----------
@@ -659,7 +656,6 @@ export class ArenaScene extends Phaser.Scene {
     this.playFx("lightning-burst", x, y - 66 * this.unit, 216);
     this.burst(x, y, LIGHTNING.glow, 26, 1.6);
     this.cameras.main.flash(220, 220, 240, 255);
-    this.cameras.main.shake(320, 0.014);
     if (this.storms.size === 0) this.tweens.add({ targets: this.gloom, alpha: 0, delay: 120, duration: 500 });
   }
 
@@ -747,11 +743,16 @@ export class ArenaScene extends Phaser.Scene {
         this.burst(x, y - 66 * this.unit, palette.frost, 24, 1.0);
         break;
       }
+      case "STRUGGLE_START": {
+        const point = { x: this.scale.width / 2, y: this.groundY - 66 * this.unit };
+        this.flash("clash", point.x, point.y, 180, 500, true);
+        this.burst(point.x, point.y, palette.goldSoft, 20, 1.2);
+        break;
+      }
       case "SPELL_CLASH": {
         const point = event.fizzledIds.map((id) => this.lastPositions.get(id)).find(Boolean) ?? { x: this.scale.width / 2, y: this.groundY - 66 * this.unit };
         this.flash("clash", point.x, point.y, 220, 700, true);
         this.burst(point.x, point.y, palette.goldSoft, 30, 1.6);
-        this.cameras.main.shake(260, 0.012);
         this.cameras.main.flash(160, 255, 231, 168);
         break;
       }
@@ -771,7 +772,6 @@ export class ArenaScene extends Phaser.Scene {
     }
     this.burst(x, y - 66 * this.unit, spellColor[spell], 10 + amount / 2, 1.0);
     this.floatText(x, y - 150 * this.unit, `-${amount}`, "#ff4f7b");
-    this.cameras.main.shake(120 + amount * 6, 0.004 + amount * 0.0003);
     // The bull's horn toss throws far harder than its damage alone would.
     if (spell === "taurus") this.gore(target);
     view.rig.knockback(spell === "taurus" ? amount * 2.5 : amount, this.time.now);
@@ -790,7 +790,6 @@ export class ArenaScene extends Phaser.Scene {
     view.transformed = node;
     this.tweens.add({ targets: node, scale: 1, duration: 450, ease: "Back.easeOut" });
     this.tweens.add({ targets: node, y: -10, duration: 380, yoyo: true, repeat: -1, ease: "Sine.easeInOut", delay: 500 });
-    this.cameras.main.shake(300, 0.01);
   }
 
   // ---------- helpers ----------

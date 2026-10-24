@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { RisingEmbers } from "./arena/RisingEmbers";
 import { Link, Route, Routes, useNavigate } from "react-router-dom";
 import type { CreateRoomResult, JoinRoomResult, SocketError } from "@spellcaster/shared";
 import { MapPicker, useMapChoice } from "./arena/MapPicker";
@@ -13,17 +14,9 @@ import { GestureTestView } from "./views/GestureTestView";
 import { PracticeView } from "./views/PracticeView";
 import { WaitingView } from "./views/WaitingView";
 
-/** Drifting motes over the home backdrop; positions are fixed so renders don't reshuffle them. */
-const MOTES = Array.from({ length: 24 }, (_, i) => ({
-  left: `${(i * 37) % 100}%`,
-  delay: `${(i * 0.7) % 9}s`,
-  duration: `${9 + (i % 5) * 2}s`,
-  size: `${2 + (i % 3)}px`,
-}));
-
 function HomeBackdrop() {
   return <div className="home-backdrop" aria-hidden="true" style={{ backgroundImage: `url(${art.background})` }}>
-    {MOTES.map((m, i) => <i key={i} style={{ left: m.left, animationDelay: m.delay, animationDuration: m.duration, width: m.size, height: m.size }} />)}
+    <RisingEmbers />
   </div>;
 }
 

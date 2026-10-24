@@ -23,13 +23,13 @@ export function SpellStruggle({ state, now, leftSlot, hotseat }: SpellStrugglePr
   if (!struggle) return null;
   const rightSlot: PlayerSlot = leftSlot === "A" ? "B" : "A";
 
-  // Balance is +1 toward B; flip it so positive always means the left wizard is winning.
+  // Balance +1 means A is pushing toward B; flip it so positive always means the left wizard is winning.
   const lead = leftSlot === "A" ? struggle.balance : -struggle.balance;
   const positionFromA = DuelEngine.strugglePosition(struggle);
   const screen = leftSlot === "A" ? positionFromA : 1 - positionFromA;
   const secondsLeft = Math.max(0, (struggle.endsAt - now) / 1000);
   const timeShare = Math.max(0, Math.min(1, (struggle.endsAt - now) / (struggle.endsAt - struggle.startedAt)));
-  const status = Math.abs(lead) < 0.1 ? "Dead even!" : lead > 0 ? `${hotseat ? playerName[leftSlot] : "You're"} winning!` : `${hotseat ? playerName[rightSlot] : "Rival"} is winning!`;
+  const status = Math.abs(lead) < 0.1 ? "Dead even!" : lead > 0 ? hotseat ? `${playerName[leftSlot]} is leading!` : "You are leading!" : `${hotseat ? playerName[rightSlot] : "Rival"} is leading!`;
   const howTo = hotseat
     ? `Left: SPACE · Right: ${PUSH_KEYS.secondary.toUpperCase()} · or pump your fist`
     : "✊✋ Pump your fist as fast as you can! (or mash SPACE)";
@@ -50,6 +50,8 @@ export function SpellStruggle({ state, now, leftSlot, hotseat }: SpellStrugglePr
           </b>
         </header>
 
+        <strong className="struggle-leader">{status}</strong>
+
         <div className="struggle-bar">
           <i className={`player-${leftSlot}`} style={{ width: `${50 + lead * 50}%` }} />
           <i className={`player-${rightSlot}`} />
@@ -60,7 +62,7 @@ export function SpellStruggle({ state, now, leftSlot, hotseat }: SpellStrugglePr
           <span className={`player-${leftSlot}`}>
             {hotseat ? playerName[leftSlot] : "YOU"} · {struggle.pushes[leftSlot]}
           </span>
-          <strong>{status}</strong>
+          <span className="struggle-versus">VS</span>
           <span className={`player-${rightSlot}`}>
             {struggle.pushes[rightSlot]} · {hotseat ? playerName[rightSlot] : "RIVAL"}
           </span>
