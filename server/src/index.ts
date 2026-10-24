@@ -17,11 +17,16 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
 });
 const rooms = new RoomManager();
 const matches = new Map<string, MatchRunner>();
+const lastStageByRoom = new Map<string, number>();
 
 const isActionId = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 64;
 
 function startMatch(code: string) {
   matches.get(code)?.stop();
+  const previousStage = lastStageByRoom.get(code);
+  const stageChoices = [0, 1, 2].filter((stageId) => stageId !== previousStage);
+  const stageId = stageChoices[Math.floor(Math.random() * stageChoices.length)];
+  lastStageByRoom.set(code, stageId);
   const runner = new MatchRunner(
     (state, events) => io.to(code).emit("MATCH_STATE", state, events),
     () => {
@@ -29,6 +34,7 @@ function startMatch(code: string) {
       const snapshot = rooms.setInMatch(code, false);
       if (snapshot) io.to(code).emit("ROOM_UPDATED", snapshot);
     },
+    stageId,
   );
   matches.set(code, runner);
   const snapshot = rooms.setInMatch(code, true);

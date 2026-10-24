@@ -45,6 +45,8 @@ export interface Projectile {
 
 export interface MatchState {
   phase: MatchPhase;
+  /** Shared arena layout selected by the server for online matches. */
+  stageId?: number;
   /** Server clock when this snapshot was taken; clients use it to estimate offset. */
   now: number;
   /** End of the current phase (countdown, round or sudden death). Zero once finished. */
