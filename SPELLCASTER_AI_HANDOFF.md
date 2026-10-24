@@ -494,15 +494,43 @@ confirmed ownership of speech transcription and mapping it to an attack, in addi
 to sound output. This branch combines `origin/main` through `8246b87` (gesture arena)
 with the audio slices. Existing game types and `spellInput.cast` remain canonical.
 Voice is implemented in `client/src/voice/`, mounted in `DuelScreen`, and isolated from
-camera code and server combat rules. Local processing is the default; optional browser
-speech-service processing requires explicit UI opt-in and disclosure. No microphone
-recording or live provider accuracy was tested. See the session entry below for checks.
+camera code and server combat rules. The later user request enables automatic microphone
+permission/setup and continuous listening, with immediate interim-command dispatch for
+incendio/protego/glacius/fulmen. Automatic processing prefers an installed local model
+and otherwise uses the browser service, disclosed in the UI. On-device-only mode stays
+local. No real microphone recording or live provider latency/accuracy was tested.
 
 ---
 
 ## 14. Append-Only Engineering Change Log
 
 > Use newest entry at top. Every AI coding session should add a dated entry after implementation, even if incomplete. Never fabricate tests, commits, or results.
+
+### [2026-10-24] Automatic listening and interim-command latency fix
+
+- **Branch:** `feat/voice-casting`, following `e0cfa3c`. User requested automatic mic
+  permission and listening, only incendio/protego/glacius/fulmen, and removal of roughly
+  10-second perceived command delay. This supersedes the earlier one-utterance/opt-in default.
+- **Cause addressed:** Old code ignored interim results, waited for browser-finalized text,
+  then aborted recognition after each phrase. New continuous/interim mode dispatches in the
+  first matching callback, deduplicates consumed word positions/final indexes, and restarts
+  ended sessions without another permission request. Same-spell recovery is 400 ms and
+  never delays the first request. Combat cooldowns, travel time and authority are unchanged.
+- **Files:** `client/src/voice/` (including new `browser.ts`), voice behavior/native-adapter
+  tests and combat-browser fixtures, `client/VOICE.md`, README, integration contract, this log.
+- **Lifecycle:** Coalesced microphone-permission request with track release; local model
+  availability capped at 250 ms; installed-local preference and automatic browser fallback;
+  visible Stop/Resume and processing settings; no permission-denial loops, three bounded
+  network retries, pause on tab hiding/match end, cleanup on source change/leave.
+- **Verification:** `npm test`: 19 engine + 45 audio/voice tests pass. Chrome combat/voice:
+  12/12 pass. Edge voice: 8/8 pass. Tests prove same-turn interim dispatch, delayed-final
+  deduplication, automatic restarts, permission cleanup and real two-client server HP updates
+  before a final transcript. Voice UI screenshot inspected. Type checks and production build
+  pass; the existing large-bundle warning remains.
+- **Limitations:** All microphone/recognition integration tests are synthetic; actual speech
+  provider accuracy and microphone-to-text latency are unmeasured. Early interim matches
+  can be wrong and cannot undo an already-submitted attack. Use the actual demo device to
+  test incantations and ambient noise.
 
 ### [2026-10-24] Audio owner: speech transcription mapped to attack requests
 
@@ -571,12 +599,15 @@ recording or live provider accuracy was tested. See the session entry below for 
 
 ### Audio / speech owner
 
-1. On the actual demo laptop, open Voice casting and verify a local English language pack, or
-   explicitly opt in to browser speech-service processing before listening.
-2. Rehearse the four commands and incantations; record accuracy and latency. Test Stop, denied
-   permissions, route leave and microphone indicator behavior. Use headphones or one room output.
-3. Keep the first voice slice to one explicit utterance per click. Continuous listening, voice
-   power-ups and gesture-plus-voice bonuses need separate reliability and integration work.
+1. On the actual demo laptop, allow the automatic microphone request. Automatic mode uses
+   an installed local English model or the browser speech service. Verify that the local
+   model is actually selected if low provider latency is essential; no download blocks startup.
+2. Rehearse incendio/protego/glacius/fulmen continuously and record speech-to-first-text delay,
+   command dispatch, accuracy and duplicates. Test Stop/Resume, denied permissions, tab hiding,
+   rematch, route leave and microphone indicator behavior. Use headphones or one room output.
+3. Continuous recognition and early interim dispatch are implemented; live provider behavior,
+   noise/cross-talk and provisional-word errors still need validation. Voice power-ups and
+   gesture-plus-voice bonuses remain separate integration work.
 4. Playback countdown/victory cues remain the next output slice; do not confuse it with speech input.
 
 ### For the next Developer A work session

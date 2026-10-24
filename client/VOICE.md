@@ -1,81 +1,103 @@
-# Voice input: transcription to attack requests
+# Automatic voice casting
 
-The audio track includes microphone input and transcription as well as playback.
-`src/voice/` handles speech; `src/audio/` still handles output independently.
+Voice starts with the duel, including its countdown. The browser requests microphone
+permission automatically. Allow it once; recognition keeps listening across phrases.
+If browser policy requires an explicit interaction or permission was denied, press
+**Resume voice** after allowing the microphone. **Stop voice** stops listening and
+cancels automatic restarts until explicitly resumed.
 
-## Try it
-
-1. Run `npm run dev` and open `/practice?mode=hotseat` or join an online duel.
-2. After the countdown, expand **Voice casting** and click **Speak a spell**.
-3. Allow microphone access if prompted. Say one command, then wait for its final text.
-4. The recognized text is displayed, and a recognized command requests the local
-   wizard's spell through `spellInput.cast(spell, source.localSlot)`.
-
-| Say | Requested action |
+| Spoken incantation | Canonical attack request |
 | --- | --- |
-| Fireball, fire ball, Incendio | `fireball` |
-| Shield, Protego | `shield` |
-| Ice, Glacius | `ice` |
-| Ultimate, Fulmen | `ultimate` |
+| incendio | `fireball` |
+| protego | `shield` |
+| glacius | `ice` |
+| fulmen | `ultimate` |
 
-An optional `cast` prefix or `please` suffix is accepted. Case, punctuation and spacing
-are normalized. Only a whole, single command matches: conversation, negation, multiple
-spells, and partial/substrings do not trigger an attack. Ordinary English spell names
-are the fallback when the browser mishears fantasy incantations. No fuzzy matching.
+Only these four incantations are recognized (case/punctuation insensitive; optional
+`cast` prefix). Ordinary names such as `fireball`/`ice`, fuzzy guesses, substrings,
+negation and conversational sentences do not match. A growing transcript containing
+only successive incantations can submit each new word once.
 
-One click listens for one utterance and can request at most one spell. Interim text is
-shown but never casts. The recognizer aborts after the final result. Click again for
-another utterance. There is no automatic microphone restart or always-listening mode.
-The server (or local practice engine) still validates cooldowns, freezes, meter and
-phase. The status says **Requested**, never claims that an attack was accepted.
+## Delay fix
 
-## Browser processing and privacy
+The earlier version waited for a **final** result, then aborted the recognizer after
+every command. Browser endpointing could therefore hold a recognized spell until well
+after the player stopped speaking. This version uses `continuous=true` and
+`interimResults=true`, and submits an exact incantation **inside the first matching
+result callback**. It does not wait for silence, a final result, another click, a
+network acknowledgement or a timer before dispatching.
 
-Voice is off until explicitly started. Local processing is requested by default using
-`processLocally = true`; a compatible browser and installed English language pack are
-required. If the browser lacks local recognition, no microphone session starts in that
-mode. There is no silent fallback to remote recognition or automatic language download.
+Each native result index tracks already-consumed word positions. Repeated interim
+updates, a later final, or a revised word at that position cannot fire it again.
+Different utterances can cast again; a 400 ms same-spell recovery guard prevents quick
+restart echoes without delaying the first request. Server cooldowns remain authoritative.
+Words heard during countdown are consumed without becoming delayed attacks after start.
 
-The user can check **Use browser speech service** before starting. That allows the
-browser's provider to process microphone audio, possibly remotely and requiring network
-access. The UI discloses this before the microphone starts. The game adds no recording,
-transcript storage or transcript upload: only canonical spell intents enter the game
-bridge. Chrome/Edge speech availability varies by device, browser policies and provider.
+Natural speech-session endings restart automatically (initially 100 ms), retaining the
+microphone permission and processing choice. Silence retries back off to at most 2 s;
+network errors retry three times with 250/500/1000 ms delays, then require Resume.
+Permission/device/policy errors never trigger repeated permission prompts.
 
-Implementation reference: [MDN SpeechRecognition](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition).
+`getSnapshot().lastDispatchMs` measures only text-callback-to-request overhead. It does
+**not** measure spoken-onset-to-transcript latency. Synthetic tests assert synchronous
+dispatch and a delayed final cannot double-cast; these are not live microphone timings.
+Cloud/browser recognition may still be slow or inaccurate. Existing projectile travel
+time (e.g. 900 ms for fireball) is unchanged.
 
-## Ownership and lifecycle
+Early action is provisional: if the browser first recognizes the wrong incantation,
+the request cannot be undone when the text is later corrected. Restricting the vocabulary
+to four uncommon words, avoiding fuzzy matches, and using local phrase hints where
+supported limits that risk. Real venue-noise testing is still required.
 
-- `commands.ts`: pure transcript-to-spell mapping.
-- `recognition.ts`: injectable recognition interface; browser standard/prefixed
-  constructor detection, one-session/one-final semantics, errors, abort and late-event guards.
-- `VoiceControls.tsx`: optional React UI and connection to the existing input bridge.
-- `DuelScreen.tsx`: mounts voice controls alongside output controls and gesture input.
+## Processing and privacy
 
-Stop, closing the voice panel, hiding the tab, leaving the screen, changing sources,
-or entering countdown/finished phases aborts recognition. Queued results from an old
-session are ignored. Voice controls the local slot only, including hotseat mode; the
-other wizard remains controlled by the second keyboard. Camera/MediaPipe ownership
-and server combat rules are unchanged. Combined gesture-and-voice bonuses, continuous
-listening, speech power-ups and final audio production remain separate future slices.
+The user requested automatic permission/setup and listening. **Automatic** is now the
+default: use an already-installed on-device English model when the browser reports one,
+otherwise use its speech service. A model-availability lookup is capped at 250 ms and
+cached for restarts. No model download blocks the game. Local mode gets incantation
+phrase hints when the browser supports them; a failed local engine falls back once
+in Automatic mode. **On-device only** never falls back remotely.
 
-## Tests and live acceptance
+The voice panel discloses that Automatic/Browser service modes may send microphone
+audio to the browser's provider. No audio or transcripts are recorded, stored or sent
+to the game server. The permission-only `getUserMedia` stream releases every track
+before recognition starts. Concurrent React Strict Mode setups share the permission
+request. The speech service owns its own capture and is aborted on Stop/cleanup.
 
-`npm test` includes the engine, playback, combat adapter and voice behavior tests.
-`npm run test:audio:combat --workspace @spellcaster/client` includes browser voice
-integration tests using **synthetic recognition callbacks**, not a real microphone or
-provider. These verify interim/final handling, duplicate finals, command mapping,
-local-only default, explicit remote opt-in, permission/unsupported errors, cleanup,
-server meter rejection and HP changes on two online browser sessions.
+Use **Speech settings** to choose Automatic, On-device only, or Browser service.
+Permission is required on localhost/HTTPS. Support, local models, browser policy and
+provider latency vary. API references: [continuous recognition](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition/continuous),
+[interim results](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition/interimResults),
+[local model availability](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition/available_static).
 
-Before the demo, manually verify on the actual laptop/browser/microphone:
+## Integration and lifetime
 
-- Local language-pack availability or explicit provider opt-in, permission grant/deny.
-- Ten intentional phrases per core command, noting transcription accuracy and delay.
-- Unknown speech and nearby player/audio output do not accidentally cast during a listen.
-- Stop, tab hiding and navigation end the browser's microphone indicator.
-- A transcript becomes one accepted/rejected attack on both devices. Use headphones
-  or one audience output to reduce speaker/microphone cross-talk.
+- `commands.ts`: exact incantations and streaming command parsing.
+- `browser.ts`: standard/prefixed native adapter, bounded local availability lookup,
+  optional phrase hints and coalesced permission acquisition with track cleanup.
+- `recognition.ts`: persistent listening, immediate dispatch, deduplication, restart
+  policy, Stop/pause/resume and late-callback guards. Dependencies are injectable.
+- `VoiceControls.tsx`: auto-starts during countdown and routes requests through
+  `spellInput.cast(spell, source.localSlot)`; it owns no combat rules.
 
-Automated tests cannot establish live speech-service accuracy or physical microphone
-behavior. No live microphone recording or remote transcription was performed by the tests.
+Tab hiding and match end pause listening. Returning to the tab or entering a rematch
+resumes it unless the user stopped it. Leaving the screen or changing sources disposes
+the old instance. The local wizard is the only voice-controlled slot, including hotseat.
+Gesture and output modules remain independent.
+
+## Verification
+
+`npm test` includes engine and audio/voice behavior tests. Run the integration checks
+with `npm run test:audio:combat --workspace @spellcaster/client` (set
+`PLAYWRIGHT_CHANNEL=chrome` or `msedge` for an installed browser).
+
+Tests use synthetic microphone streams and native speech callbacks: automatic setup,
+track release, streaming/interim commands, repeated/final/revised results, a simulated
+10-second-late final, same-turn dispatch, restart without another permission request,
+model fallback, denied/unsupported cases, Stop/visibility/leave cleanup and actual
+two-client online HP updates before a final transcript. They do not use a real speech
+provider or establish live recognition accuracy/latency.
+
+Before the demo, rehearse all four incantations on the real browser/microphone. Check
+recognized text, speech-to-first-result delay, wrong/duplicate attacks, permission
+recovery, microphone indicator cleanup, speaker cross-talk and two-device agreement.

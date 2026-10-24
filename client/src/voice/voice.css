@@ -9,3 +9,5 @@
 .voice-body button:disabled{opacity:.5;cursor:not-allowed}
 .voice-transcript output{color:var(--parchment);overflow-wrap:anywhere}
 .voice-controls :focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.voice-settings{margin-left:auto}.voice-settings label{padding-top:8px}.voice-settings select{background:var(--night);color:var(--parchment);border:1px solid var(--line);padding:6px}.voice-controls strong{color:var(--gold-soft)}
+@media(max-width:600px){.voice-settings{margin-left:0}.voice-body{gap:8px}.voice-controls{padding:8px}}

@@ -1,5 +1,12 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 
+test.beforeEach(async ({ context }) => {
+  // Playback regression tests must never capture a real microphone.
+  await context.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = async () => { throw new DOMException("Test microphone denied", "NotAllowedError"); };
+  });
+});
+
 /** Observe actual source starts, not just calls to the audio adapter. */
 async function observe(context: BrowserContext) {
   await context.addInitScript(() => {

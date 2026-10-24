@@ -75,7 +75,8 @@ See [client/AUDIO.md](client/AUDIO.md) for the audio interface, tests and scope.
 
 ## Voice casting
 
-Expand **Voice casting** during a duel and click **Speak a spell** to transcribe one
-phrase and request an attack. Say fireball/Incendio, shield/Protego, ice/Glacius, or
-ultimate/Fulmen. On-device recognition is the default; browser speech-service processing
-requires explicit opt-in. See [client/VOICE.md](client/VOICE.md) for support and tests.
+Voice automatically requests microphone access and keeps listening during the duel.
+Say **incendio**, **protego**, **glacius**, or **fulmen**. Matching interim transcripts
+request attacks immediately without waiting for a final result. Use **Stop voice** or
+**Resume voice** as needed. Automatic processing prefers an installed local model and
+otherwise uses the browser speech service; see [client/VOICE.md](client/VOICE.md).

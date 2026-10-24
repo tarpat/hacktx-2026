@@ -9,10 +9,11 @@ This contract reflects the deterministic duel engine currently on the PR branch.
 - Power-up IDs are `empower`, `haste`, and `heal`.
 - The server owns the online match engine, clock, health, cooldowns, projectiles, blocks, clashes, and match outcome. Practice uses the same engine locally.
 - Keep camera media on-device. Send discrete spell or power-up intents only; microphone
-  processing follows the explicit voice opt-in rules below.
-- Voice defaults to on-device recognition. Only explicit browser-service opt-in permits
-  provider speech processing, disclosed in the voice UI; raw audio and transcripts are
-  never sent to the game server.
+  processing follows the voice settings below.
+- Per the audio owner's request, voice automatically asks for microphone permission and
+  listens during duels. Automatic mode prefers an installed local model, otherwise uses
+  the browser speech service (disclosed in the voice UI). On-device-only mode stays local.
+  Raw audio and transcripts are never sent to the game server.
 
 ## Client inputs
 
@@ -44,12 +45,13 @@ module owns output. See [client/AUDIO.md](../client/AUDIO.md) for tests and owne
 
 ### Speech input
 
-`VoiceControls` uses `VoiceCaster` to display interim/final transcripts and map a complete
-spoken command to `spellInput.cast(spell, source.localSlot)`. Only one final command per
-explicit listening session can submit an intent. Native speech results never apply
-damage, alter cooldowns or trigger playback directly. Rejections still arrive through
-the authoritative stream. See [client/VOICE.md](../client/VOICE.md) for aliases, privacy,
-lifecycle and the distinction between synthetic tests and live speech validation.
+`VoiceControls` auto-starts `VoiceCaster`, mapping incendio/protego/glacius/fulmen to
+`spellInput.cast(spell, source.localSlot)` on the first matching interim result.
+Consumed positions and final-result IDs prevent repeat or revised transcripts from
+submitting the same utterance again. Recognition remains active across phrases and
+restarts after natural endpointing. Native results never apply damage, alter cooldowns
+or trigger playback directly. Rejections still arrive through the authoritative stream.
+See [client/VOICE.md](../client/VOICE.md) for timing, privacy and lifecycle details.
 
 ## Current balance and effects
 
