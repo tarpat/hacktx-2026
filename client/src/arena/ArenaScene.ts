@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile } from "@spellcaster/shared";
 import { palette, playerColor, spellColor } from "../theme";
+import { RELEASE_MS, WizardRig } from "./WizardRig";
 
 export interface ArenaFrame {
   state: MatchState | null;
@@ -12,10 +13,10 @@ export interface ArenaFrame {
 interface WizardView {
   root: Phaser.GameObjects.Container;
   body: Phaser.GameObjects.Container;
+  rig: WizardRig;
   shield: Phaser.GameObjects.Graphics;
   frost: Phaser.GameObjects.Graphics;
   aura: Phaser.GameObjects.Graphics;
-  orb: Phaser.GameObjects.Arc;
   transformed: Phaser.GameObjects.Container | null;
 }
 
@@ -23,6 +24,15 @@ interface ProjectileView {
   node: Phaser.GameObjects.Container;
   trail: Phaser.GameObjects.Particles.ParticleEmitter;
 }
+
+interface Release {
+  /** Match-clock time the hand let go. */
+  at: number;
+  from: { x: number; y: number };
+}
+
+/** Extra wait before showing a spell whose release animation never fired (e.g. caster was hit). */
+const RELEASE_FALLBACK_MS = 200;
 
 const SPARK = "spark";
 
@@ -33,6 +43,7 @@ export class ArenaScene extends Phaser.Scene {
   private wizards = {} as Record<PlayerSlot, WizardView>;
   private projectiles = new Map<string, ProjectileView>();
   private lastPositions = new Map<string, { x: number; y: number }>();
+  private releases = new Map<string, Release>();
   private unit = 1;
 
   constructor(getFrame: () => ArenaFrame) {
@@ -57,11 +68,11 @@ export class ArenaScene extends Phaser.Scene {
     this.events.once("shutdown", () => this.scale.off("resize", onResize));
   }
 
-  update() {
+  update(time: number, delta: number) {
     const { state, now } = this.getFrame();
     if (!state) return;
-    for (const event of this.queue.splice(0)) this.react(event);
-    for (const slot of ["A", "B"] as PlayerSlot[]) this.updateWizard(slot, state, now);
+    for (const event of this.queue.splice(0)) this.react(event, time);
+    for (const slot of ["A", "B"] as PlayerSlot[]) this.updateWizard(slot, state, now, time, delta);
     this.updateProjectiles(state.projectiles, now);
   }
 
@@ -73,10 +84,10 @@ export class ArenaScene extends Phaser.Scene {
     return { x: width * (left ? 0.2 : 0.8), y: height * 0.8, facing: left ? 1 : -1 };
   }
 
-  /** Where spells leave the staff and where they strike. */
+  /** Where spells strike a wizard (chest height, just in front of them). */
   private castPoint(slot: PlayerSlot) {
     const { x, y, facing } = this.anchor(slot);
-    return { x: x + facing * 58 * this.unit, y: y - 120 * this.unit };
+    return { x: x + facing * 30 * this.unit, y: y - 110 * this.unit };
   }
 
   private build() {
@@ -84,6 +95,7 @@ export class ArenaScene extends Phaser.Scene {
     this.unit = Math.max(0.55, Math.min(1.3, height / 520));
     this.projectiles.clear();
     this.lastPositions.clear();
+    this.releases.clear();
     this.drawBackdrop(width, height);
     this.wizards = { A: this.makeWizard("A"), B: this.makeWizard("B") };
   }
@@ -132,34 +144,12 @@ export class ArenaScene extends Phaser.Scene {
   private makeWizard(slot: PlayerSlot): WizardView {
     const { x, y, facing } = this.anchor(slot);
     const color = playerColor[slot];
-    const root = this.add.container(x, y).setScale(this.unit);
+    // The rig is drawn facing right; mirroring the root turns the right-hand wizard around.
+    const root = this.add.container(x, y).setScale(this.unit * facing, this.unit);
     const shadow = this.add.ellipse(0, 4, 120, 22, 0x000000, 0.35);
     const aura = this.add.graphics();
-    const body = this.add.container(0, 0);
-
-    const g = this.add.graphics();
-    g.fillStyle(color, 1);
-    g.fillTriangle(-46, 0, 46, 0, 0, -120); // robe
-    g.fillStyle(palette.gold, 1);
-    g.fillRect(-40, -12, 80, 7); // hem
-    g.fillStyle(palette.parchment, 1);
-    g.fillCircle(0, -128, 20); // face
-    g.fillStyle(0xf7f1ff, 1);
-    g.fillTriangle(-16, -122, 16, -122, 0 + 6 * facing, -82); // beard
-    g.fillStyle(palette.night, 1);
-    g.fillCircle(7 * facing, -132, 3); // eye
-    g.fillStyle(Phaser.Display.Color.ValueToColor(color).darken(25).color, 1);
-    g.fillTriangle(-34, -140, 34, -140, -18 * facing, -222); // hat
-    g.fillEllipse(0, -140, 84, 14); // brim
-    g.fillStyle(palette.gold, 1);
-    g.fillCircle(-6 * facing, -175, 5); // hat star
-    g.lineStyle(6, 0x8a5a3c, 1);
-    g.lineBetween(58 * facing, 0, 58 * facing, -122); // staff
-    const orb = this.add.circle(58 * facing, -128, 10, palette.gold, 1);
-    const glow = this.add.circle(58 * facing, -128, 20, palette.gold, 0.25);
-    this.tweens.add({ targets: glow, scale: 1.4, alpha: 0.05, duration: 900, yoyo: true, repeat: -1 });
-    body.add([g, glow, orb]);
-    this.tweens.add({ targets: body, y: -6, duration: 1400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    const rig = new WizardRig(this, color);
+    const body = rig.container;
 
     const shield = this.add.graphics();
     shield.fillStyle(palette.gold, 0.14);
@@ -178,14 +168,16 @@ export class ArenaScene extends Phaser.Scene {
     frost.setVisible(false);
 
     root.add([shadow, aura, body, shield, frost]);
-    return { root, body, shield, frost, aura, orb, transformed: null };
+    return { root, body, rig, shield, frost, aura, transformed: null };
   }
 
   // ---------- per-frame ----------
 
-  private updateWizard(slot: PlayerSlot, state: MatchState, now: number) {
+  private updateWizard(slot: PlayerSlot, state: MatchState, now: number, time: number, delta: number) {
     const view = this.wizards[slot];
     const player = state.players[slot];
+    view.rig.setCheering(state.phase === "finished" && state.winner === slot);
+    view.rig.update(time, delta, now < player.frozenUntil);
     const finishedLoser = state.phase === "finished" && state.winner && state.winner !== slot;
 
     if (finishedLoser && !view.transformed) return this.transform(slot, state.loserForm);
@@ -208,7 +200,7 @@ export class ArenaScene extends Phaser.Scene {
       view.aura.fillStyle(empowered || charged ? palette.gold : palette.mint, 0.18);
       view.aura.fillEllipse(0, -100, 150 * pulse, 240 * pulse);
     }
-    view.orb.setFillStyle(charged ? 0xffffff : palette.gold);
+    view.rig.setCharged(charged);
   }
 
   private updateProjectiles(list: Projectile[], now: number) {
@@ -219,6 +211,7 @@ export class ArenaScene extends Phaser.Scene {
       this.time.delayedCall(400, () => view.trail.destroy());
       view.node.destroy();
       this.projectiles.delete(id);
+      this.releases.delete(id);
     }
 
     for (const projectile of list) {
@@ -227,9 +220,20 @@ export class ArenaScene extends Phaser.Scene {
         view = this.makeProjectile(projectile);
         this.projectiles.set(projectile.id, view);
       }
-      const from = this.castPoint(projectile.owner);
+      // Hide the spell while the caster winds up and fly it from the hand once the throw
+      // animation lets go. The hit still lands at arrivesAt, so the visible flight is quicker.
+      let release = this.releases.get(projectile.id);
+      const fallbackAt = projectile.launchedAt + RELEASE_MS[projectile.spell as keyof typeof RELEASE_MS] + RELEASE_FALLBACK_MS;
+      if (!release && now >= fallbackAt) {
+        release = { at: now, from: this.wizards[projectile.owner].rig.handPoint() };
+        this.releases.set(projectile.id, release);
+      }
+      view.node.setVisible(Boolean(release));
+      view.trail.emitting = Boolean(release);
+      if (!release) continue;
+      const { from, at: releaseAt } = release;
       const to = this.castPoint(opponentOf(projectile.owner));
-      const t = Phaser.Math.Clamp((now - projectile.launchedAt) / (projectile.arrivesAt - projectile.launchedAt), 0, 1);
+      const t = Phaser.Math.Clamp((now - releaseAt) / Math.max(1, projectile.arrivesAt - releaseAt), 0, 1);
       const x = Phaser.Math.Linear(from.x, to.x, t);
       const y = Phaser.Math.Linear(from.y, to.y, t) - Math.sin(t * Math.PI) * 40 * this.unit;
       view.node.setPosition(x, y).setRotation(now / 90);
@@ -261,11 +265,24 @@ export class ArenaScene extends Phaser.Scene {
 
   // ---------- events ----------
 
-  private react(event: GameEvent) {
+  private react(event: GameEvent, time: number) {
     switch (event.type) {
       case "SPELL_CAST": {
-        const point = this.castPoint(event.slot);
-        this.burst(point.x, point.y, spellColor[event.spell], 10, 0.8);
+        const rig = this.wizards[event.slot].rig;
+        const color = spellColor[event.spell];
+        if (event.spell === "shield") {
+          rig.play("shield", time);
+          break;
+        }
+        rig.play(event.spell === "ultimate" ? "ultimate" : "throw", time, {
+          color,
+          releaseMs: RELEASE_MS[event.spell],
+          onRelease: () => {
+            const hand = rig.handPoint();
+            if (event.projectileId) this.releases.set(event.projectileId, { at: this.getFrame().now, from: hand });
+            this.burst(hand.x, hand.y, color, 14, 0.9);
+          },
+        });
         break;
       }
       case "DAMAGE_APPLIED":
@@ -301,6 +318,7 @@ export class ArenaScene extends Phaser.Scene {
     this.burst(x, y - 110 * this.unit, color, 20 + amount, 1.3);
     this.floatText(x, y - 240 * this.unit, `-${amount}`, "#ff4f7b");
     this.cameras.main.shake(120 + amount * 6, 0.004 + amount * 0.0003);
+    view.rig.play("hit", this.time.now);
     this.tweens.add({ targets: view.body, alpha: 0.25, duration: 70, yoyo: true, repeat: 2 });
     this.tweens.add({ targets: view.root, x: x - facing * 16 * this.unit, duration: 90, yoyo: true, ease: "Quad.easeOut" });
   }
