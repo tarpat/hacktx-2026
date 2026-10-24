@@ -185,10 +185,13 @@ export class DuelEngine {
   }
 
   private planClash(incoming: Projectile): void {
+    // Fulmen strikes from the sky, so nothing in the air can meet it.
+    if (incoming.spell === "ultimate") return;
     const travel = this.config.spells[incoming.spell].travelMs;
     const rival = this.state.projectiles.find(
       (p) =>
         p.owner !== incoming.owner &&
+        p.spell !== "ultimate" &&
         incoming.launchedAt - p.launchedAt <= this.config.clashWindowMs &&
         !this.clashes.some((plan) => plan.ids.includes(p.id)),
     );

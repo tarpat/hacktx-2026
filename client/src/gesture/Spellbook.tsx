@@ -21,8 +21,8 @@ const ENTRIES: Entry[] = [
     effect: `${spells.fireball.damage} damage · ${seconds(spells.fireball.cooldownMs)} cooldown`,
   },
   {
-    gesture: "✋",
-    how: "Show one open palm (not straight after a fist)",
+    gesture: "🙌",
+    how: "Raise both hands, palms facing the camera",
     spell: "shield",
     title: `${spells.shield.name} · Shield`,
     effect: `Blocks for ${seconds(shieldGuardMs)} · ${seconds(spells.shield.cooldownMs)} cooldown`,
@@ -35,8 +35,8 @@ const ENTRIES: Entry[] = [
     effect: `${spells.ice.damage} damage + freezes ${seconds(freezeMs)} · ${seconds(spells.ice.cooldownMs)} cooldown`,
   },
   {
-    gesture: "✊✊ → 🙌",
-    how: "Make both fists until the lightning orb says \u201cOpen both hands!\u201d, then open them",
+    gesture: "☝️ → 👇",
+    how: "Point one finger at the sky until the orb says \u201cDrop it to strike!\u201d, then lower it",
     spell: "ultimate",
     title: `${spells.ultimate.name} · Ultimate`,
     effect: `${spells.ultimate.damage} damage · needs a full meter`,

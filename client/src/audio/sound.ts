@@ -1,11 +1,12 @@
 import type { GameEvent, PlayerSlot, SpellId } from "@spellcaster/shared";
 
 /**
- * Game sound, all synthesized with Web Audio: no files to load.
- * Effects are grounded booms, roars and crackles; the music is a looping music-box waltz.
+ * Game sound: recorded effects and battle music from assets/audio (sources in CREDITS.txt),
+ * layered with synthesized whooshes, booms and the hold-to-charge drone.
  */
 
 const MUTE_KEY = "spellcaster:muted";
+const MUSIC_LEVEL = 0.32;
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -45,7 +46,7 @@ function audio(): AudioContext | null {
     wet.gain.value = 0.3;
     sfxBus.connect(reverb).connect(wet).connect(compressor);
     musicBus = ctx.createGain();
-    musicBus.gain.value = 0.16;
+    musicBus.gain.value = MUSIC_LEVEL;
     musicBus.connect(master);
   }
   if (ctx.state === "suspended") void ctx.resume();
@@ -125,12 +126,6 @@ function tone(freq: number, start: number, duration: number, o: ToneOptions = {}
   osc.stop(t + duration + 0.02);
 }
 
-/** A soft bell: a sine plus a quiet, inharmonic overtone. */
-function bell(freq: number, start: number, duration = 0.6, volume = 0.25, bus?: GainNode | null) {
-  tone(freq, start, duration, { volume, bus });
-  tone(freq * 2.76, start, duration * 0.4, { volume: volume * 0.25, bus });
-}
-
 /** Filtered noise for whooshes, crackles and crunches. */
 function noise(start: number, duration: number, o: { from: number; to: number; volume?: number; q?: number; type?: BiquadFilterType }) {
   const ac = audio();
@@ -174,61 +169,77 @@ function crackle(start: number, duration: number, count: number, freq = 1500) {
   }
 }
 
-const note = (semitonesFromA4: number) => 440 * 2 ** (semitonesFromA4 / 12);
-const C5 = note(3), C6 = note(15);
+// ---------- recorded clips ----------
 
-// ---------- audio clip loading ----------
+const audioUrl = (file: string) => `${import.meta.env.BASE_URL}assets/audio/${file}.mp3`;
 
-const audioCache = new Map<string, Promise<AudioBuffer | null>>();
+/** Each effect lists its takes; one is picked at random so repeats don't sound mechanical. */
+const CLIPS = {
+  click: ["click"],
+  countdown: ["countdown"],
+  duelStart: ["duel-start"],
+  fireCast: ["fire-cast"],
+  iceCast: ["ice-cast"],
+  shield: ["shield"],
+  ultimateCast: ["ultimate-cast"],
+  fireHit: ["fire-hit-1", "fire-hit-2", "fire-hit-3"],
+  iceHit: ["ice-hit-1", "ice-hit-2", "ice-hit-3"],
+  lightning: ["lightning-1", "lightning-2", "lightning-3"],
+  frozen: ["frozen"],
+  block: ["block"],
+  clash: ["clash"],
+  push: ["push"],
+  ultimateReady: ["ultimate-ready"],
+  powerUp: ["power-up"],
+  rejected: ["rejected"],
+} as const;
 
-function loadBuffer(url: string, ac: AudioContext): Promise<AudioBuffer | null> {
-  let promise = audioCache.get(url);
+type Clip = keyof typeof CLIPS;
+
+const buffers = new Map<string, Promise<AudioBuffer | null>>();
+
+function loadBuffer(file: string, ac: AudioContext): Promise<AudioBuffer | null> {
+  let promise = buffers.get(file);
   if (!promise) {
-    promise = fetch(url)
+    promise = fetch(audioUrl(file))
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.arrayBuffer();
       })
       .then((data) => ac.decodeAudioData(data))
       .catch((err) => {
-        console.warn(`Failed to load audio from ${url}:`, err);
+        console.warn(`Failed to load audio ${file}:`, err);
         return null;
       });
-    audioCache.set(url, promise);
+    buffers.set(file, promise);
   }
   return promise;
 }
 
-export function preloadClips() {
+function preloadClips() {
   const ac = audio();
   if (!ac) return;
-  for (const file of ["funky.mp3", "hog_raida.mp3", "get_out.mp3"]) {
-    void loadBuffer(`${import.meta.env.BASE_URL}assets/${file}`, ac);
-  }
+  for (const takes of Object.values(CLIPS)) for (const file of takes) void loadBuffer(file, ac);
 }
 
-function playClip(filename: string, duration = 3, volume = 0.85) {
+/** Plays one take of a clip, slightly detuned each time. */
+function play(clip: Clip, o: { volume?: number; delay?: number; rate?: number } = {}) {
   const ac = audio();
-  if (!ac || !sfxBus) return;
-  const url = `${import.meta.env.BASE_URL}assets/${filename}`;
-  void loadBuffer(url, ac).then((buffer) => {
-    if (!buffer || !sfxBus || !ctx) return;
-    const src = ctx.createBufferSource();
+  if (!ac) return;
+  const takes = CLIPS[clip];
+  const file = takes[Math.floor(Math.random() * takes.length)];
+  const requestedAt = ac.currentTime;
+  void loadBuffer(file, ac).then((buffer) => {
+    if (!buffer || !sfxBus) return;
+    // A clip still loading when it was asked for plays late rather than not at all.
+    const at = Math.max(ac.currentTime, requestedAt + (o.delay ?? 0));
+    const src = ac.createBufferSource();
     src.buffer = buffer;
-    const gain = ctx.createGain();
-    const t = ctx.currentTime;
-    const playLength = Math.min(buffer.duration, duration);
-    const fadeOut = Math.min(0.08, playLength * 0.1);
-
-    gain.gain.setValueAtTime(volume, t);
-    if (playLength < buffer.duration) {
-      gain.gain.setValueAtTime(volume, t + playLength - fadeOut);
-      gain.gain.linearRampToValueAtTime(0.0001, t + playLength);
-    }
-
+    src.playbackRate.value = (o.rate ?? 1) * (0.96 + Math.random() * 0.08);
+    const gain = ac.createGain();
+    gain.gain.value = o.volume ?? 1;
     src.connect(gain).connect(sfxBus);
-    src.start(t, 0, playLength);
-    src.stop(t + playLength);
+    src.start(at);
   });
 }
 
@@ -236,92 +247,89 @@ function playClip(filename: string, duration = 3, volume = 0.85) {
 
 export const sfx = {
   click() {
-    noise(0, 0.03, { from: 2500, to: 2000, volume: 0.08, q: 1 });
+    play("click", { volume: 0.6 });
   },
   countdownTick() {
-    boom(0, 0.35);
+    play("countdown", { volume: 0.8 });
+    boom(0, 0.3);
   },
   duelStart() {
-    boom(0, 0.7);
+    play("duelStart");
+    boom(0, 0.6);
     rumble(0, 1.2, 0.3);
-  },
-  fireball() {
-    playClip("hog_raida.mp3", 3);
-  },
-  freeze() {
-    playClip("get_out.mp3", 3);
-  },
-  shield() {
-    playClip("funky.mp3", 3);
   },
   cast(spell: SpellId) {
     if (spell === "fireball") {
-      sfx.fireball();
+      // Flame roaring out of the hand.
+      play("fireCast", { volume: 0.9 });
+      noise(0, 0.45, { from: 400, to: 1800, volume: 0.25, q: 0.8 });
     } else if (spell === "ice") {
-      sfx.freeze();
+      // A cold, glassy whistle.
+      play("iceCast", { volume: 0.7 });
+      noise(0, 0.4, { from: 6000, to: 2500, volume: 0.18, q: 2 });
     } else if (spell === "shield") {
-      sfx.shield();
-    } else if (spell === "ultimate") {
-      // A lightning strike: a split-second crack, then thunder rolling away.
-      noise(0, 0.06, { from: 9000, to: 4000, volume: 0.7, type: "highpass" });
-      crackle(0, 0.2, 20, 4000);
-      boom(0.04, 0.8);
-      rumble(0.1, 2.0, 0.5);
+      play("shield");
+      boom(0, 0.25);
+    } else {
+      // Calling the storm: a charged hum and thunder gathering far away.
+      play("ultimateCast");
+      crackle(0, 0.5, 12, 4000);
+      rumble(0.1, 1.8, 0.35);
     }
   },
   hit(spell: SpellId) {
-    if (spell === "ice") {
-      // Ice shattering on impact.
-      boom(0, 0.35);
-      crackle(0, 0.4, 18, 4500);
-      noise(0, 0.3, { from: 7000, to: 4000, volume: 0.15, type: "highpass" });
-    } else if (spell === "fireball") {
-      // An explosion: a heavy boom with a burst of flame.
-      boom(0, 0.7);
-      noise(0, 0.7, { from: 900, to: 200, volume: 0.4, q: 0.4 });
-      crackle(0.05, 0.4, 8, 1000);
+    if (spell === "fireball") {
+      play("fireHit");
+      boom(0, 0.5);
+    } else if (spell === "ice") {
+      play("iceHit");
+      boom(0, 0.3);
     } else {
-      boom(0, 0.9);
-      rumble(0, 1.0, 0.4);
+      // The strike: a split-second crack, then the recorded thunder.
+      noise(0, 0.06, { from: 9000, to: 4000, volume: 0.6, type: "highpass" });
+      play("lightning");
+      boom(0.02, 0.9);
+      duckMusic(2.5);
     }
   },
   block() {
-    // A spell slamming into the barrier and dispersing.
-    boom(0, 0.45);
-    noise(0, 0.4, { from: 2500, to: 600, volume: 0.3, q: 0.6 });
+    play("block");
+    play("shield", { volume: 0.5, rate: 0.8 });
   },
   frozen() {
-    // Ice creeping over the target.
-    crackle(0, 0.9, 14, 3500);
+    // Ice locking around the target, just after the hit.
+    play("frozen", { volume: 0.8, delay: 0.15 });
   },
   clash() {
-    boom(0, 0.8);
-    noise(0, 0.6, { from: 2000, to: 300, volume: 0.4, q: 0.5 });
+    play("clash");
+    boom(0, 0.5);
   },
   struggleStart() {
+    play("clash", { volume: 0.7, rate: 0.85 });
     rumble(0, 1.2, 0.5);
   },
   push() {
-    noise(0, 0.1, { from: 300, to: 150, volume: 0.3, type: "lowpass" });
+    play("push", { volume: 0.7 });
   },
   ultimateReady() {
-    // Power gathering: a swelling rush with electric crackle.
-    noise(0, 1.2, { from: 200, to: 2500, volume: 0.25, q: 0.7 });
-    crackle(0.6, 0.6, 8, 4000);
+    play("ultimateReady");
+    crackle(0.3, 0.6, 8, 4000);
   },
   powerUp() {
-    noise(0, 0.7, { from: 300, to: 2000, volume: 0.25, q: 0.7 });
+    play("powerUp", { volume: 0.8 });
   },
   rejected() {
-    noise(0, 0.15, { from: 600, to: 250, volume: 0.15, type: "lowpass" });
+    play("rejected", { volume: 0.6 });
   },
   victory() {
+    duckMusic(3);
     boom(0, 0.6);
-    // A low, open fifth swelling in: grand rather than cute.
+    // A low, open fifth swelling in.
     for (const f of [65.4, 98, 130.8]) tone(f, 0, 2.5, { type: "sine", volume: 0.15, attack: 0.6 });
     noise(0, 2.0, { from: 300, to: 3000, volume: 0.12, q: 0.5 });
   },
   defeat() {
+    duckMusic(3);
     rumble(0, 2.0, 0.35);
     tone(55, 0, 2.0, { type: "sine", volume: 0.18, attack: 0.3 });
   },
@@ -452,77 +460,55 @@ export function playEvents(events: GameEvent[], localSlot: PlayerSlot, hotseat: 
 
 // ---------- music ----------
 
-/**
- * A little music-box waltz in C major (3/4). Each bar: melody notes as [semitone from C5, beats].
- * null is a rest. Chords are bass roots for the oom-pah-pah.
- */
-const MELODY: [number | null, number][][] = [
-  [[7, 1], [4, 1], [7, 1]],
-  [[12, 2], [11, 1]],
-  [[9, 1], [5, 1], [9, 1]],
-  [[7, 3]],
-  [[5, 1], [4, 1], [2, 1]],
-  [[4, 1], [7, 1], [12, 1]],
-  [[11, 1], [9, 1], [7, 1]],
-  [[2, 2], [null, 1]],
-  [[7, 1], [4, 1], [7, 1]],
-  [[12, 2], [14, 1]],
-  [[16, 1], [14, 1], [12, 1]],
-  [[9, 3]],
-  [[11, 1], [12, 1], [14, 1]],
-  [[12, 1], [9, 1], [7, 1]],
-  [[5, 1], [2, 1], [11, 1]],
-  [[0, 3]],
-];
-// Bass roots per bar, semitones from C3.
-const BASS = [0, 9, 5, 0, 7, 0, 5, 7, 0, 9, 5, 2, 7, 5, 7, 0];
+export type MusicTrack = "menu" | "battle";
 
-const BEAT = 0.42;
-let musicTimer = 0;
-let nextBarAt = 0;
-let bar = 0;
+const TRACK_FILES: Record<MusicTrack, string> = { menu: "music-menu", battle: "music-battle" };
 
-function scheduleBar(at: number) {
-  const ac = ctx!;
-  const offset = at - ac.currentTime;
-  let beat = 0;
-  for (const [semi, beats] of MELODY[bar]) {
-    if (semi !== null) bell(C5 * 2 ** (semi / 12), offset + beat * BEAT, beats * BEAT + 0.6, 0.5, musicBus);
-    beat += beats;
-  }
-  // Oom-pah-pah: low root, then two soft chord taps.
-  const root = (C5 / 4) * 2 ** (BASS[bar] / 12);
-  tone(root, offset, BEAT * 1.2, { type: "triangle", volume: 0.5, bus: musicBus });
-  for (const b of [1, 2]) {
-    tone(root * 2, offset + b * BEAT, BEAT * 0.6, { type: "sine", volume: 0.2, bus: musicBus });
-    tone(root * 2 * 1.26, offset + b * BEAT, BEAT * 0.6, { type: "sine", volume: 0.15, bus: musicBus });
-    tone(root * 3, offset + b * BEAT, BEAT * 0.6, { type: "sine", volume: 0.15, bus: musicBus });
-  }
-  // A twinkle at the end of every fourth bar.
-  if (bar % 4 === 3) bell(C6 * 2, offset + 2.5 * BEAT, 0.5, 0.15, musicBus);
-  bar = (bar + 1) % MELODY.length;
+let wantedTrack: MusicTrack = "menu";
+let playing: { track: MusicTrack; src: AudioBufferSourceNode; gain: GainNode } | null = null;
+let unlocked = false;
+
+/** Crossfades to a looping track. Safe to call before the first interaction; it starts once audio unlocks. */
+export function setMusic(track: MusicTrack) {
+  wantedTrack = track;
+  if (!unlocked || playing?.track === track) return;
+  const ac = audio();
+  if (!ac || !musicBus) return;
+  void loadBuffer(TRACK_FILES[track], ac).then((buffer) => {
+    if (!buffer || !musicBus || wantedTrack !== track || playing?.track === track) return;
+    const t = ac.currentTime;
+    if (playing) {
+      const old = playing;
+      old.gain.gain.setTargetAtTime(0, t, 0.4);
+      old.src.stop(t + 2.5);
+    }
+    const src = ac.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    const gain = ac.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(1, t + 1.2);
+    src.connect(gain).connect(musicBus);
+    src.start(t);
+    playing = { track, src, gain };
+  });
 }
 
-/** Starts the looping background waltz (safe to call repeatedly). */
-export function startMusic() {
-  const ac = audio();
-  if (!ac || musicTimer) return;
-  nextBarAt = ac.currentTime + 0.1;
-  bar = 0;
-  // Schedule a little ahead so timer jitter never causes gaps.
-  musicTimer = window.setInterval(() => {
-    while (nextBarAt < ac.currentTime + 1.5) {
-      scheduleBar(nextBarAt);
-      nextBarAt += 3 * BEAT;
-    }
-  }, 250);
+/** Pulls the music down under a big moment, then lets it swell back. */
+function duckMusic(seconds: number) {
+  if (!ctx || !musicBus) return;
+  const t = ctx.currentTime;
+  musicBus.gain.cancelScheduledValues(t);
+  musicBus.gain.setTargetAtTime(MUSIC_LEVEL * 0.35, t, 0.05);
+  musicBus.gain.setTargetAtTime(MUSIC_LEVEL, t + seconds, 0.6);
 }
 
 /** Starts music on the first interaction (autoplay rules) and adds a soft click to every button. */
 export function installGlobalSound() {
   const unlock = () => {
-    startMusic();
+    unlocked = true;
     preloadClips();
+    setMusic(wantedTrack);
     window.removeEventListener("pointerdown", unlock);
     window.removeEventListener("keydown", unlock);
   };

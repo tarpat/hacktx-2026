@@ -7,8 +7,9 @@ import { useSession } from "../session";
 
 const GESTURE_INFO: { id: string; num: string; name: string; emoji: string; pose: HandPose[] }[] = [
   { id: "fist", num: "01", name: "FIST", emoji: "✊", pose: ["FIST", "BOTH_FISTS"] },
-  { id: "palm", num: "02", name: "OPEN PALM", emoji: "✋", pose: ["OPEN_PALM", "BOTH_PALMS"] },
+  { id: "palms", num: "02", name: "BOTH PALMS", emoji: "🙌", pose: ["BOTH_PALMS", "OPEN_PALM"] },
   { id: "victory", num: "03", name: "TWO FINGERS", emoji: "✌️", pose: ["VICTORY"] },
+  { id: "point", num: "04", name: "POINT UP", emoji: "☝️", pose: ["POINT"] },
 ];
 
 export function CalibrationView() {
@@ -23,8 +24,9 @@ export function CalibrationView() {
   const [error, setError] = useState("");
   const [calibrated, setCalibrated] = useState<Record<string, boolean>>({
     fist: false,
-    palm: false,
+    palms: false,
     victory: false,
+    point: false,
   });
 
   useEffect(() => {
@@ -75,7 +77,7 @@ export function CalibrationView() {
   }, []);
 
   const live = status === "TRACKING" || status === "NO_HAND";
-  const allCalibrated = calibrated.fist && calibrated.palm && calibrated.victory;
+  const allCalibrated = calibrated.fist && calibrated.palms && calibrated.victory && calibrated.point;
 
   const onEnterArena = () => {
     navigate("/arena");
@@ -88,10 +90,12 @@ export function CalibrationView() {
       ? "Hold your hand up to the camera"
       : pose === "FIST" || pose === "BOTH_FISTS"
       ? "Fist detected! ✊"
-      : pose === "OPEN_PALM" || pose === "BOTH_PALMS"
-      ? "Open palm detected! ✋"
+      : pose === "BOTH_PALMS" || pose === "OPEN_PALM"
+      ? "Palms detected! 🙌"
       : pose === "VICTORY"
       ? "Two fingers detected! ✌️"
+      : pose === "POINT"
+      ? "Point detected! ☝️"
       : "Hand tracked · Try a gesture below";
 
   return (

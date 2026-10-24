@@ -51,7 +51,7 @@ export function ChargeOrb({ charge, outcome, ultimateReady }: ChargeOrbProps) {
   const ring = phase === "building" ? elapsed / minMs : Math.max(0, left / (maxMs - minMs));
   const scale = 0.5 + 0.7 * Math.min(1, elapsed / maxMs);
   const ultimate = charge.kind === "ultimate";
-  const action = ultimate ? "Open both hands!" : "Open your hand!";
+  const action = ultimate ? "Drop it to strike!" : "Open your hand!";
   const text =
     ultimate && !ultimateReady ? "Fulmen meter not full!" : phase === "building" ? (ultimate ? "⚡ Fulmen charging…" : "Charging…") : phase === "ready" ? action : "Release now!";
 

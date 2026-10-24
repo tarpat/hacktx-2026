@@ -1,0 +1,18 @@
+Sound effects and music
+
+fire-hit-*, ice-hit-*, lightning-*
+  "Basic Spell Impacts" by lentikula (https://lentikula.itch.io/freecc0-basic-spell-impacts-sfx). CC0.
+
+fire-cast, ice-cast, shield, block, clash, frozen, countdown, duel-start, push,
+ultimate-cast, ultimate-ready, click, rejected, power-up
+  "Sci-Fi Sounds", "Impact Sounds" and "Interface Sounds" by Kenney (https://kenney.nl). CC0.
+
+music-battle
+  "Epic Boss Battle [Seamlessly Looping]" by Juhani Junkala
+  (https://opengameart.org/content/boss-battle-music). CC0.
+
+music-menu
+  "Determined Pursuit (Epic Orchestra Loop)" by Emma_MA
+  (https://opengameart.org/content/determined-pursuit-epic-orchestra-loop). CC0.
+
+All files trimmed, loudness-matched and converted to MP3.
