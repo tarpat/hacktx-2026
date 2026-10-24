@@ -34,13 +34,15 @@ function SpellIcon({ spell }: { spell: SpellId }) {
   return src ? <img src={src} alt="" /> : <span>{spellGlyph[spell]}</span>;
 }
 
-// Remember the opt-in for this tab so the camera follows the player from lobby to arena.
+// Remember gesture camera state for this tab so the camera follows the player from lobby to arena.
+// Defaults to true (on).
 const STORAGE_KEY = "spellcaster:gestures";
 function readEnabled() {
   try {
-    return sessionStorage.getItem(STORAGE_KEY) === "on";
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    return saved === null ? true : saved === "on";
   } catch {
-    return false;
+    return true;
   }
 }
 function writeEnabled(on: boolean) {

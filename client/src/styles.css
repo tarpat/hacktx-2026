@@ -316,7 +316,7 @@ kbd {
 }
 
 .camera-frame {
-  height: 260px;
+  height: 280px;
   position: relative;
   background: var(--night);
   border: 1px solid #f6c45333;
@@ -324,6 +324,55 @@ kbd {
   display: grid;
   place-items: center;
   margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.calibration-video,
+.calibration-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 17px;
+}
+
+.calibration-canvas {
+  pointer-events: none;
+}
+
+.calibration-badge {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(18, 12, 36, 0.88);
+  border: 1px solid #f6c45355;
+  color: var(--gold-soft);
+  font: 700 11px var(--font-label);
+  letter-spacing: 0.12em;
+  padding: 6px 16px;
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.calibration-badge .pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 8px var(--gold);
+}
+
+.calibration-badge.active .pulse-dot {
+  background: #7ccf6b;
+  box-shadow: 0 0 10px #7ccf6b;
 }
 
 .camera-placeholder {
@@ -334,6 +383,10 @@ kbd {
   color: var(--muted);
   font: 700 10px var(--font-label);
   letter-spacing: 0.14em;
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 0 20px;
 }
 
 .camera-placeholder strong {
@@ -351,6 +404,7 @@ kbd {
   border: 1px dashed #f6c45340;
   border-radius: 12px;
   pointer-events: none;
+  z-index: 2;
 }
 
 .gesture-row {
@@ -368,6 +422,138 @@ kbd {
   text-align: left;
   padding: 12px;
   position: relative;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gesture-card.detected {
+  border-color: var(--gold);
+  background: rgba(246, 196, 83, 0.14);
+  box-shadow: 0 0 18px rgba(246, 196, 83, 0.35);
+  transform: translateY(-2px);
+}
+
+.gesture-card.calibrated {
+  border-color: rgba(124, 207, 107, 0.7);
+}
+
+.gesture-card .calibrated-pill {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  font: 700 9px var(--font-label);
+  color: #7ccf6b;
+  letter-spacing: 0.1em;
+}
+
+.primary-button.all-calibrated {
+  box-shadow: 0 0 24px rgba(246, 196, 83, 0.45);
+}
+
+/* Waiting for rival screen */
+.waiting-shell .hero-duelists {
+  margin-bottom: 12px;
+}
+
+.waiting-panel {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.room-code-display {
+  background: var(--night-2);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 24px;
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.code-label {
+  font: 700 11px var(--font-label);
+  letter-spacing: 0.2em;
+  color: var(--muted);
+}
+
+.code-characters {
+  display: flex;
+  gap: 10px;
+}
+
+.code-box {
+  width: 54px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  background: var(--night);
+  border: 1px solid #f6c45355;
+  border-radius: 12px;
+  font: 900 32px var(--font-title);
+  color: var(--gold-soft);
+  text-shadow: 0 0 16px rgba(246, 196, 83, 0.4);
+}
+
+.copy-button {
+  margin-top: 4px;
+}
+
+.waiting-status-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.status-pulse-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 10px var(--gold);
+  animation: pulse-dot-anim 1.5s infinite alternate ease-in-out;
+  flex-shrink: 0;
+}
+
+.status-pulse-dot.online {
+  background: #7ccf6b;
+  box-shadow: 0 0 12px #7ccf6b;
+  animation: none;
+}
+
+@keyframes pulse-dot-anim {
+  from {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.status-text strong {
+  display: block;
+  font: 700 13px var(--font-label);
+  color: var(--parchment);
+}
+
+.status-text span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.waiting-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .gesture-card span {
