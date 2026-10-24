@@ -11,8 +11,8 @@ interface SpellStruggleProps {
 }
 
 // Where the arena's cast points sit across the stage, so the clash orb lines up with the spells.
-const LANE_LEFT = 15;
-const LANE_RIGHT = 85;
+const LANE_LEFT = 19;
+const LANE_RIGHT = 81;
 
 /**
  * Live tug-of-war for a same-spell clash: the locked spells sit where they're being

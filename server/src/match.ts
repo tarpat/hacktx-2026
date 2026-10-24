@@ -15,6 +15,7 @@ export class MatchRunner {
   constructor(
     private readonly broadcast: (state: MatchState, events: GameEvent[]) => void,
     private readonly onFinished: () => void,
+    private readonly stageId: number,
   ) {
     this.flush(true);
     this.timer = setInterval(() => this.flush(), TICK_MS);
@@ -56,7 +57,7 @@ export class MatchRunner {
 
   private flush(force = false): void {
     const now = Date.now();
-    const state = this.engine.snapshot(now);
+    const state = { ...this.engine.snapshot(now), stageId: this.stageId };
     const events = this.engine.drainEvents();
     if (!force && events.length === 0 && now - this.lastBroadcastAt < HEARTBEAT_MS) return;
     this.lastBroadcastAt = now;
