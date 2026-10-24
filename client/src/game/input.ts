@@ -39,9 +39,6 @@ export const KEY_BINDINGS: Record<KeySet, Record<string, SpellId>> = {
   secondary: { u: "fireball", i: "shield", o: "ice", p: "ultimate", j: "sixSeven" },
 };
 
-/** Demo keys that stand in for the voice track until it is wired up. */
-export const POWER_UP_KEYS: Record<string, PowerUpId> = { "1": "empower", "2": "haste", "3": "heal" };
-
 /** Mash these to push in a spell struggle. */
 export const PUSH_KEYS: Record<KeySet, string> = { primary: " ", secondary: "enter" };
 
@@ -63,7 +60,6 @@ export function bindKeyboard(localSlot: PlayerSlot, hotseatSlot: PlayerSlot | nu
     const hotseatSpell = KEY_BINDINGS.secondary[key];
     if (localSpell) spellInput.cast(localSpell, localSlot);
     else if (hotseatSpell && hotseatSlot) spellInput.cast(hotseatSpell, hotseatSlot);
-    else if (POWER_UP_KEYS[key]) spellInput.powerUp(POWER_UP_KEYS[key], localSlot);
   };
   window.addEventListener("keydown", onKeyDown);
   return () => window.removeEventListener("keydown", onKeyDown);

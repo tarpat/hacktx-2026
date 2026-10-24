@@ -11,7 +11,7 @@ interface SpellTrayProps {
   keySet: KeySet | null;
 }
 
-/** Spell buttons with radial cooldowns, the Fulmen meter and status effects for one wizard. */
+/** Spell cards showing READY or the seconds left, the Fulmen meter and status effects for one wizard. */
 export function SpellTray({ player, now, onCast, side, keySet }: SpellTrayProps) {
   const config = DEFAULT_MATCH_CONFIG;
   const frozen = now < player.frozenUntil;
@@ -34,11 +34,15 @@ export function SpellTray({ player, now, onCast, side, keySet }: SpellTrayProps)
               onClick={() => onCast?.(spell)}
               disabled={!onCast}
               title={`${spellConfig.name}${keySet ? ` (${keyFor(keySet, spell)})` : ""}`}
-              style={{ "--cooldown": `${Math.min(1, Math.max(0, fraction)) * 360}deg` } as React.CSSProperties}
             >
               <span className="spell-glyph">{spellGlyph[spell]}</span>
               <span className="spell-name">{spellConfig.name}</span>
-              {remaining > 0 && spell !== "ultimate" && <span className="spell-timer">{(remaining / 1000).toFixed(1)}</span>}
+              <span className="spell-state">
+                {locked ? "FROZEN" : ready ? "READY" : spell === "ultimate" ? `${Math.floor(meter * 100)}%` : `${(remaining / 1000).toFixed(1)}s`}
+              </span>
+              <span className="spell-progress">
+                <i style={{ width: `${(1 - Math.min(1, Math.max(0, fraction))) * 100}%` }} />
+              </span>
               {keySet && <kbd>{keyFor(keySet, spell)}</kbd>}
             </button>
           );
@@ -59,8 +63,6 @@ function StatusBadges({ player, now }: { player: PlayerState; now: number }) {
   const badges = [
     now < player.shieldUntil && { id: "shield", text: "Shielded" },
     now < player.frozenUntil && { id: "frozen", text: `Frozen ${((player.frozenUntil - now) / 1000).toFixed(1)}s` },
-    now < player.empoweredUntil && { id: "empower", text: "Empowered" },
-    now < player.hasteUntil && { id: "haste", text: "Haste" },
   ].filter(Boolean) as { id: string; text: string }[];
   return (
     <div className="badges">
