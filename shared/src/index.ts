@@ -18,14 +18,36 @@ export interface RoomSnapshot {
   status: "waiting" | "ready" | "in_match";
 }
 
+export type SpellId = "incendio" | "protego" | "glacius";
+export type MatchPhase = "waiting" | "countdown" | "active" | "finished";
+
+export interface MatchState {
+  code: string;
+  phase: MatchPhase;
+  hp: Record<PlayerSlot, number>;
+  endsAt: number | null;
+  countdownEndsAt: number | null;
+  cooldowns: Record<PlayerSlot, Partial<Record<SpellId, number>>>;
+  winner: PlayerSlot | "draw" | null;
+  serverNow: number;
+}
+
+export interface CastRequest {
+  spell: SpellId;
+  clientActionId: string;
+}
+
 export interface CreateRoomResult {
   room: RoomSnapshot;
   playerSlot: PlayerSlot;
+  sessionToken: string;
 }
 
 export interface JoinRoomResult {
   room: RoomSnapshot;
   playerSlot: PlayerSlot;
+  sessionToken: string;
+  reconnected: boolean;
 }
 
 export interface CastRequest {
@@ -43,7 +65,7 @@ export type CastAck = { ok: true; clientActionId: string } | { ok: false; client
 
 export interface ClientToServerEvents {
   CREATE_ROOM: (callback: (result: CreateRoomResult | SocketError) => void) => void;
-  JOIN_ROOM: (code: string, callback: (result: JoinRoomResult | SocketError) => void) => void;
+  JOIN_ROOM: (code: string, sessionToken: string | null, callback: (result: JoinRoomResult | SocketError) => void) => void;
   READY_STATUS: (ready: boolean) => void;
   CAST_REQUEST: (request: CastRequest, callback?: (ack: CastAck) => void) => void;
   POWER_UP_REQUEST: (request: PowerUpRequest, callback?: (ack: CastAck) => void) => void;

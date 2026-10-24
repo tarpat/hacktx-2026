@@ -1,4 +1,5 @@
 import type { PlayerSlot, RoomPlayer, RoomSnapshot } from "@spellcaster/shared";
+import { randomUUID } from "node:crypto";
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const RECOVERY_GRACE_MS = 30_000;
@@ -12,8 +13,9 @@ interface Room {
 
 export class RoomManager {
   private readonly rooms = new Map<string, Room>();
+  private readonly recoveryTokens = new Map<string, { code: string; slot: PlayerSlot }>();
 
-  create(socketId: string): { room: RoomSnapshot; playerSlot: PlayerSlot } {
+  create(socketId: string): { room: RoomSnapshot; playerSlot: PlayerSlot; sessionToken: string } {
     let code = this.makeCode();
     while (this.rooms.has(code)) code = this.makeCode();
     const room: Room = {
@@ -26,19 +28,34 @@ export class RoomManager {
       recoveryTimers: {},
     };
     this.rooms.set(code, room);
-    return { room: this.snapshot(room), playerSlot: "A" };
+    const sessionToken = randomUUID();
+    this.recoveryTokens.set(sessionToken, { code, slot: "A" });
+    return { room: this.snapshot(room), playerSlot: "A", sessionToken };
   }
 
-  join(code: string, socketId: string): { room: RoomSnapshot; playerSlot: PlayerSlot } | null {
+  join(code: string, socketId: string, sessionToken: string | null): { room: RoomSnapshot; playerSlot: PlayerSlot; sessionToken: string; reconnected: boolean } | null {
     const room = this.rooms.get(code.trim().toUpperCase());
     if (!room) return null;
+    const recovery = sessionToken ? this.recoveryTokens.get(sessionToken) : undefined;
+    if (recovery && recovery.code === room.code) {
+      if (!room.players[recovery.slot] || room.players[recovery.slot]?.connected) return null;
+      const player = room.players[recovery.slot]!;
+      player.socketId = socketId;
+      player.connected = true;
+      const recoveryTimer = room.recoveryTimers[recovery.slot];
+      if (recoveryTimer) clearTimeout(recoveryTimer);
+      delete room.recoveryTimers[recovery.slot];
+      return { room: this.snapshot(room), playerSlot: recovery.slot, sessionToken: sessionToken!, reconnected: true };
+    }
     const slot: PlayerSlot | null = room.players.A === null ? "A" : room.players.B === null ? "B" : null;
     if (!slot) return null;
     room.players[slot] = { slot, socketId, connected: true, ready: false };
-    const recovery = room.recoveryTimers[slot];
-    if (recovery) clearTimeout(recovery);
+    const recoveryTimer = room.recoveryTimers[slot];
+    if (recoveryTimer) clearTimeout(recoveryTimer);
     delete room.recoveryTimers[slot];
-    return { room: this.snapshot(room), playerSlot: slot };
+    const newToken = randomUUID();
+    this.recoveryTokens.set(newToken, { code: room.code, slot });
+    return { room: this.snapshot(room), playerSlot: slot, sessionToken: newToken, reconnected: false };
   }
 
   setReady(code: string, socketId: string, ready: boolean): RoomSnapshot | null {
@@ -78,6 +95,7 @@ export class RoomManager {
       const current = this.rooms.get(code);
       if (!current || current.players[slot]?.connected) return;
       current.players[slot] = null;
+      for (const [token, owner] of this.recoveryTokens) if (owner.code === code && owner.slot === slot) this.recoveryTokens.delete(token);
       delete current.recoveryTimers[slot];
       if (!current.players.A && !current.players.B) this.rooms.delete(code);
       else onExpired(this.snapshot(current));
