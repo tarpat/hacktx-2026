@@ -2122,7 +2122,12 @@ img.spell-glyph {
   animation: wizard-bob 3.2s ease-in-out infinite;
 }
 .hero-wizard.a { box-shadow: 0 0 24px var(--player-a); }
-.hero-wizard.b { box-shadow: 0 0 24px var(--player-b); animation-delay: -1.6s; }
+.hero-wizard.b {
+  box-shadow: 0 0 24px var(--player-b);
+  transform: scaleX(-1);
+  animation: wizard-bob-b 3.2s ease-in-out infinite;
+  animation-delay: -1.6s;
+}
 .hero-vs {
   font: 900 22px var(--font-title);
   color: var(--gold);
@@ -2131,6 +2136,10 @@ img.spell-glyph {
 @keyframes wizard-bob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
+}
+@keyframes wizard-bob-b {
+  0%, 100% { transform: scaleX(-1) translateY(0); }
+  50% { transform: scaleX(-1) translateY(-6px); }
 }
 
 .hero h1 {
