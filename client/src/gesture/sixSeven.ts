@@ -26,17 +26,17 @@ export interface SixSevenTimings {
 }
 
 export const DEFAULT_SIX_SEVEN: SixSevenTimings = {
-  minReversal: 0.2,
-  minSwapGapMs: 80,
+  minReversal: 0.13,
+  minSwapGapMs: 90,
   offsetSmoothing: 0.65,
   speedWindowMs: 1_200,
-  minSwapsPerSec: 1.5,
-  fillPerSwapRate: 0.06,
-  releaseIdleMs: 600,
+  minSwapsPerSec: 0.8,
+  fillPerSwapRate: 0.13,
+  releaseIdleMs: 800,
   minCastCharge: 0.2,
-  palmUpThreshold: 0.35,
+  palmUpThreshold: 0.22,
   palmUpSmoothing: 0.5,
-  stanceGraceMs: 700,
+  stanceGraceMs: 1_200,
 };
 
 export interface SixSevenUpdate {
@@ -112,7 +112,8 @@ export class SixSevenDetector {
     if (hands.length === 2) {
       const pair = sortByX(hands);
       this.trackStance(pair, aspect, now);
-      if (now < this.stanceUntil) this.trackMotion(this.offset(pair, aspect), now);
+      // Once charging, keep counting even if the palms tilt mid-bob; the stance only has to start it.
+      if (now < this.stanceUntil || this.charge > 0) this.trackMotion(this.offset(pair, aspect), now);
     }
     const stance = now < this.stanceUntil;
 
