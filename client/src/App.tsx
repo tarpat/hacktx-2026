@@ -3,6 +3,7 @@ import { Link, Route, Routes, useNavigate } from "react-router-dom";
 import type { RoomSnapshot, SocketError } from "@spellcaster/shared";
 import { socket } from "./socket";
 import { ArenaView } from "./views/ArenaView";
+import { GestureTestView } from "./views/GestureTestView";
 
 function Lobby() {
   const navigate = useNavigate();
@@ -60,5 +61,5 @@ function Calibration() {
 }
 
 export default function App() {
-  return <Routes><Route path="/" element={<Lobby />} /><Route path="/calibration" element={<Calibration />} /><Route path="/arena" element={<ArenaView />} /></Routes>;
+  return <Routes><Route path="/" element={<Lobby />} /><Route path="/calibration" element={<Calibration />} /><Route path="/arena" element={<ArenaView />} /><Route path="/gesture-test" element={<GestureTestView />} /></Routes>;
 }
