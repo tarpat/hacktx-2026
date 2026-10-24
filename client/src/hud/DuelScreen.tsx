@@ -143,7 +143,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
   return (
     <main className="duel" style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
-      <div className={`duel-stage ${state?.phase ?? "waiting"}`}>
+      <div className={`duel-stage phase-${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
         <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} />
         {state?.struggle && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} />}
