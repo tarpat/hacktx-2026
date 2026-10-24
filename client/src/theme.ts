@@ -44,6 +44,7 @@ export const art = {
   spell: { fireball: asset("fireball"), shield: asset("shield"), ice: asset("ice"), ultimate: asset("fulmen") } as Partial<Record<SpellId, string>>,
   powerUp: { empower: asset("empower"), haste: asset("haste"), heal: null } as Record<PowerUpId, string | null>,
   portrait: { A: asset("portrait-green"), B: asset("portrait-purple") } as Record<PlayerSlot, string>,
+  wizard: { A: asset("wizard-green"), B: asset("wizard-purple") } as Record<PlayerSlot, string>,
   hpFrame: asset("hp-frame"),
   clockFrame: asset("clock-frame"),
   spellTile: asset("spell-tile"),
@@ -57,6 +58,7 @@ export const arenaTextures = [
   "fireball", "fireball-impact", "ice", "fulmen", "fulmen-impact",
   "shield", "shield-shatter", "frozen", "ultimate-aura", "clash", "hit-sparks",
   "empower", "haste", "frog", "teapot",
+  "wizard-green", "wizard-purple",
 ] as const;
 
 export const textureUrl = asset;

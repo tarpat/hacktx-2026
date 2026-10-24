@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile, type SpellId } from "@spellcaster/shared";
-import { arenaTextures, art, palette, spellColor, textureUrl, wizardStyle } from "../theme";
+import { arenaTextures, art, palette, spellColor, textureUrl } from "../theme";
 import { MAP_ORDER, MAPS, type MapId } from "./maps";
 import { RELEASE_MS, WizardRig } from "./WizardRig";
 
@@ -231,7 +231,7 @@ export class ArenaScene extends Phaser.Scene {
     const shadow = this.add.ellipse(0, 4, 120, 22, 0x000000, 0.3);
     const aura = this.sized("ultimate-aura", 0, -112, 270).setVisible(false);
     const haste = this.sized("haste", 0, -2, 150).setScale(0, 0).setVisible(false);
-    const rig = new WizardRig(this, wizardStyle[slot]);
+    const rig = new WizardRig(this, slot);
     const body = rig.container;
     const shield = this.sized("shield", 4, -108, 250).setVisible(false);
     const frost = this.sized("frozen", 2, -112, 260).setVisible(false);
