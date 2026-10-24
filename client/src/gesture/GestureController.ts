@@ -1,9 +1,10 @@
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import { classifyPose, combinePoses, PoseSmoother } from "./poseClassifier";
 import { filterHands, HandStabilizer } from "./handTracking";
+import { PumpCounter } from "./pumpCounter";
 import { SixSevenDetector } from "./sixSeven";
 import { DEFAULT_TIMINGS, resetGesture, stepGesture, type GestureState, type GestureTimings } from "./gestureStateMachine";
-import type { GestureAction, GestureActionEvent, GestureObservation, Handedness, Landmark, TrackingStatus } from "./types";
+import type { GestureAction, GestureActionEvent, GestureObservation, Handedness, HandPose, Landmark, TrackingStatus } from "./types";
 
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm";
 const MODEL_URL =
@@ -14,7 +15,7 @@ export interface DebugFrame {
   /** One entry per tracked hand (0–2). */
   hands: Landmark[][];
   fps: number;
-  state: GestureState["kind"];
+  state: GestureState["kind"] | "STRUGGLE";
 }
 
 export class CameraError extends Error {}
@@ -63,6 +64,9 @@ export class GestureController {
   /** 5-of-7 frame vote: a pose has to persist ~130 ms, which filters single-frame misreads. */
   private smoother = new PoseSmoother(7, 5);
   private stabilizer = new HandStabilizer();
+  private pumps = new PumpCounter();
+  /** During a spell struggle, hands pump to push instead of casting. */
+  private struggling = false;
   private sixSeven = new SixSevenDetector();
   private gestureState: GestureState = { kind: "IDLE" };
   private hand: Handedness | undefined;
@@ -122,6 +126,16 @@ export class GestureController {
     }
   }
 
+  /** Switch between casting and spell-struggle pumping. */
+  setStruggling(on: boolean): void {
+    if (on === this.struggling) return;
+    this.struggling = on;
+    this.pumps.reset();
+    // Entering: drop any half-made gesture. Leaving: hands are mid-pump, so wait for them to relax before casting again.
+    this.flushGestureState();
+    if (!on) this.gestureState = { kind: "REARM", blockedPoses: ["FIST", "BOTH_FISTS", "OPEN_PALM", "BOTH_PALMS"] };
+  }
+
   stop(): void {
     this.generation++;
     this.flushGestureState();
@@ -169,6 +183,12 @@ export class GestureController {
     const pose = this.smoother.push(rawPose);
     this.setStatus(hands.length > 0 ? "TRACKING" : "NO_HAND");
 
+    if (this.struggling) {
+      if (this.pumps.update(rawPose)) this.emitActions(["STRUGGLE_PUSH"], now);
+      this.notify(pose, rawPose, hands, now, 0, 0, false);
+      return;
+    }
+
     const video = this.video;
     const aspect = video && video.videoHeight ? video.videoWidth / video.videoHeight : 4 / 3;
     const sixSeven = this.sixSeven.update(hands, now, aspect);
@@ -179,15 +199,18 @@ export class GestureController {
     if (sixSeven.castPower !== null) {
       for (const listener of this.actionListeners) listener({ action: "SIX_SEVEN_CAST", localTimestampMs: now, power: sixSeven.castPower });
     }
+    this.notify(pose, rawPose, hands, now, sixSeven.charge, sixSeven.swapsPerSec, sixSeven.palmsUp);
+  }
 
+  private notify(pose: HandPose, rawPose: HandPose, hands: Landmark[][], now: number, sixSevenCharge: number, sixSevenSpeed: number, palmsUp: boolean) {
     for (const listener of this.observationListeners) {
-      listener({ pose, rawPose, status: this.status, hand: this.hand, sixSevenCharge: sixSeven.charge, sixSevenSpeed: sixSeven.swapsPerSec, palmsUp: sixSeven.palmsUp, timestampMs: now });
+      listener({ pose, rawPose, status: this.status, hand: this.hand, sixSevenCharge, sixSevenSpeed, palmsUp, timestampMs: now });
     }
 
     this.frameTimes.push(now);
     while (this.frameTimes.length > 0 && now - this.frameTimes[0] > 1000) this.frameTimes.shift();
     for (const listener of this.debugListeners) {
-      listener({ hands, fps: this.frameTimes.length, state: state.kind });
+      listener({ hands, fps: this.frameTimes.length, state: this.struggling ? "STRUGGLE" : this.gestureState.kind });
     }
   }
 

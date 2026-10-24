@@ -28,6 +28,10 @@ export class MatchRunner {
     return result.ok ? { ok: true, clientActionId } : { ok: false, clientActionId, reason: result.reason };
   }
 
+  push(slot: PlayerSlot): void {
+    if (this.engine.push(slot, Date.now())) this.flush(true);
+  }
+
   powerUp(slot: PlayerSlot, powerUp: PowerUpId, clientActionId: string): CastAck {
     if (!this.remember(slot, clientActionId)) return { ok: false, clientActionId, reason: "duplicate" };
     const granted = this.engine.grantPowerUp(slot, powerUp, Date.now());

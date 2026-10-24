@@ -10,7 +10,9 @@ export type GestureAction =
   | "ULTIMATE_CAST"
   | "SHIELD_CAST"
   | "ICE_CAST"
-  | "SIX_SEVEN_CAST";
+  | "SIX_SEVEN_CAST"
+  /** One fist pump during a spell struggle. */
+  | "STRUGGLE_PUSH";
 
 export type TrackingStatus = "CAMERA_OFF" | "STARTING" | "TRACKING" | "NO_HAND" | "ERROR";
 

@@ -166,7 +166,7 @@ describe("clash", () => {
     const engine = liveEngine();
     engine.cast("A", "fireball", LIVE);
     engine.cast("B", "fireball", LIVE + C.clashWindowMs + 50);
-    const state = engine.snapshot(LIVE + 2_000);
+    const state = engine.snapshot(LIVE + 3_000);
     expect(state.players.A.hp).toBe(80);
     expect(state.players.B.hp).toBe(80);
   });

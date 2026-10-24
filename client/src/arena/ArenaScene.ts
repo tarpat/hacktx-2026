@@ -123,7 +123,7 @@ export class ArenaScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const left = this.getFrame().leftSlot === slot;
     const spawnY = STAGE_LAYOUTS[this.layoutIndex ?? 0].spawnY;
-    return { x: width * (left ? 0.2 : 0.8), y: height * spawnY, facing: left ? 1 : -1 };
+    return { x: width * (left ? 0.13 : 0.87), y: height * spawnY, facing: left ? 1 : -1 };
   }
 
   /** Where spells leave the staff and where they strike. */

@@ -53,6 +53,8 @@ export interface ClientToServerEvents {
   LEAVE_ROOM: () => void;
   CAST_REQUEST: (request: CastRequest, callback?: (ack: CastAck) => void) => void;
   POWER_UP_REQUEST: (request: PowerUpRequest, callback?: (ack: CastAck) => void) => void;
+  /** One push in a spell struggle. The engine rate-limits pushes, so no payload or ack is needed. */
+  STRUGGLE_PUSH: () => void;
 }
 
 export interface ServerToClientEvents {

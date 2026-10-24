@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import { DEFAULT_MATCH_CONFIG, opponentOf, type MatchState, type PlayerSlot, type PowerUpId, type SpellId } from "@spellcaster/shared";
 import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
 import { GestureCamera } from "../gesture/GestureCamera";
+import { SpellStruggle } from "./SpellStruggle";
 import type { DuelSource } from "../game/duelSource";
 import { bindKeyboard, spellInput } from "../game/input";
 import { narrate, rejectionText } from "../game/narration";
@@ -80,6 +81,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     const unbindKeys = bindKeyboard(source.localSlot, hotseat ? opponentOf(source.localSlot) : null);
     const unsubscribe = spellInput.subscribe((intent) => {
       if (intent.kind === "cast") source.cast(intent.spell, intent.slot, intent.power);
+      else if (intent.kind === "push") source.push(intent.slot);
       else source.powerUp(intent.powerUp, intent.slot);
     });
     return () => {
@@ -149,7 +151,8 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
       <div className={`duel-stage ${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
-        <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} />
+        <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} />
+        {state?.struggle && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} />}
         {state && <CountdownOverlay state={state} now={now} />}
         {banner && state?.phase !== "finished" && (
           <div className="banner" key={banner.id}>

@@ -22,6 +22,8 @@ export interface DuelSource {
   state(): MatchState | null;
   cast(spell: SpellId, slot?: PlayerSlot, power?: number): void;
   powerUp(powerUp: PowerUpId, slot?: PlayerSlot): void;
+  /** One push in a spell struggle. */
+  push(slot?: PlayerSlot): void;
   subscribe(listener: DuelListener): () => void;
   /** Starts a fresh match (practice) or asks the server for a rematch (online). */
   rematch(): void;
@@ -73,6 +75,12 @@ export class LocalDuel implements DuelSource {
     this.step();
   }
 
+  push(slot: PlayerSlot = this.localSlot) {
+    if (slot === "B" && this.mode !== "hotseat") return;
+    this.engine.push(slot, Date.now());
+    this.step();
+  }
+
   powerUp(powerUp: PowerUpId, slot: PlayerSlot = this.localSlot) {
     this.engine.grantPowerUp(slot, powerUp, Date.now());
     this.step();
@@ -105,8 +113,10 @@ export class LocalDuel implements DuelSource {
 
   private step() {
     const now = Date.now();
-    const botSpell = this.bot?.decide(this.engine.snapshot(now), now);
+    const snapshot = this.engine.snapshot(now);
+    const botSpell = this.bot?.decide(snapshot, now);
     if (botSpell) this.engine.cast("B", botSpell, now);
+    if (this.bot?.wantsPush(snapshot, now)) this.engine.push("B", now);
     this.latest = this.engine.snapshot(now);
     const events = this.engine.drainEvents();
     this.listeners.forEach((listener) => listener(this.latest, events));
@@ -148,6 +158,10 @@ export class OnlineDuel implements DuelSource {
 
   powerUp(powerUp: PowerUpId) {
     socket.emit("POWER_UP_REQUEST", { powerUp, clientActionId: actionId() });
+  }
+
+  push() {
+    socket.emit("STRUGGLE_PUSH");
   }
 
   subscribe(listener: DuelListener) {
