@@ -79,6 +79,7 @@ function Lobby() {
         <Link className="practice-link" to="/practice?mode=training">✧ Practice against the training dummy</Link>
       </div>
       <div className="hero-foot"><span>✧</span> TWO WIZARDS. ONE ARENA. <span>✧</span></div>
+      <p className="credits">Spell effects by <a href="https://v-ktor.itch.io/spell-animations">Viktor Hahn</a> (CC BY 4.0), <a href="https://tornadogames.itch.io/magic-sparksattacks-for-the-devs">TornadoGames</a> and <a href="https://kenney.nl/assets/particle-pack">Kenney</a>.</p>
     </section>
     <section className="home-spellbook">
       <p className="eyebrow">YOUR SPELLBOOK</p>

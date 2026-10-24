@@ -1962,3 +1962,10 @@ img.spell-glyph {
 @media (max-width: 600px) {
   .hero-wizard { width: 60px; height: 60px; }
 }
+
+.credits {
+  margin: 14px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.credits a { color: var(--mist); }
