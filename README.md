@@ -60,4 +60,8 @@ It is also exposed as `window.spellcaster` for quick console testing.
 
 ## Not done yet
 
-Reconnecting into the same seat after a refresh (the seat is held for 30 s but there is no token handoff), beam-clash tug-of-war, sound, and operator demo controls.
+Gesture/camera integration, production audio, automatic reconnect UX, operator demo controls, and the report's sustained-pose beam-clash feature remain follow-on work. Rejoining within the 30-second grace period can reclaim the same seat using the browser's room session token.
+
+## Planning documents
+
+See [docs/](docs/README.md) for the original report, game design, team assignments, implementation record, and current integration contract.

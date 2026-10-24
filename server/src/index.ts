@@ -6,7 +6,6 @@ import { Server } from "socket.io";
 import { DEFAULT_MATCH_CONFIG, type ClientToServerEvents, type ServerToClientEvents } from "@spellcaster/shared";
 import { MatchRunner } from "./match.js";
 import { RoomManager } from "./rooms.js";
-import { MatchManager } from "./match.js";
 
 const app = express();
 app.use(cors({ origin: process.env.CLIENT_ORIGIN?.split(",") ?? "http://localhost:5173" }));
@@ -58,8 +57,6 @@ io.on("connection", (socket) => {
     callback(result);
     io.to(roomCode).emit("ROOM_UPDATED", result.room);
     if (result.reconnected) socket.to(roomCode).emit("PLAYER_RECONNECTED", result.playerSlot);
-    const matchState = matches.get(roomCode);
-    if (result.reconnected && matchState) socket.emit("MATCH_STATE", matchState);
   });
 
   socket.on("READY_STATUS", (ready) => {
@@ -92,18 +89,6 @@ io.on("connection", (socket) => {
     const ack = runner.powerUp(slot, request.powerUp, request.clientActionId);
     callback?.(ack);
   });
-
-  socket.on("CAST_REQUEST", ({ spell, clientActionId }) => {
-    if (!roomCode) return;
-    const room = rooms.get(roomCode);
-    if (room) matches.cast(room, socket.id, spell, clientActionId, (event, payload) => {
-      if (event === "SPELL_REJECTED") socket.emit(event, payload as Parameters<ServerToClientEvents["SPELL_REJECTED"]>[0]);
-      else io.to(roomCode!).emit(event as keyof ServerToClientEvents, payload as never);
-    }, sendMatchEnd(roomCode));
-  });
-
-  socket.on("DEFEND_START", () => { if (roomCode) { const room = rooms.get(roomCode); const state = room ? matches.defendStart(room, socket.id) : null; if (state) io.to(roomCode).emit("MATCH_STATE", state); } });
-  socket.on("DEFEND_END", () => { if (roomCode) { const room = rooms.get(roomCode); if (room) matches.defendEnd(room, socket.id); } });
 
   socket.on("disconnect", () => {
     if (!roomCode) return;

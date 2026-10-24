@@ -5,6 +5,7 @@ import { socket } from "./socket";
 export interface Session {
   room: RoomSnapshot;
   slot: PlayerSlot;
+  sessionToken?: string;
 }
 
 let current: Session | null = null;

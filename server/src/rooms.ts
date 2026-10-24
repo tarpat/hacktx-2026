@@ -37,7 +37,7 @@ export class RoomManager {
     const room = this.rooms.get(code.trim().toUpperCase());
     if (!room) return null;
     const recovery = sessionToken ? this.recoveryTokens.get(sessionToken) : undefined;
-    if (recovery && recovery.code === room.code) {
+    if (recovery?.code === room.code) {
       if (!room.players[recovery.slot] || room.players[recovery.slot]?.connected) return null;
       const player = room.players[recovery.slot]!;
       player.socketId = socketId;
