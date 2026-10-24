@@ -469,7 +469,7 @@ Mark these only after actually testing them; record environment and commands in 
 | Repo initialized | **Unknown** | Inspect repo; identify remote/branch |
 | Phase 0 scaffold | **Unknown** | Inspect `client/`, `server/`, scripts |
 | Multiplayer room flow | **Unknown** | Ask integration teammate or run app |
-| Gesture module | **Implemented, logic tested; camera untested** | `client/src/gesture/`, route `/gesture-test` on branch `video-testing` |
+| Gesture module | **Implemented; manually tested by user; not wired to arena** | `client/src/gesture/`, route `/gesture-test` on branch `video-testing` |
 | Camera preview | **Not verified** | Manual browser test |
 | MediaPipe model | **Not verified** | Inspect dependencies and live recognition |
 | Gesture state machine | **Not verified** | Inspect implementation and unit tests |
@@ -508,6 +508,14 @@ Mark these only after actually testing them; record environment and commands in 
 - **Tests/commands actually run + outcomes:** Pure state-machine scenario script: 10 fist→palm cycles = 10 casts / 0 shields; palm-only hold = exactly one SHIELD_START/SHIELD_END; quick fist tap = no actions; over-long charge = START+CANCEL and no shield; noise only = no actions. `vite build` OK. `tsc -b` shows 3 pre-existing errors in `App.tsx` lobby / `socket.ts` (also on `main`), none in gesture code.
 - **NOT verified:** anything with a real camera: permissions, denied-permission UX, LED turning off on Stop, classifier accuracy/lighting, fps.
 - **Next small actionable step:** Open `http://localhost:5173/gesture-test`, run the Section 12 camera checks, tune `EXTENDED_RATIO`/timings from real data.
+
+### [2026-10-24] Spell preview mock + merged teammates' main (PR #1, #2) into `video-testing`
+
+- **Files:** `client/src/views/SpellPreview.tsx` (throwaway CSS duel mock on `/gesture-test`, driven by gesture actions). Merge conflicts resolved in `client/src/App.tsx` (kept `/practice` and `/gesture-test` routes) and `client/src/styles.css` (took teammate's theme rewrite, re-appended `.gesture-test`/`.spell-preview` rules). Untracked generated `client/tsconfig.tsbuildinfo` (already in `.gitignore`).
+- **Tests/commands actually run + outcomes:** `npm run typecheck` clean; `npm test` 19/19 engine tests pass; `npm run build` OK. Two-client socket smoke test (before PR #1) passed: create/join/ready/countdown, cast dealt 20, immediate recast rejected for cooldown. User manually confirmed gestures work on `/gesture-test`.
+- **Integration findings:** Teammates' single input entry point is `spellInput.cast(spell)` in `client/src/game/input.ts`. Spell IDs are now `fireball | shield | ice | ultimate`. The **shield is a one-shot cast** (900 ms guard, 5 s cooldown), not a held interval, so the gesture shield should become a quick palm "pop" instead of a hold.
+- **NOT done:** gestures are not yet wired into the arena; calibration not built; MediaPipe assets not vendored.
+- **Next small actionable step:** Wire `FIREBALL_CAST` → `spellInput.cast("fireball")`, palm pop → `spellInput.cast("shield")`, peace sign → `spellInput.cast("ice")`, and mount the camera alongside the duel screen.
 
 ### Template — duplicate below on each work session
 
