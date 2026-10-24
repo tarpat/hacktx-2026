@@ -4,6 +4,7 @@ import type { CreateRoomResult, JoinRoomResult, SocketError } from "@spellcaster
 import { setSession, useSession } from "./session";
 import { socket } from "./socket";
 import { ArenaView } from "./views/ArenaView";
+import { GestureTestView } from "./views/GestureTestView";
 import { PracticeView } from "./views/PracticeView";
 
 function Lobby() {
@@ -64,5 +65,5 @@ function Calibration() {
 }
 
 export default function App() {
-  return <Routes><Route path="/" element={<Lobby />} /><Route path="/calibration" element={<Calibration />} /><Route path="/arena" element={<ArenaView />} /><Route path="/practice" element={<PracticeView />} /></Routes>;
+  return <Routes><Route path="/" element={<Lobby />} /><Route path="/calibration" element={<Calibration />} /><Route path="/arena" element={<ArenaView />} /><Route path="/practice" element={<PracticeView />} /><Route path="/gesture-test" element={<GestureTestView />} /></Routes>;
 }
