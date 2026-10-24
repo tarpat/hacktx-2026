@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link, Route, Routes, useNavigate } from "react-router-dom";
-import type { RoomSnapshot, SocketError } from "@spellcaster/shared";
+import type { CreateRoomResult, JoinRoomResult, RoomSnapshot, SocketError } from "@spellcaster/shared";
 import { socket } from "./socket";
 import { ArenaView } from "./views/ArenaView";
+import { AudioPlayground } from "./audio/AudioPlayground";
 
 function Lobby() {
   const navigate = useNavigate();
@@ -12,7 +13,7 @@ function Lobby() {
 
   const createRoom = () => {
     socket.connect();
-    socket.emit("CREATE_ROOM", (result) => {
+    socket.emit("CREATE_ROOM", (result: CreateRoomResult | SocketError) => {
       if ("error" in result) return setError(result.error);
       setRoom(result.room);
     });
@@ -20,7 +21,7 @@ function Lobby() {
 
   const joinRoom = () => {
     socket.connect();
-    socket.emit("JOIN_ROOM", code, (result) => {
+    socket.emit("JOIN_ROOM", code, (result: JoinRoomResult | SocketError) => {
       if ("error" in result) return setError((result as SocketError).error);
       setRoom(result.room);
     });
@@ -60,5 +61,5 @@ function Calibration() {
 }
 
 export default function App() {
-  return <Routes><Route path="/" element={<Lobby />} /><Route path="/calibration" element={<Calibration />} /><Route path="/arena" element={<ArenaView />} /></Routes>;
+  return <Routes><Route path="/" element={<Lobby />} /><Route path="/calibration" element={<Calibration />} /><Route path="/arena" element={<ArenaView />} /><Route path="/audio-test" element={<AudioPlayground />} /></Routes>;
 }
