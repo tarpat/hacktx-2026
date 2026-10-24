@@ -50,9 +50,8 @@ const STAGE_LAYOUTS: readonly StageLayout[] = [
     spawnY: 0.72,
     platforms: [
       { x: 0.05, y: 0.72, width: 0.9, depth: 22 },
-      { x: 0.14, y: 0.5, width: 0.24, depth: 14 },
-      { x: 0.62, y: 0.5, width: 0.24, depth: 14 },
-      { x: 0.38, y: 0.34, width: 0.24, depth: 11 },
+      { x: 0.28, y: 0.46, width: 0.44, depth: 14 },
+      { x: 0.22, y: 0.29, width: 0.18, depth: 11 },
     ],
   },
   {
@@ -67,6 +66,8 @@ const STAGE_LAYOUTS: readonly StageLayout[] = [
 ];
 
 const SPARK = "spark";
+const isStageId = (stageId: number | undefined): stageId is number =>
+  stageId !== undefined && Number.isInteger(stageId) && stageId >= 0 && stageId < STAGE_LAYOUTS.length;
 
 /** Renders match state; it owns no game rules and never decides outcomes. */
 export class ArenaScene extends Phaser.Scene {
@@ -106,7 +107,8 @@ export class ArenaScene extends Phaser.Scene {
     const { state, now } = this.getFrame();
     if (!state) return;
     if (this.previousPhase === "finished" && state.phase === "countdown") {
-      this.chooseNextLayout();
+      if (isStageId(state.stageId)) this.layoutIndex = state.stageId;
+      else this.chooseNextLayout();
       this.drawStageLayout();
     }
     this.previousPhase = state.phase;
@@ -133,7 +135,9 @@ export class ArenaScene extends Phaser.Scene {
   private build() {
     const { width, height } = this.scale;
     this.unit = Math.max(0.55, Math.min(1.3, height / 520));
-    if (this.layoutIndex === null) this.layoutIndex = Math.floor(Math.random() * STAGE_LAYOUTS.length);
+    const stageId = this.getFrame().state?.stageId;
+    if (isStageId(stageId)) this.layoutIndex = stageId;
+    else if (this.layoutIndex === null) this.layoutIndex = Math.floor(Math.random() * STAGE_LAYOUTS.length);
     this.stageObjects = [];
     this.projectiles.clear();
     this.lastPositions.clear();
