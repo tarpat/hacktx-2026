@@ -3,7 +3,7 @@ export type HandPose = "NONE" | "FIST" | "OPEN_PALM" | "VICTORY" | "POINT" | "BO
 
 export type GestureAction =
   | "FIREBALL_CHARGE_START"
-  /** Fired at charge start with both fists, or when a fireball charge upgrades. */
+  /** Fired when a finger pointed at the sky has been held long enough. */
   | "ULTIMATE_CHARGE_START"
   | "CHARGE_CANCEL"
   | "FIREBALL_CAST"

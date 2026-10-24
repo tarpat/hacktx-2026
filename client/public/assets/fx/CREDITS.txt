@@ -10,3 +10,7 @@ explosion.png, sparkle.png
 
 flame-4.png, magic-3.png, star-6.png
   "Particle Pack" by Kenney (https://kenney.nl/assets/particle-pack). CC0.
+
+lightning-strike.png, lightning-burst.png
+  "Lightning VFX Free Pack" by GoVFX (https://govfx.itch.io/lightning-vfx-free-pack).
+  Free for commercial use per the author. Repacked as RGBA.

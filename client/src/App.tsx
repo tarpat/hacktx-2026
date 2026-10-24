@@ -94,7 +94,7 @@ function Calibration() {
   return <main className="shell secondary-shell"><header className="topbar"><Link to="/" className="brand-link"><span className="brand-mark">✦</span> SPELLCASTER</Link><span className="step-label">01 / CALIBRATION</span></header>
     <section className="calibration"><p className="eyebrow">BEFORE YOU ENTER</p><h1>Set your spellcraft</h1><p className="intro">Make sure your wand hand is visible. Camera gestures will be calibrated in the next phase.</p>
       <div className="camera-frame"><div className="camera-corners" /><div className="camera-placeholder"><span className="camera-icon">◉</span><strong>CAMERA PREVIEW</strong><span>Camera setup arrives in Phase 1</span></div></div>
-      <div className="gesture-row">{["FIST", "OPEN PALM", "TWO FINGERS"].map((gesture, index) => <div className="gesture-card" key={gesture}><span>0{index + 1}</span><strong>{gesture}</strong><i>{index === 0 ? "✊" : index === 1 ? "✋" : "✌"}</i></div>)}</div>
+      <div className="gesture-row">{["FIST", "BOTH PALMS", "TWO FINGERS", "POINT UP"].map((gesture, index) => <div className="gesture-card" key={gesture}><span>0{index + 1}</span><strong>{gesture}</strong><i>{["✊", "🙌", "✌", "☝"][index]}</i></div>)}</div>
       <button className="primary-button" onClick={() => navigate("/arena")}>Enter the arena <span>↗</span></button>
     </section>
   </main>;
