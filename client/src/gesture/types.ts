@@ -38,7 +38,7 @@ export interface GestureObservation {
   sixSevenCharge: number;
   /** Current 6-7 bobbing speed, swaps per second. */
   sixSevenSpeed: number;
-  /** Both palms read as facing up (the 6-7 stance). */
+  /** Six Seven stance detected from palm orientation or repeated alternating open hands. */
   palmsUp: boolean;
   timestampMs: number;
 }

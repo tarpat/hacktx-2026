@@ -30,8 +30,12 @@ export const DEFAULT_HAND_FILTER: HandFilterOptions = { maxOffscreenShare: 0.2, 
 export const DEFAULT_STABILIZER: StabilizerOptions = { confirmMs: 120, holdMs: 120, matchDistance: 0.15, minCutoff: 1.5, beta: 8 };
 
 const WRIST = 0;
+const INDEX_MCP = 5;
 const MIDDLE_MCP = 9;
+const MIDDLE_TIP = 12;
+const PINKY_MCP = 17;
 const EDGE_MARGIN = 0.02;
+const MAX_HANDS = 2;
 
 /** Removes detections that are probably not real, fully visible hands. */
 export function filterHands(hands: Landmark[][], o: HandFilterOptions = DEFAULT_HAND_FILTER): Landmark[][] {
@@ -41,7 +45,16 @@ export function filterHands(hands: Landmark[][], o: HandFilterOptions = DEFAULT_
     if (offscreen.length / landmarks.length > o.maxOffscreenShare) return false;
     const w = landmarks[WRIST];
     const m = landmarks[MIDDLE_MCP];
-    return Math.hypot(w.x - m.x, w.y - m.y, w.z - m.z) >= o.minHandLength;
+    const tip = landmarks[MIDDLE_TIP];
+    const im = landmarks[INDEX_MCP];
+    const pm = landmarks[PINKY_MCP];
+    // Edge-on palms foreshorten wrist-to-knuckle in 2D; check tip and knuckle span too.
+    const span = Math.max(
+      Math.hypot(w.x - m.x, w.y - m.y, w.z - m.z),
+      Math.hypot(w.x - tip.x, w.y - tip.y, w.z - tip.z),
+      Math.hypot(im.x - pm.x, im.y - pm.y, im.z - pm.z),
+    );
+    return span >= o.minHandLength;
   });
 }
 
@@ -90,17 +103,15 @@ export class HandStabilizer {
     const dtSec = this.lastAt === null ? 0 : (now - this.lastAt) / 1000;
     this.lastAt = now;
 
-    // Greedy nearest-wrist matching; with at most two hands this is exact enough.
-    const unmatched = new Set(this.tracks);
-    for (const hand of hands) {
-      let best: Track | null = null;
-      let bestDistance = this.o.matchDistance;
-      for (const track of unmatched) {
-        const distance = Math.hypot(hand[WRIST].x - track.landmarks[WRIST].x, hand[WRIST].y - track.landmarks[WRIST].y);
-        if (distance < bestDistance) [best, bestDistance] = [track, distance];
-      }
+    // Expire before matching: a returning hand must not resurrect a stale, confirmed track.
+    this.tracks = this.tracks.filter((track) => now - track.lastSeenAt <= this.o.holdMs);
+    const detections = hands.slice(0, MAX_HANDS);
+    const matches = this.match(detections);
+    const seen = new Set<Track>();
+    for (const [i, hand] of detections.entries()) {
+      const best = matches[i];
       if (best) {
-        unmatched.delete(best);
+        seen.add(best);
         best.lastSeenAt = now;
         best.confirmed ||= now - best.firstSeenAt >= this.o.confirmMs;
         best.landmarks = this.smooth(best, hand, dtSec);
@@ -108,16 +119,61 @@ export class HandStabilizer {
         const track: Track = { firstSeenAt: now, lastSeenAt: now, confirmed: this.o.confirmMs <= 0, landmarks: hand, filters: [] };
         track.landmarks = this.smooth(track, hand, 0);
         this.tracks.push(track);
+        seen.add(track);
       }
     }
 
-    this.tracks = this.tracks.filter((track) => now - track.lastSeenAt <= this.o.holdMs);
+    // A fast-moving hand can fall outside the matching radius. Prefer current detections
+    // over held positions, so two real hands never become three or four reported hands.
+    const held = this.tracks.filter((track) => !seen.has(track))
+      .sort((a, b) => b.lastSeenAt - a.lastSeenAt)
+      .slice(0, MAX_HANDS - seen.size);
+    const retained = new Set([...seen, ...held]);
+    this.tracks = this.tracks.filter((track) => retained.has(track));
     return this.tracks.filter((track) => track.confirmed).map((track) => track.landmarks);
   }
 
   reset() {
     this.tracks = [];
     this.lastAt = null;
+  }
+
+  /**
+   * Confirmed tracks actually seen in the most recent frame (not held over dropouts).
+   * Motion detectors and deliberate release checks need fresh frames, not held poses.
+   */
+  getObservedHands(): Landmark[][] {
+    return this.tracks
+      .filter((track) => track.confirmed && track.lastSeenAt === this.lastAt)
+      .map((track) => track.landmarks);
+  }
+
+  /** With at most two hands, try every assignment to preserve both tracks regardless of detection order. */
+  private match(hands: Landmark[][]): (Track | null)[] {
+    const distances = hands.map((hand) => this.tracks.map((track) =>
+      Math.hypot(hand[WRIST].x - track.landmarks[WRIST].x, hand[WRIST].y - track.landmarks[WRIST].y)));
+    let best: (Track | null)[] = hands.map(() => null);
+    let bestCount = -1;
+    let bestDistance = Infinity;
+    const visit = (assignment: (Track | null)[], count: number, distance: number) => {
+      const i = assignment.length;
+      if (i === hands.length) {
+        if (count > bestCount || (count === bestCount && distance < bestDistance)) {
+          best = assignment;
+          bestCount = count;
+          bestDistance = distance;
+        }
+        return;
+      }
+      for (const [j, track] of this.tracks.entries()) {
+        if (!assignment.includes(track) && distances[i][j] < this.o.matchDistance) {
+          visit([...assignment, track], count + 1, distance + distances[i][j]);
+        }
+      }
+      visit([...assignment, null], count, distance);
+    };
+    visit([], 0, 0);
+    return best;
   }
 
   private smooth(track: Track, hand: Landmark[], dtSec: number): Landmark[] {

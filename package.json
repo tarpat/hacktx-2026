@@ -10,7 +10,8 @@
     "dev:server": "npm run dev --workspace @spellcaster/server",
     "build": "npm run build --workspace @spellcaster/shared && npm run build --workspace @spellcaster/server && npm run build --workspace @spellcaster/client",
     "typecheck": "npm run build --workspace @spellcaster/shared && npm run typecheck --workspace @spellcaster/server && npm run typecheck --workspace @spellcaster/client",
-    "test": "npm run test --workspace @spellcaster/shared"
+    "test": "npm run test --workspace @spellcaster/shared && npm run test:gestures",
+    "test:gestures": "vitest run client/test"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

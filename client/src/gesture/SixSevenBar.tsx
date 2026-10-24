@@ -4,7 +4,7 @@ import { DEFAULT_SIX_SEVEN } from "./sixSeven";
 const TOP_SPEED = 8;
 
 /**
- * Six Seven charge bar over the local wizard. Appears once the palms-up stance is seen,
+ * Six Seven charge bar over the local wizard. Appears once the stance or alternating motion is seen,
  * with a speed meter so players can tell that faster bobbing fills it faster.
  */
 export function SixSevenBar({ charge, speed, active }: { charge: number; speed: number; active: boolean }) {

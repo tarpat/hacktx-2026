@@ -1397,6 +1397,13 @@ kbd {
   color: var(--rose);
 }
 
+.gesture-test .six-seven {
+  position: static;
+  width: min(360px, 100%);
+  margin: 16px auto;
+  transform: none;
+}
+
 .six-seven-head span {
   font: 900 14px var(--font-title);
   color: var(--parchment);

@@ -173,12 +173,12 @@ export class GestureController {
       const hands = this.stabilizer.update(filterHands(raw), now);
       // Handedness is only meaningful for one-hand gestures.
       this.hand = hands.length === 1 && raw.length === 1 ? (result.handedness[0]?.[0]?.categoryName as Handedness | undefined) : undefined;
-      this.processFrame(hands, now);
+      this.processFrame(hands, now, this.stabilizer.getObservedHands());
     };
     this.rafId = requestAnimationFrame(tick);
   }
 
-  private processFrame(hands: Landmark[][], now: number) {
+  private processFrame(hands: Landmark[][], now: number, observedHands: Landmark[][]) {
     const rawPose = combinePoses(hands.map(classifyPose));
     const pose = this.smoother.push(rawPose);
     this.setStatus(hands.length > 0 ? "TRACKING" : "NO_HAND");
@@ -191,7 +191,8 @@ export class GestureController {
 
     const video = this.video;
     const aspect = video && video.videoHeight ? video.videoWidth / video.videoHeight : 4 / 3;
-    const sixSeven = this.sixSeven.update(hands, now, aspect);
+    // Held landmarks smooth static poses, but cannot prove motion or a deliberate stop.
+    const sixSeven = this.sixSeven.update(observedHands, now, aspect);
     // While doing 6-7, palms-up hands must not read as shield/ultimate.
     const { state, actions } = stepGesture(this.gestureState, sixSeven.engaged ? "UNKNOWN" : pose, now, this.timings);
     this.gestureState = state;

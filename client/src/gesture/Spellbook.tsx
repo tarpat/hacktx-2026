@@ -43,7 +43,7 @@ const ENTRIES: Entry[] = [
   },
   {
     gesture: "🫴 ↕ 🫴",
-    how: "Both palms facing the ceiling, bob hands up and down like the meme. Faster = more charge. Freeze to fire",
+    how: "Keep both open hands in view, palms up. Alternate one up as the other goes down. Faster = more charge. Hold still to fire",
     spell: "sixSeven",
     title: "Six Seven",
     effect: `Up to ${spells.sixSeven.damage} damage · ${seconds(spells.sixSeven.cooldownMs)} cooldown`,
