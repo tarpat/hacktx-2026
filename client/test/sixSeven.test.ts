@@ -158,23 +158,6 @@ describe("SixSevenDetector camera motion", () => {
     expect(casts(frames)).toEqual([]);
   });
 
-  it("does not charge when hands are oriented facing the camera (Shield pose)", () => {
-    const frames = replay(new SixSevenDetector(), 0, 4000, (time) => opposing(time, 1.6, { angle: 0, flatDepth: true }));
-    expect(peakCharge(frames)).toBe(0);
-    expect(casts(frames)).toEqual([]);
-  });
-
-  it("does not charge when hands are upside down", () => {
-    const frames = replay(new SixSevenDetector(), 0, 4000, (time) => {
-      const raw = opposing(time, 1.6);
-      // Flip hands vertically so wrist is above knuckles
-      const flipped = raw.map((hand) => hand.map((p) => ({ ...p, y: 1 - p.y })));
-      return flipped;
-    });
-    expect(peakCharge(frames)).toBe(0);
-    expect(casts(frames)).toEqual([]);
-  });
-
   it("recovers from a brief hand dropout without creating an extra swap", () => {
     const full = replay(new SixSevenDetector(), 0, 3200, (time) => opposing(time));
     const interrupted = replay(new SixSevenDetector(), 0, 3200, (time) =>

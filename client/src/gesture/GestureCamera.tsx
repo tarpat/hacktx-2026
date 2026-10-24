@@ -93,7 +93,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
         setLastCast({ id: ++castId, spell });
       }),
       controller.onDebugFrame((frame) => {
-        if (canvasRef.current) drawHands(canvasRef.current, frame.hands);
+        if (canvasRef.current) drawHands(canvasRef.current, frame.hands, frame.pose);
       }),
     ];
     return () => {

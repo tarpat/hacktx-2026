@@ -473,10 +473,10 @@ Mark these only after actually testing them; record environment and commands in 
 | Camera preview | **Implemented** | Mirrored video + canvas |
 | MediaPipe model | **Verified** | GPU/CPU fallback HandLandmarker |
 | Gesture state machine | **Verified** | Pure state machine + unit tests |
-| 6-7 Gesture Detection | **Fixed & Tested** | `client/test/sixSeven.test.ts`, `handTracking.ts`, `sixSeven.ts` (37 tests passing) |
+| 6-7 Gesture Detection | **Arm-based (pose model); unit-tested; NOT yet verified on a real camera** | `client/src/gesture/armSixSeven.ts`, `client/test/armSixSeven.test.ts`; tune on `/gesture-test` using the 6–7 ARMS readout |
 | Voice track | **Owned by teammate; unknown** | Don't edit without agreement |
 | Phaser visuals | **Owned by teammate; unknown** | Don't edit without agreement |
-| Deployment/demo | **Demo ready** | Local build and tests passing |
+| Deployment/demo | **Unknown** | Local build and tests pass; live two-device test not done |
 
 **Active developer:** Developer A (video/gestures; user).
 
@@ -494,25 +494,18 @@ Mark these only after actually testing them; record environment and commands in 
 
 > Use newest entry at top. Every AI coding session should add a dated entry after implementation, even if incomplete. Never fabricate tests, commits, or results.
 
-### [2026-10-24] Fix 6-7 Camera Detection, Hand Orientation & Arm Tracking
+### [2026-10-24] Six Seven: switch to arm (pose) tracking
 
-- **Actor:** Antigravity AI assistant with user (Developer A).
-- **Git branch:** `codex/fix-six-seven-camera`
-- **Files changed:** `client/src/gesture/handTracking.ts`, `client/src/gesture/sixSeven.ts`, `client/src/gesture/GestureController.ts`, `client/src/views/GestureTestView.tsx`, `client/src/gesture/SixSevenBar.tsx`, `client/src/gesture/Spellbook.tsx`, `client/src/styles.css`, `client/test/handTracking.test.ts`, `client/test/sixSeven.test.ts`, `package.json`, `shared/package.json`.
-- **What was implemented:**
-  1. Fixed runtime `TypeError` in `GestureController` by implementing `HandStabilizer.getObservedHands()` in `handTracking.ts`.
-  2. Fixed `filterHands` in `handTracking.ts` dropping edge-on/foreshortened palms: now measures maximum 3D span across wrist-to-knuckle, wrist-to-tip, and knuckle width.
-  3. Added explicit hand orientation validation (`isOrientedForSixSeven`) in `sixSeven.ts` to ensure:
-     - Arms/wrists enter from below (upright hands, `wrist.y >= middle_mcp.y - 0.05`).
-     - Palms face upward (verified via 3D vertical normal when depth is present, or 2D knuckle horizontal span vs foreshortened vertical height when depth is flat).
-     - Camera-facing palms (e.g. Shield pose) or upside-down hands are strictly rejected.
-  4. Clarified and verified arm bobbing motion tracking: uses the wrist (arm anchor) and palm knuckles to detect forearm bobbing cleanly while rejecting camera-facing gestures.
-  5. Added comprehensive Vitest unit test suite (37 tests across gesture detection, dropouts, camera aspects, edge-on palms, flat depth, and orientation rejection).
-- **Tests/commands actually run + outcomes:**
-  - `npm test`: 27 shared tests + 37 gesture tests all pass (64/64 total).
-  - `npm run typecheck`: clean across shared, server, client.
-  - `npm run build`: successful production build.
-- **Next small actionable step:** Create PR to merge `codex/fix-six-seven-camera` into `main`.
+- **Actor:** AI assistant with user (Developer A). Branch `codex/fix-six-seven-camera`, PR #10.
+- **Why:** User reported hand-only 6-7 still didn't detect well on camera. Palms-up hands are edge-on to the camera and blur while bobbing, which is the hand model's worst case. An earlier commit on this branch added a strict palm-orientation gate (`isOrientedForSixSeven`) that made detection *worse*; it has been reverted.
+- **What changed:**
+  - New `client/src/gesture/armSixSeven.ts`: MediaPipe PoseLandmarker (lite) shoulders/elbows/wrists. Stance = both arms visible, elbows below shoulders, forearms raised (wrist ≤ 0.5 shoulder-widths below elbow), hands not above shoulders. Hand landmarks are optional and only veto palms facing the camera (fingers pointing up, i.e. shield). Swaps = opposed reversals of wrist heights (shoulder-width units). Release = wrists within 0.1 shoulder-widths for 700 ms. `engaged` only once bobbing starts, so a still stance doesn't block other spells.
+  - `GestureController` loads the pose model alongside the hand model; if the pose model fails, it falls back to the old hand-only `SixSevenDetector`.
+  - `/gesture-test` draws the arms (blue) and shows a **6–7 ARMS** readout giving the reason (out of frame / raise forearms / lower hands / turn palms up / READY).
+  - `HandStabilizer.getObservedHands()` added (controller called it but it didn't exist); `filterHands` keeps foreshortened palms.
+- **Tests run:** `npm test` (27 shared + 57 gesture tests pass), `npm run typecheck` clean, `npm run build` OK.
+- **NOT verified:** real-camera behaviour, thresholds, frame rate with two models running. The elbows and hands must be in frame, so a laptop webcam may need the player to sit back.
+- **Next step:** On `/gesture-test`, check the 6–7 ARMS readout reaches READY with arms in position, then tune `DEFAULT_ARM_SIX_SEVEN` (`minReversal`, `maxWristBelowElbow`, `maxFingersUp`).
 
 ### [2026-10-24] Initial portable handoff created
 

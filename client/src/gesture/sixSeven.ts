@@ -103,32 +103,6 @@ export function palmUpScore(hand: Landmark[], aspect: number): number {
 }
 
 /**
- * Ensures the hand is oriented correctly for the 6-7 gesture:
- * 1. The arm/wrist enters from below (wrist.y >= middle_mcp.y - 0.05).
- * 2. The palm faces upward (verified either by 3D vertical normal or 2D foreshortening
- *    when camera depth is flat/noisy, distinguishing it from camera-facing palms like Shield).
- */
-export function isOrientedForSixSeven(hand: Landmark[], aspect: number, threshold = DEFAULT_SIX_SEVEN.palmUpThreshold): boolean {
-  if (hand.length < 21) return false;
-  const w = hand[WRIST];
-  const mm = hand[MIDDLE_MCP];
-  // Arm/wrist must support the hand from below (image y increases downward).
-  if (w.y < mm.y - 0.05) return false;
-
-  // 3D vertical palm normal:
-  if (palmUpScore(hand, aspect) >= threshold) return true;
-
-  // 2D check for flat camera depth: edge-on palms have knuckles spread horizontally and compressed vertical height.
-  const im = hand[INDEX_MCP];
-  const pm = hand[PINKY_MCP];
-  const knuckleSpanX = Math.abs(im.x - pm.x) * aspect;
-  const knuckleSpanY = Math.abs(im.y - pm.y);
-  const wristToKnuckleY = Math.abs(w.y - mm.y);
-
-  return knuckleSpanX > 0.04 && knuckleSpanY < knuckleSpanX * 0.8 && wristToKnuckleY < knuckleSpanX * 0.85;
-}
-
-/**
  * Detects the "six seven" meme: two hands, palms up, alternately bobbing up and down.
  * The bar fills at a rate set by how fast the hands swap; stopping unleashes it.
  * Pure apart from its own state; feed it every frame's hands and a monotonic time.
@@ -161,12 +135,10 @@ export class SixSevenDetector {
       this.stanceUntil = -Infinity;
     }
     const pairVisible = hands.length === 2 && hands.every((hand) => isOpenHand(hand, aspect));
-    const pair = pairVisible ? sortByX(hands) : null;
-    const bothOriented = pair !== null && pair.every((hand) => isOrientedForSixSeven(hand, aspect, this.t.palmUpThreshold));
-
-    if (pairVisible && pair) {
+    if (pairVisible) {
+      const pair = sortByX(hands);
       this.lastPairAt = now;
-      this.trackStance(pair, aspect, now, dt || 1 / 30, bothOriented);
+      this.trackStance(pair, aspect, now, dt || 1 / 30);
       const size = (handLength(pair[0], aspect) + handLength(pair[1], aspect)) / 2;
       this.trackMotion([handHeight(pair[0]), handHeight(pair[1])], size, now, dt || 1 / 30);
     } else {
@@ -175,9 +147,9 @@ export class SixSevenDetector {
     }
 
     while (this.swaps.length > 0 && now - this.swaps[0] > this.t.speedWindowMs) this.swaps.shift();
-    // Depth is least reliable for edge-on palms. Two opposed reversals with correctly oriented hands
-    // maintain the stance even when depth normal is noisy.
-    if (pairVisible && bothOriented && this.swaps.length >= 2 && now - this.lastSwapAt < this.t.releaseIdleMs) {
+    // Depth is least reliable for edge-on palms. Two opposed reversals are sufficient
+    // evidence even when the estimated normal never points up.
+    if (pairVisible && this.swaps.length >= 2 && now - this.lastSwapAt < this.t.releaseIdleMs) {
       this.stanceUntil = now + this.t.stanceGraceMs;
     }
     const stance = now < this.stanceUntil;
@@ -221,13 +193,8 @@ export class SixSevenDetector {
     this.segmentSize = 0;
   }
 
-  private trackStance(pair: [Landmark[], Landmark[]], aspect: number, now: number, dt: number, bothOriented: boolean) {
-    if (!bothOriented) {
-      this.palmUp += smoothing(this.t.palmUpSmoothing, dt) * (0 - this.palmUp);
-      return;
-    }
-    const score3D = Math.min(palmUpScore(pair[0], aspect), palmUpScore(pair[1], aspect));
-    const score = Math.max(score3D, this.t.palmUpThreshold);
+  private trackStance(pair: [Landmark[], Landmark[]], aspect: number, now: number, dt: number) {
+    const score = Math.min(palmUpScore(pair[0], aspect), palmUpScore(pair[1], aspect));
     this.palmUp += smoothing(this.t.palmUpSmoothing, dt) * (score - this.palmUp);
     if (this.palmUp >= this.t.palmUpThreshold) this.stanceUntil = now + this.t.stanceGraceMs;
   }
