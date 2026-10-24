@@ -3,7 +3,6 @@ import type { SpellId } from "@spellcaster/shared";
 import { spellInput } from "../game/input";
 import { spellGlyph } from "../theme";
 import { ChargeOrb, type ActiveCharge, type ChargeOutcome } from "./ChargeOrb";
-import { SixSevenBar } from "./SixSevenBar";
 import { drawHands } from "./drawHand";
 import { GestureController } from "./GestureController";
 import type { ChargeKind } from "./gestureStateMachine";
@@ -15,12 +14,11 @@ const ACTION_SPELLS: Partial<Record<GestureAction, SpellId>> = {
   SHIELD_CAST: "shield",
   ICE_CAST: "ice",
   ULTIMATE_CAST: "ultimate",
-  SIX_SEVEN_CAST: "sixSeven",
 };
 
 const POSE_LABELS: Partial<Record<HandPose, string>> = { FIST: "✊", OPEN_PALM: "✋", VICTORY: "✌️", BOTH_FISTS: "✊✊", BOTH_PALMS: "🙌" };
 
-const LEGEND = "✊→✋ fireball · ✊✊→🙌 ultimate · ✋ shield · ✌️ ice · 🫴🫴 6-7";
+const LEGEND = "✊→✋ fireball · ✊✊→🙌 ultimate · ✋ shield · ✌️ ice";
 
 // Remember the opt-in for this tab so the camera follows the player from lobby to arena.
 const STORAGE_KEY = "spellcaster:gestures";
@@ -55,8 +53,6 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
   const [lastCast, setLastCast] = useState<{ id: number; spell: SpellId } | null>(null);
   const charging = charge !== null;
   const [error, setError] = useState("");
-  const [sixSeven, setSixSeven] = useState({ charge: 0, speed: 0 });
-  const [palmsUp, setPalmsUp] = useState(false);
 
   useEffect(() => {
     const controller = new GestureController();
@@ -68,11 +64,9 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
       controller.onObservation((o) => {
         setStatus(o.status);
         setPose(o.pose);
-        setSixSeven({ charge: o.sixSevenCharge, speed: o.sixSevenSpeed });
-        setPalmsUp(o.palmsUp);
         if (o.status === "ERROR") setError((e) => e || "Camera stopped. Turn gestures off and on to retry.");
       }),
-      controller.onAction(({ action, localTimestampMs, power }) => {
+      controller.onAction(({ action, localTimestampMs }) => {
         if (action === "FIREBALL_CHARGE_START" || action === "ULTIMATE_CHARGE_START") {
           const kind: ChargeKind = action === "ULTIMATE_CHARGE_START" ? "ultimate" : "fireball";
           // An upgrade keeps the original start time, matching the state machine.
@@ -89,7 +83,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
         if (action === "STRUGGLE_PUSH") return spellInput.push();
         const spell = ACTION_SPELLS[action];
         if (!spell) return;
-        spellInput.cast(spell, undefined, power);
+        spellInput.cast(spell);
         setLastCast({ id: ++castId, spell });
       }),
       controller.onDebugFrame((frame) => {
@@ -144,12 +138,11 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
 
   const live = status === "TRACKING" || status === "NO_HAND";
   const label =
-    status === "STARTING" ? "Starting camera…" : status === "NO_HAND" ? "Show your hand" : struggling ? "✊✋ PUMP! PUMP!" : charging ? "Charging… open to cast" : palmsUp ? "🫴🫴 palms up · bob!" : POSE_LABELS[pose] ?? "";
+    status === "STARTING" ? "Starting camera…" : status === "NO_HAND" ? "Show your hand" : struggling ? "✊✋ PUMP! PUMP!" : charging ? "Charging… open to cast" : POSE_LABELS[pose] ?? "";
 
   return (
     <>
     <ChargeOrb charge={charge} outcome={chargeOutcome} ultimateReady={ultimateReady} />
-    <SixSevenBar charge={sixSeven.charge} speed={sixSeven.speed} active={palmsUp} />
     <aside className={`gesture-cam${enabled ? " on" : ""}${charging ? " is-charging" : ""}`}>
       <div className="gesture-cam-view" hidden={!enabled}>
         <video ref={videoRef} className="mirrored" autoPlay playsInline muted />

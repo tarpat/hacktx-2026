@@ -10,7 +10,7 @@ export function GestureTestView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const controllerRef = useRef<GestureController | null>(null);
   const [observation, setObservation] = useState<GestureObservation | null>(null);
-  const [debug, setDebug] = useState<Pick<DebugFrame, "fps" | "state">>({ fps: 0, state: "IDLE" });
+  const [debug, setDebug] = useState<Pick<DebugFrame, "fps" | "state"> & { handCount: number }>({ fps: 0, state: "IDLE", handCount: 0 });
   const [log, setLog] = useState<(GestureActionEvent & { id: number })[]>([]);
   const [shieldUp, setShieldUp] = useState(false);
   const [charging, setCharging] = useState(false);
@@ -39,7 +39,8 @@ export function GestureTestView() {
       }),
       controller.onDebugFrame((frame) => {
         if (canvasRef.current) drawHands(canvasRef.current, frame.hands);
-        setDebug((d) => (d.fps === frame.fps && d.state === frame.state ? d : { fps: frame.fps, state: frame.state }));
+        setDebug((d) => (d.fps === frame.fps && d.state === frame.state && d.handCount === frame.hands.length
+          ? d : { fps: frame.fps, state: frame.state, handCount: frame.hands.length }));
       }),
     ];
     // Cleanup stops camera tracks, including on React Strict Mode's dev remount.
@@ -90,11 +91,10 @@ export function GestureTestView() {
         <div><dt>RAW</dt><dd>{observation?.rawPose ?? "NONE"}</dd></div>
         <div><dt>STATE</dt><dd>{debug.state}</dd></div>
         <div><dt>HAND</dt><dd>{observation?.hand ?? "—"}</dd></div>
-        <div><dt>PALMS UP</dt><dd>{observation?.palmsUp ? "YES 🫴🫴" : "no"}</dd></div>
-        <div><dt>SIX SEVEN</dt><dd>{Math.round((observation?.sixSevenCharge ?? 0) * 100)}% · {(observation?.sixSevenSpeed ?? 0).toFixed(1)}/s</dd></div>
+        <div><dt>HANDS TRACKED</dt><dd>{live ? debug.handCount : 0} / 2</dd></div>
         <div><dt>FPS</dt><dd>{live ? debug.fps : "—"}</dd></div>
       </dl>
-      <p className="gesture-hint">✊ hold → ✋ open: fireball · ✋ palm: shield · ✌️ peace: ice · ✊✊ → 🙌: ultimate · 🫴🫴 bob palms-up: six seven</p>
+      <p className="gesture-hint">✊ hold → ✋ open: fireball · ✋ palm: shield · ✌️ peace: ice · ✊✊ → 🙌: ultimate</p>
       <ol className="gesture-log">
         {log.length === 0 && <li className="empty">No actions yet</li>}
         {log.map((entry) => <li key={entry.id}><span>{(entry.localTimestampMs / 1000).toFixed(2)}s</span>{entry.action}</li>)}
