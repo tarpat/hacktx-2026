@@ -4,6 +4,8 @@ import { arenaTextures, art, palette, spellColor, textureUrl } from "../theme";
 import { MAP_ORDER, MAPS, type MapId } from "./maps";
 import { RELEASE_MS, WizardRig } from "./WizardRig";
 
+const fxUrl = (name: string) => `${import.meta.env.BASE_URL}assets/fx/${name}.png`;
+
 export interface ArenaFrame {
   state: MatchState | null;
   now: number;
@@ -27,7 +29,7 @@ interface WizardView {
 }
 
 interface ProjectileView {
-  node: Phaser.GameObjects.Image;
+  node: Phaser.GameObjects.Sprite;
   trail: Phaser.GameObjects.Particles.ParticleEmitter;
 }
 
@@ -46,17 +48,48 @@ const BACKGROUND = "background";
 const BG_SIZE = { width: 1024, height: 572 };
 const BG_PATH_Y = 512;
 
-/** Projectile art: texture, where the orb sits in the image (it has a trail behind it), and size. */
-const PROJECTILE_ART: Record<Exclude<SpellId, "shield">, { key: string; originX: number; size: number }> = {
-  fireball: { key: "fireball", originX: 0.66, size: 150 },
-  ice: { key: "ice", originX: 0.67, size: 130 },
-  ultimate: { key: "fulmen", originX: 0.68, size: 230 },
+type Bolt = Exclude<SpellId, "shield">;
+
+/**
+ * Animated effect sheets in assets/fx. Bolts play a launch, then loop their flight frames;
+ * the rest are one-shot impacts. Sources and licenses: assets/fx/CREDITS.txt.
+ */
+const FX_SHEETS = {
+  "fx-fireball": { file: "fireball", frameWidth: 192, frameHeight: 144 },
+  "fx-frostbolt": { file: "frostbolt", frameWidth: 192, frameHeight: 144 },
+  "fx-freeze": { file: "freeze", frameWidth: 160, frameHeight: 160 },
+  "fx-explosion": { file: "explosion", frameWidth: 224, frameHeight: 224 },
+  "fx-sparkle": { file: "sparkle", frameWidth: 224, frameHeight: 224 },
+} as const;
+
+const FX_ANIMS: { key: string; sheet: keyof typeof FX_SHEETS; start: number; end: number; frameRate: number; repeat?: number }[] = [
+  { key: "fireball-launch", sheet: "fx-fireball", start: 4, end: 11, frameRate: 30 },
+  { key: "fireball-fly", sheet: "fx-fireball", start: 12, end: 27, frameRate: 24, repeat: -1 },
+  { key: "frostbolt-launch", sheet: "fx-frostbolt", start: 4, end: 11, frameRate: 30 },
+  { key: "frostbolt-fly", sheet: "fx-frostbolt", start: 12, end: 27, frameRate: 24, repeat: -1 },
+  { key: "freeze", sheet: "fx-freeze", start: 0, end: 31, frameRate: 40 },
+  { key: "explosion", sheet: "fx-explosion", start: 0, end: 25, frameRate: 36 },
+  { key: "sparkle", sheet: "fx-sparkle", start: 0, end: 10, frameRate: 22 },
+];
+
+/** Soft particle textures (Kenney, CC0) tinted per spell for trails and bursts. */
+const FX_PARTICLES = ["flame-4", "magic-3", "star-6"] as const;
+
+/**
+ * How each bolt flies: an animated sheet (fireball, ice) or the illustrated still (ultimate),
+ * where the orb sits in the frame, its size, and the particle texture streaming behind it.
+ */
+const PROJECTILE_ART: Record<Bolt, { key: string; launch?: string; fly?: string; originX: number; size: number; trail: string; glow: number }> = {
+  fireball: { key: "fx-fireball", launch: "fireball-launch", fly: "fireball-fly", originX: 0.63, size: 190, trail: "flame-4", glow: 0xff6a1f },
+  ice: { key: "fx-frostbolt", launch: "frostbolt-launch", fly: "frostbolt-fly", originX: 0.63, size: 180, trail: "magic-3", glow: 0x6fb8ff },
+  ultimate: { key: "fulmen", originX: 0.68, size: 240, trail: "star-6", glow: 0xfff27a },
 };
 
-const IMPACT_ART: Record<Exclude<SpellId, "shield">, { key: string; size: number }> = {
-  fireball: { key: "fireball-impact", size: 230 },
-  ice: { key: "hit-sparks", size: 210 },
-  ultimate: { key: "fulmen-impact", size: 340 },
+/** Animated impacts layered on hit; the ultimate also keeps its illustrated flash. */
+const IMPACT_FX: Record<Bolt, { anim: string; size: number; still?: { key: string; size: number } }[]> = {
+  fireball: [{ anim: "explosion", size: 300 }],
+  ice: [{ anim: "freeze", size: 300 }],
+  ultimate: [{ anim: "explosion", size: 420, still: { key: "fulmen-impact", size: 340 } }, { anim: "sparkle", size: 380 }],
 };
 
 /** The server's synced stage wins online; practice uses the locally picked map. */
@@ -90,10 +123,17 @@ export class ArenaScene extends Phaser.Scene {
   preload() {
     if (!this.textures.exists(BACKGROUND)) this.load.image(BACKGROUND, art.background);
     for (const key of arenaTextures) if (!this.textures.exists(key)) this.load.image(key, textureUrl(key));
+    for (const [key, { file, ...frame }] of Object.entries(FX_SHEETS)) {
+      if (!this.textures.exists(key)) this.load.spritesheet(key, fxUrl(file), frame);
+    }
+    for (const key of FX_PARTICLES) if (!this.textures.exists(key)) this.load.image(key, fxUrl(key));
   }
 
   create() {
     this.makeTextures();
+    for (const { key, sheet, start, end, frameRate, repeat } of FX_ANIMS) {
+      if (!this.anims.exists(key)) this.anims.create({ key, frames: this.anims.generateFrameNumbers(sheet, { start, end }), frameRate, repeat });
+    }
     this.build();
   }
 
@@ -274,6 +314,7 @@ export class ArenaScene extends Phaser.Scene {
         release = { at: now, from: this.wizards[projectile.owner].rig.handPoint() };
         this.releases.set(projectile.id, release);
       }
+      if (release && !view.node.visible) this.launch(view, projectile.spell as Bolt);
       view.node.setVisible(Boolean(release));
       view.trail.emitting = Boolean(release);
       if (!release) continue;
@@ -286,7 +327,7 @@ export class ArenaScene extends Phaser.Scene {
       // Tilt along the arc so the trail streams out behind the orb.
       const slope = -Math.cos(t * Math.PI) * 0.25;
       view.node.setPosition(x, y).setRotation(view.node.flipX ? -slope : slope);
-      if (projectile.spell === "ice") view.node.setRotation(now / 120);
+      // The trail spawns at the orb, not the sprite's tail.
       view.trail.setPosition(x, y);
       this.lastPositions.set(projectile.id, { x, y });
     }
@@ -294,23 +335,42 @@ export class ArenaScene extends Phaser.Scene {
 
   private makeProjectile(projectile: Projectile): ProjectileView {
     const color = spellColor[projectile.spell];
-    const look = PROJECTILE_ART[projectile.spell as keyof typeof PROJECTILE_ART];
+    const look = PROJECTILE_ART[projectile.spell as Bolt];
     const towardRight = this.anchor(projectile.owner).facing === 1;
-    const node = this.add.image(0, 0, look.key).setDepth(6);
+    const node = this.add.sprite(0, 0, look.key).setDepth(6).setVisible(false).setBlendMode(Phaser.BlendModes.ADD);
     const size = look.size * this.unit * (projectile.empowered ? 1.3 : 1);
     node.setScale(size / node.width);
+    node.setData("base", node.scaleX);
     node.setFlipX(!towardRight);
     node.setOrigin(towardRight ? look.originX : 1 - look.originX, 0.5);
-    const trail = this.add.particles(0, 0, SPARK, {
-      speed: { min: 10, max: 50 },
-      lifespan: 420,
-      scale: { start: 0.7 * this.unit, end: 0 },
-      tint: [color, palette.goldSoft],
+    // WebGL only: a soft glow so bolts read as light, not stickers.
+    node.preFX?.addGlow(look.glow, 3, 0, false, 0.1, 12);
+    const trail = this.add.particles(0, 0, look.trail, {
+      speed: { min: 8, max: 40 },
+      lifespan: { min: 280, max: 520 },
+      scale: { start: 0.45 * this.unit * (projectile.empowered ? 1.3 : 1), end: 0 },
+      alpha: { start: 0.9, end: 0 },
+      rotate: { min: 0, max: 360 },
+      tint: [color, look.glow, palette.goldSoft],
       blendMode: "ADD",
-      frequency: 22,
+      frequency: 14,
     });
     trail.setDepth(5);
     return { node, trail };
+  }
+
+  /** The moment a bolt leaves the hand: a launch animation into its looping flight, or a pop-in for stills. */
+  private launch(view: ProjectileView, spell: Bolt) {
+    const look = PROJECTILE_ART[spell];
+    const base = view.node.getData("base") as number;
+    if (look.launch && look.fly) {
+      view.node.play(look.launch).chain(look.fly);
+      return;
+    }
+    // Stretch along the throw, then settle, so the still feels flung rather than placed.
+    view.node.setScale(base * 1.35, base * 0.7);
+    this.tweens.add({ targets: view.node, scaleX: base, scaleY: base, duration: 220, ease: "Back.easeOut" });
+    this.tweens.add({ targets: view.node, alpha: { from: 0.75, to: 1 }, duration: 90, yoyo: true, repeat: -1 });
   }
 
   // ---------- events ----------
@@ -366,8 +426,13 @@ export class ArenaScene extends Phaser.Scene {
   private onHit(target: PlayerSlot, amount: number, spell: SpellId) {
     const view = this.wizards[target];
     const { x, y, facing } = this.anchor(target);
-    const impact = IMPACT_ART[spell as keyof typeof IMPACT_ART];
-    if (impact) this.flash(impact.key, x + facing * 10 * this.unit, y - 112 * this.unit, impact.size, 560, true);
+    const hitX = x + facing * 10 * this.unit;
+    const hitY = y - 112 * this.unit;
+    for (const fx of IMPACT_FX[spell as Bolt] ?? []) {
+      this.playFx(fx.anim, hitX, hitY, fx.size);
+      if (fx.still) this.flash(fx.still.key, hitX, hitY, fx.still.size, 560, true);
+    }
+    if (spell === "ultimate") this.cameras.main.flash(180, 255, 242, 122);
     this.burst(x, y - 110 * this.unit, spellColor[spell], 10 + amount / 2, 1.2);
     this.floatText(x, y - 250 * this.unit, `-${amount}`, "#ff4f7b");
     this.cameras.main.shake(120 + amount * 6, 0.004 + amount * 0.0003);
@@ -394,6 +459,13 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   // ---------- helpers ----------
+
+  /** A one-shot animated effect, removed when its animation ends. */
+  private playFx(anim: string, x: number, y: number, size: number) {
+    const sprite = this.add.sprite(x, y, FX_ANIMS.find((a) => a.key === anim)!.sheet).setDepth(8).setBlendMode(Phaser.BlendModes.ADD);
+    sprite.setScale((size * this.unit) / Math.max(sprite.width, sprite.height)).setRotation(Math.random() * 0.4 - 0.2);
+    sprite.play(anim).once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sprite.destroy());
+  }
 
   /** A one-shot illustrated effect that pops in, swells and fades. */
   private flash(key: string, x: number, y: number, size: number, duration: number, additive = false) {
