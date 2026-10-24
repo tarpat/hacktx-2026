@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { LocalDuel } from "../game/duelSource";
 import { DuelScreen } from "../hud/DuelScreen";
 
 /** Offline duel against the training dummy, or two players on one keyboard. Also the demo fallback. */
 export function PracticeView() {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const hotseat = params.get("mode") === "hotseat";
   const [source, setSource] = useState<LocalDuel | null>(null);
@@ -20,6 +21,7 @@ export function PracticeView() {
       key={hotseat ? "hotseat" : "bot"}
       source={source}
       hotseat={hotseat}
+      onLeave={() => navigate("/")}
       header={
         <nav className="duel-nav">
           <span className="duel-mode">PRACTICE</span>

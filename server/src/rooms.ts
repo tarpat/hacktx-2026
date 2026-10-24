@@ -81,6 +81,26 @@ export class RoomManager {
     return this.snapshot(room);
   }
 
+  leave(code: string, socketId: string): RoomSnapshot | null {
+    const room = this.rooms.get(code);
+    if (!room) return null;
+    const player = Object.values(room.players).find((entry) => entry?.socketId === socketId);
+    if (!player) return this.snapshot(room);
+    const slot = player.slot;
+    const recoveryTimer = room.recoveryTimers[slot];
+    if (recoveryTimer) clearTimeout(recoveryTimer);
+    delete room.recoveryTimers[slot];
+    room.players[slot] = null;
+    for (const [token, owner] of this.recoveryTokens) {
+      if (owner.code === code && owner.slot === slot) this.recoveryTokens.delete(token);
+    }
+    if (!room.players.A && !room.players.B) {
+      this.rooms.delete(code);
+      return null;
+    }
+    return this.snapshot(room);
+  }
+
   disconnect(code: string, socketId: string, onExpired: (room: RoomSnapshot) => void): { room: RoomSnapshot; slot: PlayerSlot; expiresAt: number } | null {
     const room = this.rooms.get(code);
     if (!room) return null;

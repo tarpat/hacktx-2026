@@ -16,6 +16,7 @@ interface DuelScreenProps {
   /** Local two-player mode: the opponent is driven from the same keyboard. */
   hotseat?: boolean;
   rematchLabel?: string;
+  onLeave?: () => void;
   header?: React.ReactNode;
 }
 
@@ -43,7 +44,7 @@ function useMatchNow(source: DuelSource) {
   return now;
 }
 
-export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", header }: DuelScreenProps) {
+export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header }: DuelScreenProps) {
   const [state, setState] = useState<MatchState | null>(() => source.state());
   const [banner, setBanner] = useState<Banner | null>(null);
   const [toast, setToast] = useState<Banner | null>(null);
@@ -156,7 +157,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
             {toast.text}
           </div>
         )}
-        {state && <VictoryOverlay state={state} localSlot={left} onRematch={() => source.rematch()} rematchLabel={rematchLabel} />}
+        {state && <VictoryOverlay state={state} localSlot={left} onRematch={() => source.rematch()} onLeave={onLeave} rematchLabel={rematchLabel} />}
       </div>
 
       {state && (

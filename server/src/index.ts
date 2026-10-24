@@ -67,6 +67,15 @@ io.on("connection", (socket) => {
     if (snapshot.status === "ready" && !matches.has(roomCode)) startMatch(roomCode);
   });
 
+  socket.on("LEAVE_ROOM", () => {
+    if (!roomCode) return;
+    const leavingRoom = roomCode;
+    roomCode = null;
+    const snapshot = rooms.leave(leavingRoom, socket.id);
+    socket.leave(leavingRoom);
+    if (snapshot) io.to(leavingRoom).emit("ROOM_UPDATED", snapshot);
+  });
+
   socket.on("CAST_REQUEST", (request, callback) => {
     const runner = roomCode ? matches.get(roomCode) : undefined;
     const slot = roomCode ? rooms.slotOf(roomCode, socket.id) : null;

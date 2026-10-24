@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { opponentOf } from "@spellcaster/shared";
 import { OnlineDuel } from "../game/duelSource";
 import { DuelScreen } from "../hud/DuelScreen";
-import { useSession, type Session } from "../session";
+import { setSession, useSession, type Session } from "../session";
 import { socket } from "../socket";
 import { playerName } from "../theme";
 
@@ -28,6 +28,7 @@ export function ArenaView() {
 }
 
 function OnlineArena({ session }: { session: Session }) {
+  const navigate = useNavigate();
   const [source, setSource] = useState<OnlineDuel | null>(null);
   const [hasMatch, setHasMatch] = useState(false);
   useEffect(() => {
@@ -78,5 +79,12 @@ function OnlineArena({ session }: { session: Session }) {
     );
   }
 
-  return <DuelScreen source={source} rematchLabel={waitingForRematch ? "Waiting for rival…" : "Request rematch"} header={header} />;
+  const leaveRoom = () => {
+    socket.emit("LEAVE_ROOM");
+    sessionStorage.removeItem(`spellcaster:${session.room.code}`);
+    setSession(null);
+    navigate("/");
+  };
+
+  return <DuelScreen source={source} rematchLabel={waitingForRematch ? "Waiting for rival…" : "Request rematch"} onLeave={leaveRoom} header={header} />;
 }

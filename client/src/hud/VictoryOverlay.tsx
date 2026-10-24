@@ -6,6 +6,7 @@ interface VictoryOverlayProps {
   state: MatchState;
   localSlot: PlayerSlot;
   onRematch: () => void;
+  onLeave: () => void;
   rematchLabel: string;
 }
 
@@ -16,7 +17,7 @@ const REASON_TEXT = {
   draw: "",
 };
 
-export function VictoryOverlay({ state, localSlot, onRematch, rematchLabel }: VictoryOverlayProps) {
+export function VictoryOverlay({ state, localSlot, onRematch, onLeave, rematchLabel }: VictoryOverlayProps) {
   if (state.phase !== "finished") return null;
   const { winner, endReason } = state;
   const loser = winner ? opponentOf(winner) : null;
@@ -53,9 +54,12 @@ export function VictoryOverlay({ state, localSlot, onRematch, rematchLabel }: Vi
             );
           })}
         </div>
-        <button className="primary-button" onClick={onRematch}>
-          {rematchLabel} <span>↻</span>
-        </button>
+        <div className="victory-actions">
+          <button className="primary-button" onClick={onRematch}>
+            {rematchLabel} <span>↻</span>
+          </button>
+          <button className="secondary-button" onClick={onLeave}>Return to main screen</button>
+        </div>
       </div>
     </div>
   );

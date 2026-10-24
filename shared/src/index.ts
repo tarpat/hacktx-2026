@@ -48,6 +48,7 @@ export interface ClientToServerEvents {
   CREATE_ROOM: (callback: (result: CreateRoomResult | SocketError) => void) => void;
   JOIN_ROOM: (code: string, sessionToken: string | null, callback: (result: JoinRoomResult | SocketError) => void) => void;
   READY_STATUS: (ready: boolean) => void;
+  LEAVE_ROOM: () => void;
   CAST_REQUEST: (request: CastRequest, callback?: (ack: CastAck) => void) => void;
   POWER_UP_REQUEST: (request: PowerUpRequest, callback?: (ack: CastAck) => void) => void;
 }

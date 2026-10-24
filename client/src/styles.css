@@ -770,6 +770,7 @@ kbd {
   display: grid;
   place-items: center;
   padding: 16px;
+  overflow-y: auto;
   background: radial-gradient(circle, #120d2b88, #120d2bdd);
   animation: fade-in 0.6s ease-out 0.9s both;
 }
@@ -833,6 +834,16 @@ kbd {
 
 .victory-stats .player-B b {
   color: var(--player-b);
+}
+
+.victory-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.victory-actions .secondary-button {
+  min-height: 54px;
 }
 
 /* ---------- spell tray ---------- */
@@ -1108,4 +1119,5 @@ kbd {
   .tray.right { justify-items: start; }
   .powerups { order: 3; }
   .spell { width: 62px; height: 62px; }
+  .victory-actions { grid-template-columns: 1fr; }
 }
