@@ -1,19 +1,22 @@
 import "dotenv/config";
-import cors from "cors";
-import express from "express";
 import { createServer } from "node:http";
+import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
 import { DEFAULT_MATCH_CONFIG, type ClientToServerEvents, type ServerToClientEvents } from "@spellcaster/shared";
 import { MatchRunner } from "./match.js";
 import { RoomManager } from "./rooms.js";
+import { createWebApp } from "./web.js";
 
-const app = express();
-app.use(cors({ origin: process.env.CLIENT_ORIGIN?.split(",") ?? "http://localhost:5173" }));
-app.get("/health", (_request, response) => response.json({ status: "ok" }));
+const allowedOrigins = process.env.CLIENT_ORIGIN?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? [];
+const app = createWebApp({
+  clientDirectory: fileURLToPath(new URL("../../client/dist/", import.meta.url)),
+  requireClient: process.env.NODE_ENV === "production",
+  allowedOrigins,
+});
 
 const httpServer = createServer(app);
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
-  cors: { origin: process.env.CLIENT_ORIGIN?.split(",") ?? "http://localhost:5173" },
+  cors: { origin: allowedOrigins.length ? allowedOrigins : false },
 });
 const rooms = new RoomManager();
 const matches = new Map<string, MatchRunner>();
@@ -123,4 +126,18 @@ io.on("connection", (socket) => {
 });
 
 const port = Number(process.env.PORT ?? 3001);
-httpServer.listen(port, () => console.log(`SpellCaster server listening on http://localhost:${port}`));
+httpServer.listen(port, "0.0.0.0", () => {
+  const address = httpServer.address();
+  console.log(`SpellCaster server listening on port ${typeof address === "object" && address ? address.port : port}`);
+});
+
+let shuttingDown = false;
+function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  for (const match of matches.values()) match.stop();
+  io.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
