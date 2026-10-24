@@ -7,7 +7,8 @@ import type { PlayerSlot, PowerUpId, SpellId } from "@spellcaster/shared";
  */
 export type SpellIntent =
   | { kind: "cast"; spell: SpellId; slot?: PlayerSlot; power?: number }
-  | { kind: "powerUp"; powerUp: PowerUpId; slot?: PlayerSlot };
+  | { kind: "powerUp"; powerUp: PowerUpId; slot?: PlayerSlot }
+  | { kind: "push"; slot?: PlayerSlot };
 
 type Listener = (intent: SpellIntent) => void;
 const listeners = new Set<Listener>();
@@ -19,6 +20,10 @@ export const spellInput = {
   },
   powerUp(powerUp: PowerUpId, slot?: PlayerSlot) {
     listeners.forEach((listener) => listener({ kind: "powerUp", powerUp, slot }));
+  },
+  /** One push in a spell struggle (fist pump, or mashing the push key). */
+  push(slot?: PlayerSlot) {
+    listeners.forEach((listener) => listener({ kind: "push", slot }));
   },
   subscribe(listener: Listener): () => void {
     listeners.add(listener);
@@ -37,6 +42,9 @@ export const KEY_BINDINGS: Record<KeySet, Record<string, SpellId>> = {
 /** Demo keys that stand in for the voice track until it is wired up. */
 export const POWER_UP_KEYS: Record<string, PowerUpId> = { "1": "empower", "2": "haste", "3": "heal" };
 
+/** Mash these to push in a spell struggle. */
+export const PUSH_KEYS: Record<KeySet, string> = { primary: " ", secondary: "enter" };
+
 export const keyFor = (keySet: KeySet, spell: SpellId) =>
   Object.entries(KEY_BINDINGS[keySet]).find(([, bound]) => bound === spell)?.[0].toUpperCase() ?? "";
 
@@ -45,6 +53,12 @@ export function bindKeyboard(localSlot: PlayerSlot, hotseatSlot: PlayerSlot | nu
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.repeat || event.target instanceof HTMLInputElement) return;
     const key = event.key.toLowerCase();
+    if (key === PUSH_KEYS.primary || (hotseatSlot && key === PUSH_KEYS.secondary)) {
+      // Space would otherwise scroll the page or click the focused button.
+      event.preventDefault();
+      spellInput.push(key === PUSH_KEYS.primary ? localSlot : hotseatSlot!);
+      return;
+    }
     const localSpell = KEY_BINDINGS.primary[key];
     const hotseatSpell = KEY_BINDINGS.secondary[key];
     if (localSpell) spellInput.cast(localSpell, localSlot);

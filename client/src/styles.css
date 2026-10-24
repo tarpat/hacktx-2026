@@ -1535,3 +1535,26 @@ kbd {
   background: var(--parchment);
   opacity: 0.5;
 }
+
+/* Spell struggle tug-of-war */
+.struggle-orb { position: absolute; top: 52%; width: 84px; height: 84px; transform: translate(-50%, -50%); transition: left 120ms ease-out; pointer-events: none; z-index: 4; display: grid; place-items: center; border-radius: 50%; overflow: hidden; animation: struggle-shake 160ms infinite alternate; box-shadow: 0 0 36px 10px rgba(255, 255, 255, 0.55); }
+.struggle-half { position: absolute; top: 0; bottom: 0; width: 50%; }
+.struggle-half:first-child { left: 0; }
+.struggle-half:nth-child(2) { right: 0; }
+.struggle-half.player-A, .struggle-bar i.player-A { background: var(--player-a); }
+.struggle-half.player-B, .struggle-bar i.player-B { background: var(--player-b); }
+.struggle-orb b { position: relative; font-size: 2.4rem; }
+@keyframes struggle-shake { from { margin-left: -3px; } to { margin-left: 3px; } }
+.struggle { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: min(520px, calc(100% - 32px)); z-index: 5; padding: 12px 16px; border-radius: 16px; background: rgba(20, 12, 40, 0.88); color: #fff; text-align: center; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4); }
+.struggle header { display: flex; justify-content: space-between; align-items: center; font-weight: 800; letter-spacing: 0.08em; }
+.struggle-timer { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: conic-gradient(#ffd166 var(--time), rgba(255, 255, 255, 0.15) 0); font-size: 0.85rem; }
+.struggle-bar { position: relative; display: flex; height: 22px; margin: 10px 0 6px; border-radius: 11px; overflow: hidden; background: #333; }
+.struggle-bar i { display: block; height: 100%; transition: width 120ms ease-out; }
+.struggle-bar i:nth-child(2) { flex: 1; }
+.struggle-bar em { position: absolute; top: -2px; bottom: -2px; width: 6px; margin-left: -3px; background: #fff; box-shadow: 0 0 10px #fff; transition: left 120ms ease-out; }
+.struggle-sides { display: flex; justify-content: space-between; font-weight: 700; font-size: 0.9rem; }
+.struggle.winning strong { color: #7dffb0; }
+.struggle.losing strong { color: #ff7d7d; }
+.struggle p { margin: 6px 0 2px; font-weight: 700; animation: struggle-pulse 600ms infinite alternate; }
+.struggle small { opacity: 0.7; }
+@keyframes struggle-pulse { from { opacity: 0.6; } to { opacity: 1; } }

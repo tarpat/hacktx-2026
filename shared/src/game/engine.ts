@@ -1,5 +1,5 @@
 import { DEFAULT_MATCH_CONFIG, type MatchConfig } from "./config.js";
-import type { CastResult, EndReason, GameEvent, MatchState, PlayerSlot, PlayerState, PowerUpId, Projectile, SpellId } from "./types.js";
+import type { CastResult, EndReason, GameEvent, MatchState, PlayerSlot, PlayerState, PowerUpId, Projectile, SpellId, Struggle } from "./types.js";
 
 type EventPayload = GameEvent extends infer E ? (E extends GameEvent ? Omit<E, "id" | "at"> : never) : never;
 
@@ -49,6 +49,7 @@ export class DuelEngine {
       roundMs: config.roundMs,
       players: { A: createPlayer("A", config), B: createPlayer("B", config) },
       projectiles: [],
+      struggle: null,
       winner: null,
       endReason: null,
       loserForm: random() < 0.5 ? "frog" : "teapot",
@@ -135,6 +136,23 @@ export class DuelEngine {
     return true;
   }
 
+  /**
+   * One push in a same-spell clash. Returns false when there is no clash to push or the push
+   * came too soon after the last one (input can't double-count, and scripts can't spam).
+   */
+  push(slot: PlayerSlot, now: number): boolean {
+    this.tick(now);
+    const struggle = this.state.struggle;
+    if (!struggle || !isLive(this.state)) return false;
+    const { pushStep, minPushGapMs } = this.config.struggle;
+    if (now - struggle.lastPushAt[slot] < minPushGapMs) return false;
+    struggle.lastPushAt[slot] = now;
+    struggle.pushes[slot] += 1;
+    struggle.balance = Math.max(-1, Math.min(1, struggle.balance + (slot === "A" ? pushStep : -pushStep)));
+    if (Math.abs(struggle.balance) >= 1) this.endStruggle(now);
+    return true;
+  }
+
   /** Advances the match to `now`, resolving phase changes, clashes and hits in time order. */
   tick(now: number): void {
     for (;;) {
@@ -150,10 +168,12 @@ export class DuelEngine {
 
       const clash = this.clashes.reduce<ClashPlan | null>((first, plan) => (!first || plan.at < first.at ? plan : first), null);
       const arrival = this.state.projectiles.reduce<Projectile | null>((first, p) => (!first || p.arrivesAt < first.arrivesAt ? p : first), null);
-      const nextAt = Math.min(clash?.at ?? Infinity, arrival?.arrivesAt ?? Infinity, phaseEndsAt);
+      const struggleEndsAt = this.state.struggle?.endsAt ?? Infinity;
+      const nextAt = Math.min(clash?.at ?? Infinity, arrival?.arrivesAt ?? Infinity, struggleEndsAt, phaseEndsAt);
       if (nextAt > now) return;
 
-      if (clash && clash.at === nextAt) this.resolveClash(clash);
+      if (struggleEndsAt === nextAt) this.endStruggle(nextAt);
+      else if (clash && clash.at === nextAt) this.resolveClash(clash);
       else if (arrival && arrival.arrivesAt === nextAt) this.resolveArrival(arrival);
       else this.endPhase(phaseEndsAt);
     }
@@ -183,6 +203,7 @@ export class DuelEngine {
     this.clashes = this.clashes.filter((entry) => entry !== plan);
     const [first, second] = plan.ids.map((id) => this.state.projectiles.find((p) => p.id === id));
     if (!first || !second) return;
+    if (first.spell === second.spell && !this.state.struggle) return this.startStruggle(first, second, plan.at);
     const survivor = first.damage === second.damage ? null : first.damage > second.damage ? first : second;
     const loser = survivor === first ? second : first;
     const fizzled = survivor ? [loser] : [first, second];
@@ -192,6 +213,61 @@ export class DuelEngine {
     }
     this.state.projectiles = this.state.projectiles.filter((p) => !fizzled.includes(p));
     this.emit(plan.at, { type: "SPELL_CLASH", winner: survivor?.owner ?? null, survivorId: survivor?.id ?? null, fizzledIds: fizzled.map((p) => p.id) });
+  }
+
+  private startStruggle(first: Projectile, second: Projectile, at: number): void {
+    const byOwner = { [first.owner]: first, [second.owner]: second } as Record<PlayerSlot, Projectile>;
+    const meetAt = Math.min(1, Math.max(0, (at - byOwner.A.launchedAt) / (byOwner.A.arrivesAt - byOwner.A.launchedAt)));
+    // The locked spells leave the projectile list; the struggle owns them until it resolves.
+    this.state.projectiles = this.state.projectiles.filter((p) => p !== first && p !== second);
+    this.clashes = this.clashes.filter((plan) => !plan.ids.includes(first.id) && !plan.ids.includes(second.id));
+    const struggle: Struggle = {
+      spell: first.spell,
+      projectiles: byOwner,
+      startedAt: at,
+      endsAt: at + this.config.struggle.durationMs,
+      meetAt,
+      balance: 0,
+      pushes: { A: 0, B: 0 },
+      // Zero rather than -Infinity: the state is sent as JSON, where -Infinity becomes null.
+      lastPushAt: { A: 0, B: 0 },
+    };
+    this.state.struggle = struggle;
+    this.emit(at, { type: "STRUGGLE_START", spell: struggle.spell, endsAt: struggle.endsAt });
+  }
+
+  /** Where the locked spells are now, 0 = A's side, 1 = B's side. */
+  static strugglePosition(struggle: Struggle): number {
+    const { meetAt, balance } = struggle;
+    return balance >= 0 ? meetAt + (1 - meetAt) * balance : meetAt + meetAt * balance;
+  }
+
+  private endStruggle(at: number): void {
+    const struggle = this.state.struggle;
+    if (!struggle) return;
+    this.state.struggle = null;
+    const { drawMargin, speedFactor } = this.config.struggle;
+    const { A, B } = struggle.projectiles;
+    if (Math.abs(struggle.balance) < drawMargin) {
+      this.emit(at, { type: "SPELL_CLASH", winner: null, survivorId: null, fizzledIds: [A.id, B.id] });
+      return;
+    }
+    const winner: PlayerSlot = struggle.balance > 0 ? "A" : "B";
+    const survivor = struggle.projectiles[winner];
+    const loser = struggle.projectiles[opponentOf(winner)];
+    // The winner's spell swallows the loser's and races on from wherever the clash was shoved to.
+    const position = DuelEngine.strugglePosition(struggle);
+    const covered = Math.min(0.95, winner === "A" ? position : 1 - position);
+    const travel = this.config.spells[survivor.spell].travelMs * speedFactor;
+    this.state.projectiles.push({
+      ...survivor,
+      damage: survivor.damage + loser.damage,
+      empowered: true,
+      launchedAt: at - covered * travel,
+      arrivesAt: at + (1 - covered) * travel,
+    });
+    this.state.players[winner].stats.clashesWon += 1;
+    this.emit(at, { type: "SPELL_CLASH", winner, survivorId: survivor.id, fizzledIds: [loser.id] });
   }
 
   private resolveArrival(projectile: Projectile): void {
@@ -250,6 +326,7 @@ export class DuelEngine {
     this.state.winner = winner;
     this.state.endReason = reason;
     this.state.projectiles = [];
+    this.state.struggle = null;
     this.clashes = [];
     this.emit(at, { type: "PHASE_CHANGED", phase: "finished" });
     this.emit(at, { type: "MATCH_END", winner, reason });

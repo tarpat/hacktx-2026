@@ -16,6 +16,8 @@ export function narrate(event: GameEvent): string | null {
         : pick([`${playerName[event.defender]} says: not today!`, "A royal block!", "Protego! The spell fizzles."], event.id);
     case "FROZEN":
       return pick([`${playerName[event.slot]} is frozen like a winter tale!`, "Brrr! Somebody fetch a blanket.", "Ice, ice, wizardy."], event.id);
+    case "STRUGGLE_START":
+      return "Spells lock together! PUMP to push it through!";
     case "SPELL_CLASH":
       return event.winner ? `Spells collide! ${playerName[event.winner]} pushes through!` : "Spells collide and vanish in a puff of glitter!";
     case "ULTIMATE_READY":

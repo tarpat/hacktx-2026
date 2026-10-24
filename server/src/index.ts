@@ -101,6 +101,12 @@ io.on("connection", (socket) => {
     callback?.(ack);
   });
 
+  socket.on("STRUGGLE_PUSH", () => {
+    const runner = roomCode ? matches.get(roomCode) : undefined;
+    const slot = roomCode ? rooms.slotOf(roomCode, socket.id) : null;
+    if (runner && slot) runner.push(slot);
+  });
+
   socket.on("disconnect", () => {
     if (!roomCode) return;
     const disconnected = rooms.disconnect(roomCode, socket.id, (snapshot) => io.to(snapshot.code).emit("ROOM_UPDATED", snapshot));

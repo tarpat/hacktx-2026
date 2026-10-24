@@ -43,7 +43,7 @@ function writeEnabled(on: boolean) {
  * Floating webcam panel that casts spells for the local wizard through `spellInput`,
  * the same entry point the keyboard fallback uses. Frames never leave the browser.
  */
-export function GestureCamera({ ultimateReady = true }: { ultimateReady?: boolean }) {
+export function GestureCamera({ ultimateReady = true, struggling = false }: { ultimateReady?: boolean; struggling?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const controllerRef = useRef<GestureController | null>(null);
@@ -86,6 +86,7 @@ export function GestureCamera({ ultimateReady = true }: { ultimateReady?: boolea
           setCharge(null);
           setChargeOutcome({ kind, result: action === "CHARGE_CANCEL" ? "fizzle" : "cast" });
         }
+        if (action === "STRUGGLE_PUSH") return spellInput.push();
         const spell = ACTION_SPELLS[action];
         if (!spell) return;
         spellInput.cast(spell, undefined, power);
@@ -120,6 +121,10 @@ export function GestureCamera({ ultimateReady = true }: { ultimateReady?: boolea
   }, [enabled]);
 
   useEffect(() => {
+    controllerRef.current?.setStruggling(struggling);
+  }, [struggling]);
+
+  useEffect(() => {
     if (!chargeOutcome) return;
     // Matches the burst/fizzle animation length.
     const timeout = setTimeout(() => setChargeOutcome(null), 500);
@@ -139,7 +144,7 @@ export function GestureCamera({ ultimateReady = true }: { ultimateReady?: boolea
 
   const live = status === "TRACKING" || status === "NO_HAND";
   const label =
-    status === "STARTING" ? "Starting camera…" : status === "NO_HAND" ? "Show your hand" : charging ? "Charging… open to cast" : palmsUp ? "🫴🫴 palms up · bob!" : POSE_LABELS[pose] ?? "";
+    status === "STARTING" ? "Starting camera…" : status === "NO_HAND" ? "Show your hand" : struggling ? "✊✋ PUMP! PUMP!" : charging ? "Charging… open to cast" : palmsUp ? "🫴🫴 palms up · bob!" : POSE_LABELS[pose] ?? "";
 
   return (
     <>

@@ -22,6 +22,19 @@ export interface PowerUpConfig {
   durationMs: number;
 }
 
+export interface StruggleConfig {
+  /** How long the tug-of-war lasts before whoever is ahead wins. */
+  durationMs: number;
+  /** Balance moved by one push (balance runs from -1 to +1). */
+  pushStep: number;
+  /** Pushes closer together than this are ignored, so no input can count twice or be spammed by a script. */
+  minPushGapMs: number;
+  /** At time-out, a lead smaller than this is a draw and both spells fizzle. */
+  drawMargin: number;
+  /** The winning spell flies on this much faster than normal. */
+  speedFactor: number;
+}
+
 export interface MatchConfig {
   maxHp: number;
   countdownMs: number;
@@ -33,6 +46,8 @@ export interface MatchConfig {
   ultimateShieldFactor: number;
   /** Opposing attacks launched within this window collide mid-arena. */
   clashWindowMs: number;
+  /** Same-spell clash tug-of-war. */
+  struggle: StruggleConfig;
   ultimateMax: number;
   ultimateGain: { perDamageDealt: number; perBlock: number; perDamageTaken: number };
   empowerMultiplier: number;
@@ -55,6 +70,7 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   freezeMs: 1_200,
   ultimateShieldFactor: 0.5,
   clashWindowMs: 350,
+  struggle: { durationMs: 4_000, pushStep: 0.07, minPushGapMs: 60, drawMargin: 0.1, speedFactor: 0.7 },
   ultimateMax: 100,
   ultimateGain: { perDamageDealt: 1.25, perBlock: 25, perDamageTaken: 0.5 },
   empowerMultiplier: 1.5,
