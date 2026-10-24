@@ -192,6 +192,10 @@ const CLIPS = {
   ultimateReady: ["ultimate-ready"],
   powerUp: ["power-up"],
   rejected: ["rejected"],
+  taurusSnort: ["taurus-snort"],
+  taurusStomp: ["taurus-stomp"],
+  taurusBellow: ["taurus-bellow"],
+  taurusGallop: ["taurus-gallop"],
 } as const;
 
 type Clip = keyof typeof CLIPS;
@@ -270,6 +274,14 @@ export const sfx = {
     } else if (spell === "shield") {
       play("shield");
       boom(0, 0.25);
+    } else if (spell === "taurus") {
+      // A snort and a stomp, the bellow as the bull bursts out, then hooves thundering across.
+      play("taurusSnort", { volume: 0.8 });
+      play("taurusStomp", { delay: 0.3 });
+      boom(0.3, 0.45);
+      play("taurusBellow", { delay: 0.32, volume: 0.9 });
+      play("taurusGallop", { delay: 0.34 });
+      rumble(0.34, 1.2, 0.3);
     } else {
       // Calling the storm: a charged hum and thunder gathering far away.
       play("ultimateCast");
@@ -284,6 +296,12 @@ export const sfx = {
     } else if (spell === "ice") {
       play("iceHit");
       boom(0, 0.3);
+    } else if (spell === "taurus") {
+      // The horn toss: a body blow and a heavy ground thud.
+      play("block", { volume: 0.7, rate: 0.7 });
+      play("countdown", { rate: 0.8 });
+      boom(0, 0.9);
+      noise(0, 0.5, { from: 700, to: 150, volume: 0.35, q: 0.5 });
     } else {
       // The strike: a split-second crack, then the recorded thunder.
       noise(0, 0.06, { from: 9000, to: 4000, volume: 0.6, type: "highpass" });
@@ -291,6 +309,11 @@ export const sfx = {
       boom(0.02, 0.9);
       duckMusic(2.5);
     }
+  },
+  shieldShattered() {
+    play("frozen", { rate: 0.8 });
+    play("block", { volume: 0.8 });
+    crackle(0, 0.3, 14, 5000);
   },
   block() {
     play("block");
@@ -431,6 +454,9 @@ export function playEvents(events: GameEvent[], localSlot: PlayerSlot, hotseat: 
         break;
       case "SPELL_BLOCKED":
         sfx.block();
+        break;
+      case "SHIELD_SHATTERED":
+        sfx.shieldShattered();
         break;
       case "DAMAGE_APPLIED":
         sfx.hit(event.spell);

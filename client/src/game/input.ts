@@ -35,8 +35,8 @@ export const spellInput = {
 export type KeySet = "primary" | "secondary";
 
 export const KEY_BINDINGS: Record<KeySet, Record<string, SpellId>> = {
-  primary: { q: "fireball", w: "shield", e: "ice", r: "ultimate" },
-  secondary: { u: "fireball", i: "shield", o: "ice", p: "ultimate" },
+  primary: { q: "fireball", w: "shield", e: "ice", t: "taurus", r: "ultimate" },
+  secondary: { u: "fireball", i: "shield", o: "ice", "[": "taurus", p: "ultimate" },
 };
 
 /** Mash these to push in a spell struggle. */

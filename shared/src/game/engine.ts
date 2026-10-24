@@ -18,7 +18,7 @@ function createPlayer(slot: PlayerSlot, config: MatchConfig): PlayerState {
     hp: config.maxHp,
     maxHp: config.maxHp,
     ultimate: 0,
-    readyAt: { fireball: 0, shield: 0, ice: 0, ultimate: 0 },
+    readyAt: { fireball: 0, shield: 0, ice: 0, ultimate: 0, taurus: 0 },
     shieldUntil: 0,
     frozenUntil: 0,
     empoweredUntil: 0,
@@ -32,6 +32,9 @@ function createPlayer(slot: PlayerSlot, config: MatchConfig): PlayerState {
  * Deterministic duel rules. Every method takes the current time so the same engine runs
  * authoritatively on the server and locally in practice mode.
  */
+/** Fulmen strikes from the sky and Taurus charges along the ground, so neither meets spells in the air. */
+const collides = (projectile: Projectile) => projectile.spell !== "ultimate" && projectile.spell !== "taurus";
+
 export class DuelEngine {
   readonly config: MatchConfig;
   private readonly state: MatchState;
@@ -185,13 +188,12 @@ export class DuelEngine {
   }
 
   private planClash(incoming: Projectile): void {
-    // Fulmen strikes from the sky, so nothing in the air can meet it.
-    if (incoming.spell === "ultimate") return;
+    if (!collides(incoming)) return;
     const travel = this.config.spells[incoming.spell].travelMs;
     const rival = this.state.projectiles.find(
       (p) =>
         p.owner !== incoming.owner &&
-        p.spell !== "ultimate" &&
+        collides(p) &&
         incoming.launchedAt - p.launchedAt <= this.config.clashWindowMs &&
         !this.clashes.some((plan) => plan.ids.includes(p.id)),
     );
@@ -279,7 +281,11 @@ export class DuelEngine {
     const defender = this.state.players[opponentOf(projectile.owner)];
     let damage = projectile.damage;
 
-    if (defender.shieldUntil > at) {
+    if (defender.shieldUntil > at && projectile.spell === "taurus") {
+      // The bull goes straight through: the shield shatters and the full hit lands.
+      defender.shieldUntil = at;
+      this.emit(at, { type: "SHIELD_SHATTERED", defender: defender.slot, spell: projectile.spell });
+    } else if (defender.shieldUntil > at) {
       damage = projectile.spell === "ultimate" ? Math.round(damage * this.config.ultimateShieldFactor) : 0;
       defender.shieldUntil = at;
       defender.stats.blocks += 1;

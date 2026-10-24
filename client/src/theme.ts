@@ -18,6 +18,7 @@ export const palette = {
   forest: 0x2f6b3f,
   lavender: 0xb28ddb,
   berry: 0xff4f7b,
+  burnt: 0xbf5700,
 };
 
 export const playerColor: Record<PlayerSlot, number> = { A: palette.leaf, B: palette.lavender };
@@ -34,6 +35,7 @@ export const spellColor: Record<SpellId, number> = {
   shield: palette.gold,
   ice: palette.frost,
   ultimate: palette.gold,
+  taurus: palette.burnt,
 };
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}.png`;
@@ -41,7 +43,7 @@ const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}.png`;
 /** Illustrated art used by the HUD and the arena. */
 export const art = {
   background: `${import.meta.env.BASE_URL}assets/background.jpg`,
-  spell: { fireball: asset("fireball"), shield: asset("shield"), ice: asset("ice"), ultimate: asset("fulmen") } as Partial<Record<SpellId, string>>,
+  spell: { fireball: asset("fireball"), shield: asset("shield"), ice: asset("ice"), ultimate: asset("fulmen"), taurus: asset("taurus") } as Partial<Record<SpellId, string>>,
   powerUp: { empower: asset("empower"), haste: asset("haste"), heal: null } as Record<PowerUpId, string | null>,
   portrait: { A: asset("portrait-green"), B: asset("portrait-purple") } as Record<PlayerSlot, string>,
   wizard: { A: asset("wizard-green"), B: asset("wizard-purple") } as Record<PlayerSlot, string>,
@@ -64,4 +66,4 @@ export const arenaTextures = [
 export const textureUrl = asset;
 
 /** Emoji stand-ins for spells without illustrated art. */
-export const spellGlyph: Record<SpellId, string> = { fireball: "🔥", shield: "🛡️", ice: "❄️", ultimate: "⚡" };
+export const spellGlyph: Record<SpellId, string> = { fireball: "🔥", shield: "🛡️", ice: "❄️", ultimate: "⚡", taurus: "🤘" };

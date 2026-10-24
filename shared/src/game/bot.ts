@@ -53,7 +53,10 @@ export class DuelBot {
     const [min, max] = this.options.thinkMs;
     this.nextThinkAt = now + min + this.random() * (max - min);
     if (me.ultimate >= 100) return "ultimate";
-    const options = (["fireball", "fireball", "ice"] as SpellId[]).filter((spell) => now >= me.readyAt[spell]);
+    // A raised shield invites the bull.
+    const rival = state.players[this.slot === "A" ? "B" : "A"];
+    if (rival.shieldUntil > now && now >= me.readyAt.taurus) return "taurus";
+    const options = (["fireball", "fireball", "ice", "taurus"] as SpellId[]).filter((spell) => now >= me.readyAt[spell]);
     return options.length ? options[Math.floor(this.random() * options.length)] : null;
   }
 }
