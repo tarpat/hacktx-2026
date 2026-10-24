@@ -1,25 +1,90 @@
-import { useEffect, useRef } from "react";
-import Phaser from "phaser";
-
-class ArenaScene extends Phaser.Scene {
-  constructor() { super("arena"); }
-  create() {
-    const { width, height } = this.scale;
-    this.add.rectangle(width / 2, height * 0.78, width, height * 0.44, 0x28213a).setDepth(0);
-    this.add.ellipse(width * 0.25, height * 0.67, 150, 210, 0x7955a8).setDepth(1);
-    this.add.ellipse(width * 0.75, height * 0.67, 150, 210, 0x4d83a7).setDepth(1);
-    this.add.triangle(width * 0.25, height * 0.48, -54, 54, 54, 54, 0, -85, 0xe9d4a5).setDepth(2);
-    this.add.triangle(width * 0.75, height * 0.48, -54, 54, 54, 54, 0, -85, 0xe9d4a5).setDepth(2);
-    this.add.circle(width * 0.5, height * 0.55, 9, 0xf4d36f).setDepth(3);
-  }
-}
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { opponentOf } from "@spellcaster/shared";
+import { OnlineDuel } from "../game/duelSource";
+import { DuelScreen } from "../hud/DuelScreen";
+import { setSession, useSession, type Session } from "../session";
+import { socket } from "../socket";
+import { playerName } from "../theme";
 
 export function ArenaView() {
-  const host = useRef<HTMLDivElement>(null);
+  const session = useSession();
+  if (!session) {
+    return (
+      <main className="shell secondary-shell">
+        <section className="calibration">
+          <p className="eyebrow">NO DUEL FOUND</p>
+          <h1>The arena is empty</h1>
+          <p className="intro">Create or join a duel from the lobby, or warm up against the training dummy.</p>
+          <div className="stack">
+            <Link className="primary-button" to="/">Back to the lobby <span>↗</span></Link>
+            <Link className="text-button" to="/practice">Practice instead →</Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+  return <OnlineArena session={session} />;
+}
+
+function OnlineArena({ session }: { session: Session }) {
+  const navigate = useNavigate();
+  const [source, setSource] = useState<OnlineDuel | null>(null);
+  const [hasMatch, setHasMatch] = useState(false);
   useEffect(() => {
-    if (!host.current) return;
-    const game = new Phaser.Game({ type: Phaser.AUTO, parent: host.current, backgroundColor: "#171326", scale: { mode: Phaser.Scale.RESIZE, width: "100%", height: "100%" }, scene: ArenaScene });
-    return () => game.destroy(true);
-  }, []);
-  return <main className="arena-shell"><header className="arena-header"><span className="brand-mark">✦</span> SPELLCASTER <span className="arena-status">PRACTICE ARENA · PHASE 0</span></header><section className="hud"><div className="fighter"><span>PLAYER A</span><div className="hp-track"><i /></div><b>100</b></div><div className="timer">01:30</div><div className="fighter opponent"><span>PLAYER B</span><div className="hp-track"><i /></div><b>100</b></div></section><div className="arena-canvas" ref={host} /><div className="arena-caption"><span>✧</span> THE DUEL BEGINS SOON <span>✧</span></div></main>;
+    const duel = new OnlineDuel(session.slot);
+    duel.subscribe(() => setHasMatch(true));
+    setSource(duel);
+    return () => duel.dispose();
+  }, [session.slot]);
+
+  const me = session.room.players[session.slot];
+  const rival = session.room.players[opponentOf(session.slot)];
+  const waitingForRematch = hasMatch && session.room.status !== "in_match" && me?.ready;
+
+  const header = (
+    <nav className="duel-nav">
+      <span className="duel-mode">ROOM {session.room.code}</span>
+      <span className={`presence ${rival?.connected ? "online" : ""}`}>
+        {rival ? (rival.connected ? `${playerName[rival.slot]} connected` : `${playerName[rival.slot]} reconnecting…`) : "Waiting for a rival"}
+      </span>
+      {waitingForRematch && <span className="presence">Rematch requested</span>}
+    </nav>
+  );
+
+  if (!hasMatch || !source) {
+    return (
+      <main className="shell secondary-shell arena-ready-shell">
+        <section className="calibration arena-ready-panel">
+          <p className="eyebrow">ROOM {session.room.code}</p>
+          <h1>Take your places</h1>
+          <p className="intro">The duel begins with a 3, 2, 1 once both wizards are ready.</p>
+          <div className="ready-grid">
+            {(["A", "B"] as const).map((slot) => {
+              const player = session.room.players[slot];
+              return (
+                <div key={slot} className={`ready-card player-${slot} ${player?.ready ? "is-ready" : ""}`}>
+                  <b>{playerName[slot]}</b>
+                  <span>{slot === session.slot ? "You" : player ? (player.connected ? "Rival" : "Reconnecting…") : "Empty seat"}</span>
+                  <em>{player?.ready ? "Ready ✓" : "Not ready"}</em>
+                </div>
+              );
+            })}
+          </div>
+          <button className="primary-button" disabled={!rival} onClick={() => socket.emit("READY_STATUS", !me?.ready)}>
+            {me?.ready ? "Not ready yet" : rival ? "I'm ready" : "Waiting for a rival…"} <span>✦</span>
+          </button>
+        </section>
+      </main>
+    );
+  }
+
+  const leaveRoom = () => {
+    socket.emit("LEAVE_ROOM");
+    sessionStorage.removeItem(`spellcaster:${session.room.code}`);
+    setSession(null);
+    navigate("/");
+  };
+
+  return <DuelScreen source={source} rematchLabel={waitingForRematch ? "Waiting for rival…" : "Request rematch"} onLeave={leaveRoom} header={header} />;
 }
