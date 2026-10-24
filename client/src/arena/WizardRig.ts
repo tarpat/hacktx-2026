@@ -98,6 +98,20 @@ function sample(frames: Keyframe[], elapsed: number): Pose {
   return out;
 }
 
+export interface WizardStyle {
+  robe: number;
+  trim: number;
+  hat: number;
+  hatBand: number;
+  skin: number;
+  hair: number;
+  hairStyle: "braid" | "curls";
+  /** Starry cape behind the body, if any. */
+  cape?: number;
+  /** Staff orb or crystal color. */
+  orb: number;
+}
+
 interface Limb {
   upper: Phaser.GameObjects.Container;
   lower: Phaser.GameObjects.Container;
@@ -119,7 +133,8 @@ export class WizardRig {
   private readonly frontLeg: Limb;
   private readonly backLeg: Limb;
   private readonly staff: Phaser.GameObjects.Container;
-  private readonly staffOrb: Phaser.GameObjects.Arc;
+  private readonly staffOrb: Phaser.GameObjects.Shape;
+  private readonly backHair: Phaser.GameObjects.Container;
   private readonly castOrb: Phaser.GameObjects.Container;
   private readonly castOrbCore: Phaser.GameObjects.Arc;
   private readonly castOrbGlow: Phaser.GameObjects.Arc;
@@ -131,61 +146,142 @@ export class WizardRig {
   private hatVelocity = 0;
   private lastLean = 0;
 
-  constructor(scene: Phaser.Scene, robe: number) {
-    const robeDark = Phaser.Display.Color.ValueToColor(robe).darken(22).color;
-    const hatColor = Phaser.Display.Color.ValueToColor(robe).darken(30).color;
+  constructor(scene: Phaser.Scene, private readonly style: WizardStyle) {
+    const { robe, trim, hat: hatColor, hatBand, skin, hair } = style;
+    const robeDark = Phaser.Display.Color.ValueToColor(robe).darken(14).color;
+    const V = (x: number, y: number) => new Phaser.Math.Vector2(x, y);
 
     this.container = scene.add.container(0, 0);
     this.hips = scene.add.container(0, -62);
-    this.backLeg = this.makeLeg(scene, -7, 0x3a2a5c);
-    this.frontLeg = this.makeLeg(scene, 7, 0x4a3670);
+    this.backLeg = this.makeLeg(scene, -7, Phaser.Display.Color.ValueToColor(robe).darken(32).color);
+    this.frontLeg = this.makeLeg(scene, 7, Phaser.Display.Color.ValueToColor(robe).darken(24).color);
     this.torso = scene.add.container(0, 0);
 
-    this.backArm = this.makeArm(scene, -5, robeDark);
+    // Behind the body: the cape and the long hair hang from the shoulders and head.
+    const behind: Phaser.GameObjects.GameObject[] = [];
+    if (style.cape !== undefined) {
+      const cape = scene.add.graphics();
+      cape.fillStyle(style.cape, 1);
+      cape.fillPoints([V(-14, -58), V(14, -58), V(10, 44), V(-62, 50), V(-50, 10)], true);
+      cape.fillStyle(palette.gold, 1);
+      for (const [x, y, r] of [[-30, 20, 2.6], [-46, 38, 2.2], [-14, 30, 2], [-36, -6, 1.8], [-20, 2, 2.4], [-54, 22, 1.8]]) cape.fillCircle(x, y, r);
+      behind.push(cape);
+    }
+    this.backHair = scene.add.container(0, -60);
+    const hairGfx = scene.add.graphics();
+    if (style.hairStyle === "braid") {
+      // A long golden braid down the back, woven with tiny flowers.
+      const shade = Phaser.Display.Color.ValueToColor(hair).darken(18).color;
+      for (let i = 0; i < 9; i += 1) {
+        const y = -8 + i * 13;
+        hairGfx.fillStyle(i % 2 ? shade : hair, 1);
+        hairGfx.fillEllipse(-15 - i * 1.6, y, 15 - i * 0.4, 16);
+        if (i % 3 === 1) {
+          hairGfx.fillStyle(i % 2 ? 0xb28ddb : 0xffffff, 1);
+          hairGfx.fillCircle(-12 - i * 1.6, y, 2.4);
+        }
+      }
+      hairGfx.fillStyle(0x7ccf6b, 1);
+      hairGfx.fillRect(-36, 106, 10, 5);
+      hairGfx.fillStyle(hair, 1);
+      hairGfx.fillTriangle(-40, 110, -22, 110, -34, 132);
+    } else {
+      // Black curls framing the face and falling past the shoulders.
+      hairGfx.fillStyle(hair, 1);
+      for (const [x, y, r] of [[-14, -22, 15], [-20, -6, 14], [-22, 10, 13], [-18, 26, 12], [-10, 38, 10], [-2, -34, 11], [10, -36, 9], [-24, 40, 9]]) hairGfx.fillCircle(x, y, r);
+    }
+    this.backHair.add(hairGfx);
+    behind.push(this.backHair);
+
+    this.backArm = this.makeArm(scene, -5, robeDark, trim);
     this.staff = scene.add.container(0, 26);
     const staffGfx = scene.add.graphics();
-    staffGfx.lineStyle(6, 0x8a5a3c, 1);
-    staffGfx.lineBetween(0, 42, 0, -96);
-    staffGfx.fillStyle(palette.gold, 1);
-    staffGfx.fillRect(-5, -96, 10, 5);
-    const staffGlow = scene.add.circle(0, -106, 20, palette.gold, 0.25);
-    this.staffOrb = scene.add.circle(0, -106, 10, palette.gold, 1);
+    staffGfx.lineStyle(6, 0x7a4e30, 1);
+    staffGfx.lineBetween(0, 42, 0, -94);
+    staffGfx.lineStyle(2, 0x7ccf6b, 1);
+    for (let y = -80; y < 30; y += 22) staffGfx.lineBetween(-3, y, 3, y + 9); // vine wrap
+    const staffGlow = scene.add.circle(0, -106, 20, style.orb, 0.25);
     scene.tweens.add({ targets: staffGlow, scale: 1.4, alpha: 0.05, duration: 900, yoyo: true, repeat: -1 });
+    if (style.hairStyle === "braid") {
+      staffGfx.lineStyle(4, 0x7a4e30, 1);
+      staffGfx.strokeCircle(0, -106, 13); // twisted wooden cradle
+      this.staffOrb = scene.add.circle(0, -106, 9, style.orb, 1);
+    } else {
+      staffGfx.lineStyle(2, palette.gold, 1);
+      staffGfx.strokeRect(-9, -122, 18, 30); // gold cage
+      this.staffOrb = scene.add.star(0, -107, 4, 5, 15, style.orb, 1);
+    }
     this.staff.add([staffGfx, staffGlow, this.staffOrb]);
     this.backArm.lower.add(this.staff);
 
     const robeGfx = scene.add.graphics();
     robeGfx.fillStyle(robe, 1);
-    robeGfx.fillPoints([new Phaser.Math.Vector2(-17, -60), new Phaser.Math.Vector2(17, -60), new Phaser.Math.Vector2(44, 38), new Phaser.Math.Vector2(-44, 38)], true);
-    robeGfx.fillStyle(palette.gold, 1);
-    robeGfx.fillPoints([new Phaser.Math.Vector2(-42, 30), new Phaser.Math.Vector2(42, 30), new Phaser.Math.Vector2(44, 38), new Phaser.Math.Vector2(-44, 38)], true);
-    robeGfx.fillRect(-23, -14, 46, 6); // belt
+    robeGfx.fillPoints([V(-17, -60), V(17, -60), V(44, 38), V(-44, 38)], true);
     robeGfx.fillStyle(robeDark, 1);
-    robeGfx.fillTriangle(-12, -60, 12, -60, 0, -44); // collar
+    robeGfx.fillPoints([V(-3, -50), V(5, -50), V(14, 38), V(-6, 38)], true); // front panel
+    robeGfx.fillStyle(trim, 1);
+    robeGfx.fillPoints([V(-42, 30), V(42, 30), V(44, 38), V(-44, 38)], true);
+    robeGfx.fillRect(-23, -14, 46, 5); // belt
+    robeGfx.fillStyle(palette.gold, 1);
+    robeGfx.fillCircle(6, -40, 4); // sun / moon clasp
+    robeGfx.fillStyle(trim, 1);
+    robeGfx.fillTriangle(-12, -60, 12, -60, 0, -46); // collar
 
     this.head = scene.add.container(0, -60);
     const face = scene.add.graphics();
-    face.fillStyle(palette.parchment, 1);
-    face.fillCircle(2, -18, 19);
-    face.fillStyle(palette.rose, 0.45);
-    face.fillCircle(11, -12, 4);
-    face.fillStyle(0xf7f1ff, 1);
-    face.fillTriangle(-12, -8, 18, -8, 7, 26); // beard
-    face.fillStyle(palette.night, 1);
-    face.fillCircle(10, -22, 3); // eye
-    face.fillStyle(0xf3d9c0, 1);
-    face.fillCircle(19, -16, 4); // nose
+    face.fillStyle(skin, 1);
+    face.fillCircle(3, -18, 18);
+    face.fillStyle(0xff9fb0, 0.5);
+    face.fillCircle(12, -11, 4.5); // blush
+    face.fillStyle(0x2a1a3a, 1);
+    face.fillEllipse(12, -21, 5, 7); // eye
+    face.fillStyle(0xffffff, 1);
+    face.fillCircle(13, -23, 1.4);
+    face.lineStyle(2, 0x2a1a3a, 1);
+    face.lineBetween(8, -27, 16, -28); // brow
+    face.lineStyle(2, 0xb5485f, 1);
+    face.beginPath();
+    face.arc(13, -11, 5, 0.3, 1.5);
+    face.strokePath(); // smile
+    face.fillStyle(hair, 1);
+    if (style.hairStyle === "braid") {
+      face.fillEllipse(-4, -30, 34, 16); // fringe swept under the hat
+      face.fillEllipse(-10, -16, 14, 30);
+    } else {
+      face.fillCircle(-6, -30, 12);
+      face.fillCircle(-12, -16, 11);
+      face.fillCircle(16, -32, 7);
+    }
+
     this.hat = scene.add.container(0, -32);
     const hatGfx = scene.add.graphics();
     hatGfx.fillStyle(hatColor, 1);
-    hatGfx.fillTriangle(-30, -2, 30, -2, -22, -88);
-    hatGfx.fillEllipse(0, 0, 82, 13);
-    hatGfx.fillStyle(palette.gold, 1);
-    hatGfx.fillCircle(-6, -40, 5);
+    if (style.hairStyle === "braid") {
+      // Floppy hat whose tip curls back.
+      hatGfx.fillPoints([V(-28, -2), V(28, -2), V(6, -60), V(-18, -84), V(-34, -70), V(-20, -62)], true);
+    } else {
+      hatGfx.fillTriangle(-28, -2, 30, -2, -10, -96); // tall straight hat
+    }
+    hatGfx.fillEllipse(0, 0, 86, 14);
+    hatGfx.fillStyle(hatBand, 1);
+    hatGfx.fillRect(-24, -10, 50, 7);
+    if (style.hairStyle === "braid") {
+      hatGfx.fillStyle(0xb28ddb, 1);
+      for (const [dx, dy] of [[0, -4], [4, 0], [0, 4], [-4, 0]]) hatGfx.fillCircle(16 + dx, -7 + dy, 3); // flower
+      hatGfx.fillStyle(palette.gold, 1);
+      hatGfx.fillCircle(16, -7, 2);
+    } else {
+      hatGfx.lineStyle(1.5, palette.gold, 1);
+      hatGfx.lineBetween(-10, -96, -16, -78);
+      hatGfx.fillStyle(palette.gold, 1);
+      hatGfx.fillCircle(-17, -74, 5); // moon charm
+      hatGfx.fillStyle(hatColor, 1);
+      hatGfx.fillCircle(-14, -76, 4);
+    }
     this.hat.add(hatGfx);
     this.head.add([face, this.hat]);
 
-    this.frontArm = this.makeArm(scene, 6, robe);
+    this.frontArm = this.makeArm(scene, 6, robe, trim);
     this.castOrb = scene.add.container(0, 32);
     this.castOrbGlow = scene.add.circle(0, 0, 20, palette.gold, 0.3);
     this.castOrbCore = scene.add.circle(0, 0, 10, palette.gold, 1);
@@ -194,7 +290,7 @@ export class WizardRig {
     this.frontArm.lower.add(this.castOrb);
 
     // The staff arm sits over the robe so the staff stays visible; the throwing arm is front-most.
-    this.torso.add([robeGfx, this.backArm.upper, this.head, this.frontArm.upper]);
+    this.torso.add([...behind, robeGfx, this.backArm.upper, this.head, this.frontArm.upper]);
     this.hips.add([this.backLeg.upper, this.frontLeg.upper, this.torso]);
     this.container.add(this.hips);
   }
@@ -212,7 +308,7 @@ export class WizardRig {
   }
 
   setCharged(charged: boolean) {
-    this.staffOrb.setFillStyle(charged ? 0xffffff : palette.gold);
+    this.staffOrb.setFillStyle(charged ? 0xffffff : this.style.orb);
   }
 
   /** World position of the casting hand, where thrown spells start. */
@@ -259,6 +355,7 @@ export class WizardRig {
     this.hips.y = -62 + p.hipY;
     this.torso.rotation = rad(p.lean);
     this.head.rotation = rad(p.head);
+    this.backHair.rotation = rad(p.head * 0.6);
     this.frontLeg.upper.rotation = rad(p.frontThigh);
     this.frontLeg.lower.rotation = rad(p.frontShin);
     this.backLeg.upper.rotation = rad(p.backThigh);
@@ -281,9 +378,11 @@ export class WizardRig {
     this.hatVelocity += ((lagTarget - this.hatAngle) * 160 - this.hatVelocity * 11) * seconds;
     this.hatAngle += this.hatVelocity * seconds;
     this.hat.rotation = rad(this.hatAngle);
+    // Long hair swings with the same lag as the hat.
+    this.backHair.rotation += rad(this.hatAngle * 0.5);
   }
 
-  private makeArm(scene: Phaser.Scene, shoulderX: number, sleeve: number): Limb {
+  private makeArm(scene: Phaser.Scene, shoulderX: number, sleeve: number, cuff: number): Limb {
     const upper = scene.add.container(shoulderX, -50);
     const upperGfx = scene.add.graphics();
     upperGfx.fillStyle(sleeve, 1);
@@ -291,8 +390,10 @@ export class WizardRig {
     const lower = scene.add.container(0, 26);
     const lowerGfx = scene.add.graphics();
     lowerGfx.fillStyle(sleeve, 1);
-    lowerGfx.fillRoundedRect(-7, -3, 14, 26, 6);
-    lowerGfx.fillStyle(palette.parchment, 1);
+    lowerGfx.fillRoundedRect(-8, -3, 16, 26, 6);
+    lowerGfx.fillStyle(cuff, 1);
+    lowerGfx.fillRect(-9, 18, 18, 4); // sleeve cuff
+    lowerGfx.fillStyle(this.style.skin, 1);
     lowerGfx.fillCircle(0, 27, 6.5);
     lower.add(lowerGfx);
     upper.add([upperGfx, lower]);
@@ -308,7 +409,7 @@ export class WizardRig {
     const shin = scene.add.graphics();
     shin.fillStyle(color, 1);
     shin.fillRoundedRect(-5, -2, 10, 28, 4);
-    shin.fillStyle(0x5a3a28, 1);
+    shin.fillStyle(0x3b2a20, 1);
     shin.fillEllipse(5, 28, 22, 10); // boot, toe pointing forward
     lower.add(shin);
     upper.add([thigh, lower]);

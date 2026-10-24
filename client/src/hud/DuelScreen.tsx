@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import { opponentOf, type MatchState, type PlayerSlot, type PowerUpId, type SpellId } from "@spellcaster/shared";
 import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
+import { loadMapChoice, type MapId } from "../arena/maps";
 import { GestureCamera } from "../gesture/GestureCamera";
 import type { DuelSource } from "../game/duelSource";
 import { bindKeyboard, spellInput } from "../game/input";
 import { narrate, rejectionText } from "../game/narration";
-import { playerName } from "../theme";
+import { art, playerName } from "../theme";
 import { HealthBar } from "./HealthBar";
 import { CountdownOverlay, MatchClock } from "./MatchClock";
 import { SpellTray } from "./SpellTray";
@@ -19,12 +20,14 @@ interface DuelScreenProps {
   rematchLabel?: string;
   onLeave?: () => void;
   header?: React.ReactNode;
+  /** Arena map; defaults to the one picked in the lobby. */
+  map?: MapId;
 }
 
-const POWER_UPS: { id: PowerUpId; label: string; key: string }[] = [
-  { id: "empower", label: "✨ Empower", key: "1" },
-  { id: "haste", label: "🪽 Haste", key: "2" },
-  { id: "heal", label: "🧪 Heal", key: "3" },
+const POWER_UPS: { id: PowerUpId; label: string; key: string; fallback: string }[] = [
+  { id: "empower", label: "Empower", key: "1", fallback: "✨" },
+  { id: "haste", label: "Haste", key: "2", fallback: "🪽" },
+  { id: "heal", label: "Heal", key: "3", fallback: "🧪" },
 ];
 
 interface Banner {
@@ -45,15 +48,15 @@ function useMatchNow(source: DuelSource) {
   return now;
 }
 
-export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header }: DuelScreenProps) {
+export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, map = loadMapChoice() }: DuelScreenProps) {
   const [state, setState] = useState<MatchState | null>(() => source.state());
   const [banner, setBanner] = useState<Banner | null>(null);
   const [toast, setToast] = useState<Banner | null>(null);
   const now = useMatchNow(source);
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<ArenaScene | null>(null);
-  const frame = useRef<ArenaFrame>({ state, now, leftSlot: source.localSlot });
-  frame.current = { state, now, leftSlot: source.localSlot };
+  const frame = useRef<ArenaFrame>({ state, now, leftSlot: source.localSlot, map });
+  frame.current = { state, now, leftSlot: source.localSlot, map };
 
   const left = source.localSlot;
   const right = opponentOf(left);
@@ -168,8 +171,9 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
           <div className={`powerups ${live && powerUpWait === 0 ? "ready" : ""}`}>
             <span>Incantation power-ups {powerUpWait > 0 && `· ${Math.ceil(powerUpWait / 1000)}s`}</span>
             <div>
-              {POWER_UPS.map(({ id, label, key }) => (
+              {POWER_UPS.map(({ id, label, key, fallback }) => (
                 <button key={id} onClick={() => grant(id)} disabled={!live || powerUpWait > 0}>
+                  {art.powerUp[id] ? <img src={art.powerUp[id]!} alt="" /> : <i>{fallback}</i>}
                   {label} <kbd>{key}</kbd>
                 </button>
               ))}

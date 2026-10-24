@@ -1,6 +1,7 @@
 import Phaser from "phaser";
-import { opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile } from "@spellcaster/shared";
-import { palette, playerColor, spellColor } from "../theme";
+import { opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile, type SpellId } from "@spellcaster/shared";
+import { arenaTextures, art, palette, spellColor, textureUrl, wizardStyle } from "../theme";
+import { MAPS, type MapId } from "./maps";
 import { RELEASE_MS, WizardRig } from "./WizardRig";
 
 export interface ArenaFrame {
@@ -8,20 +9,23 @@ export interface ArenaFrame {
   now: number;
   /** The wizard drawn on the left; online play puts the local player there. */
   leftSlot: PlayerSlot;
+  map: MapId;
 }
 
 interface WizardView {
   root: Phaser.GameObjects.Container;
   body: Phaser.GameObjects.Container;
   rig: WizardRig;
-  shield: Phaser.GameObjects.Graphics;
-  frost: Phaser.GameObjects.Graphics;
-  aura: Phaser.GameObjects.Graphics;
+  shield: Phaser.GameObjects.Image;
+  frost: Phaser.GameObjects.Image;
+  aura: Phaser.GameObjects.Image;
+  empower: Phaser.GameObjects.Image;
+  haste: Phaser.GameObjects.Image;
   transformed: Phaser.GameObjects.Container | null;
 }
 
 interface ProjectileView {
-  node: Phaser.GameObjects.Container;
+  node: Phaser.GameObjects.Image;
   trail: Phaser.GameObjects.Particles.ParticleEmitter;
 }
 
@@ -35,6 +39,23 @@ interface Release {
 const RELEASE_FALLBACK_MS = 200;
 
 const SPARK = "spark";
+const BACKGROUND = "background";
+/** Background art is 1024x572; the white brick path sits at this height in it. */
+const BG_SIZE = { width: 1024, height: 572 };
+const BG_PATH_Y = 512;
+
+/** Projectile art: texture, where the orb sits in the image (it has a trail behind it), and size. */
+const PROJECTILE_ART: Record<Exclude<SpellId, "shield">, { key: string; originX: number; size: number }> = {
+  fireball: { key: "fireball", originX: 0.66, size: 150 },
+  ice: { key: "ice", originX: 0.67, size: 130 },
+  ultimate: { key: "fulmen", originX: 0.68, size: 230 },
+};
+
+const IMPACT_ART: Record<Exclude<SpellId, "shield">, { key: string; size: number }> = {
+  fireball: { key: "fireball-impact", size: 230 },
+  ice: { key: "hit-sparks", size: 210 },
+  ultimate: { key: "fulmen-impact", size: 340 },
+};
 
 /** Renders match state; it owns no game rules and never decides outcomes. */
 export class ArenaScene extends Phaser.Scene {
@@ -45,6 +66,8 @@ export class ArenaScene extends Phaser.Scene {
   private lastPositions = new Map<string, { x: number; y: number }>();
   private releases = new Map<string, Release>();
   private unit = 1;
+  private groundY = 0;
+  private builtMap: MapId | null = null;
 
   constructor(getFrame: () => ArenaFrame) {
     super("arena");
@@ -53,6 +76,11 @@ export class ArenaScene extends Phaser.Scene {
 
   pushEvents(events: GameEvent[]) {
     this.queue.push(...events);
+  }
+
+  preload() {
+    if (!this.textures.exists(BACKGROUND)) this.load.image(BACKGROUND, art.background);
+    for (const key of arenaTextures) if (!this.textures.exists(key)) this.load.image(key, textureUrl(key));
   }
 
   create() {
@@ -69,7 +97,8 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
-    const { state, now } = this.getFrame();
+    const { state, now, map } = this.getFrame();
+    if (map !== this.builtMap) return this.scene.restart();
     if (!state) return;
     for (const event of this.queue.splice(0)) this.react(event, time);
     for (const slot of ["A", "B"] as PlayerSlot[]) this.updateWizard(slot, state, now, time, delta);
@@ -79,9 +108,9 @@ export class ArenaScene extends Phaser.Scene {
   // ---------- layout ----------
 
   private anchor(slot: PlayerSlot) {
-    const { width, height } = this.scale;
+    const { width } = this.scale;
     const left = this.getFrame().leftSlot === slot;
-    return { x: width * (left ? 0.2 : 0.8), y: height * 0.8, facing: left ? 1 : -1 };
+    return { x: width * (left ? 0.2 : 0.8), y: this.groundY, facing: left ? 1 : -1 };
   }
 
   /** Where spells strike a wizard (chest height, just in front of them). */
@@ -96,79 +125,70 @@ export class ArenaScene extends Phaser.Scene {
     this.projectiles.clear();
     this.lastPositions.clear();
     this.releases.clear();
+    this.builtMap = this.getFrame().map;
     this.drawBackdrop(width, height);
     this.wizards = { A: this.makeWizard("A"), B: this.makeWizard("B") };
+    this.drawForeground(width, height);
   }
 
   private drawBackdrop(width: number, height: number) {
-    const sky = this.add.graphics();
-    sky.fillGradientStyle(palette.night, palette.night, palette.dusk, palette.plum, 1);
-    sky.fillRect(0, 0, width, height);
+    // Cover the stage with the forest-and-tower painting, anchored so its brick path stays in view.
+    const scale = Math.max(width / BG_SIZE.width, height / BG_SIZE.height);
+    const top = height - BG_SIZE.height * scale;
+    this.add.image(width / 2, top, BACKGROUND).setOrigin(0.5, 0).setScale(scale);
+    this.groundY = top + BG_PATH_Y * scale;
 
-    for (let i = 0; i < 70; i += 1) {
-      const star = this.add.circle(Math.random() * width, Math.random() * height * 0.6, Math.random() * 1.6 + 0.4, palette.goldSoft, 0.8);
-      this.tweens.add({ targets: star, alpha: 0.15, duration: 900 + Math.random() * 1800, yoyo: true, repeat: -1, delay: Math.random() * 1500 });
+    // Lanterns drifting up into the sunset.
+    this.add.particles(0, 0, SPARK, {
+      x: { min: 0, max: width },
+      y: height * 0.75,
+      speedY: { min: -18, max: -38 },
+      speedX: { min: -6, max: 6 },
+      lifespan: 14_000,
+      frequency: 650,
+      scale: { min: 0.25 * this.unit, max: 0.6 * this.unit },
+      alpha: { start: 0.9, end: 0 },
+      tint: [palette.gold, palette.goldSoft, 0xffb37a],
+      blendMode: "ADD",
+      advance: 10_000,
+    });
+
+    for (const ledge of MAPS[this.getFrame().map].ledges) {
+      const branch = this.add.image(width * ledge.x, height * ledge.y, "platform-upper");
+      branch.setScale((width * ledge.width) / branch.width);
+      this.tweens.add({ targets: branch, y: branch.y - 5 * this.unit, duration: 2600 + ledge.x * 1200, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
     }
+  }
 
-    const moonX = width * 0.5;
-    const moonY = height * 0.2;
-    this.add.circle(moonX, moonY, 70 * this.unit, palette.goldSoft, 0.08);
-    this.add.circle(moonX, moonY, 44 * this.unit, palette.goldSoft, 0.9);
-    this.add.circle(moonX + 14 * this.unit, moonY - 8 * this.unit, 40 * this.unit, palette.night2, 0.85);
-
-    // Castle silhouette behind the arena.
-    const castle = this.add.graphics();
-    const base = height * 0.74;
-    const u = this.unit;
-    castle.fillStyle(palette.night2, 1);
-    castle.fillRect(width * 0.5 - 150 * u, base - 120 * u, 300 * u, 120 * u);
-    for (const [dx, w, h] of [[-170, 50, 200], [120, 50, 200], [-40, 80, 250], [-110, 36, 150], [74, 36, 150]] as const) {
-      const x = width * 0.5 + dx * u;
-      castle.fillRect(x, base - h * u, w * u, h * u);
-      castle.fillTriangle(x - 8 * u, base - h * u, x + (w / 2) * u, base - (h + 60) * u, x + (w + 8) * u, base - h * u);
-    }
-    castle.fillStyle(palette.gold, 0.7);
-    for (const [dx, dy] of [[-150, 150], [138, 150], [-6, 190], [-6, 110], [-90, 70], [80, 70]] as const) {
-      castle.fillRoundedRect(width * 0.5 + dx * u, base - dy * u, 10 * u, 16 * u, 4 * u);
-    }
-
-    const ground = this.add.graphics();
-    ground.fillStyle(palette.plum, 1);
-    ground.fillEllipse(width * 0.5, height * 0.86, width * 1.3, height * 0.3);
-    ground.fillStyle(palette.dusk, 1);
-    ground.fillEllipse(width * 0.5, height * 0.95, width * 1.4, height * 0.25);
-    ground.lineStyle(2, palette.gold, 0.25);
-    ground.strokeEllipse(width * 0.5, height * 0.86, width * 0.9, height * 0.14);
+  private drawForeground(width: number, height: number) {
+    // Grass, flowers and a fallen log in front of the path frame the duel.
+    const ground = this.add.image(width / 2, this.groundY + 26 * this.unit, "ground").setOrigin(0.5, 0).setDepth(9);
+    ground.setScale((width * 1.04) / ground.width);
+    if (ground.y + 40 > height) ground.setY(height - 40 * this.unit);
   }
 
   private makeWizard(slot: PlayerSlot): WizardView {
     const { x, y, facing } = this.anchor(slot);
-    const color = playerColor[slot];
     // The rig is drawn facing right; mirroring the root turns the right-hand wizard around.
-    const root = this.add.container(x, y).setScale(this.unit * facing, this.unit);
-    const shadow = this.add.ellipse(0, 4, 120, 22, 0x000000, 0.35);
-    const aura = this.add.graphics();
-    const rig = new WizardRig(this, color);
+    const root = this.add.container(x, y).setScale(this.unit * facing, this.unit).setDepth(3);
+    const shadow = this.add.ellipse(0, 4, 120, 22, 0x000000, 0.3);
+    const aura = this.sized("ultimate-aura", 0, -112, 270).setVisible(false);
+    const haste = this.sized("haste", 0, -2, 150).setScale(0, 0).setVisible(false);
+    const rig = new WizardRig(this, wizardStyle[slot]);
     const body = rig.container;
+    const shield = this.sized("shield", 4, -108, 250).setVisible(false);
+    const frost = this.sized("frozen", 2, -112, 260).setVisible(false);
+    const empower = this.sized("empower", 0, -268, 64).setVisible(false);
+    root.add([shadow, aura, haste, body, shield, frost, empower]);
+    return { root, body, rig, shield, frost, aura, empower, haste, transformed: null };
+  }
 
-    const shield = this.add.graphics();
-    shield.fillStyle(palette.gold, 0.14);
-    shield.fillCircle(0, -105, 105);
-    shield.lineStyle(4, palette.goldSoft, 0.9);
-    shield.strokeCircle(0, -105, 105);
-    shield.lineStyle(2, palette.gold, 0.5);
-    shield.strokeCircle(0, -105, 90);
-    shield.setVisible(false);
-
-    const frost = this.add.graphics();
-    frost.fillStyle(palette.frost, 0.35);
-    frost.fillRoundedRect(-60, -235, 120, 240, 24);
-    frost.lineStyle(3, 0xffffff, 0.8);
-    for (const [a, b, c, d] of [[-50, -30, -20, -90], [40, -60, 10, -150], [-30, -200, 20, -170]] as const) frost.lineBetween(a, b, c, d);
-    frost.setVisible(false);
-
-    root.add([shadow, aura, body, shield, frost]);
-    return { root, body, rig, shield, frost, aura, transformed: null };
+  /** An image whose larger side is `size` units. */
+  private sized(key: string, x: number, y: number, size: number) {
+    const image = this.add.image(x, y, key);
+    image.setScale(size / Math.max(image.width, image.height));
+    image.setData("base", image.scaleX);
+    return image;
   }
 
   // ---------- per-frame ----------
@@ -188,18 +208,27 @@ export class ArenaScene extends Phaser.Scene {
       view.body.setVisible(true);
     }
 
-    view.shield.setVisible(now < player.shieldUntil);
-    view.shield.setAlpha(0.75 + Math.sin(now / 60) * 0.25);
+    const base = (image: Phaser.GameObjects.Image) => image.getData("base") as number;
+    const shielded = now < player.shieldUntil;
+    view.shield.setVisible(shielded);
+    if (shielded) {
+      view.shield.setRotation(now / 900).setScale(base(view.shield) * (1 + Math.sin(now / 90) * 0.03));
+      view.shield.setAlpha(0.85 + Math.sin(now / 60) * 0.15);
+    }
     view.frost.setVisible(now < player.frozenUntil);
 
-    view.aura.clear();
-    const empowered = now < player.empoweredUntil;
     const charged = player.ultimate >= 100;
-    if (empowered || charged || now < player.hasteUntil) {
-      const pulse = 1 + Math.sin(now / 150) * 0.08;
-      view.aura.fillStyle(empowered || charged ? palette.gold : palette.mint, 0.18);
-      view.aura.fillEllipse(0, -100, 150 * pulse, 240 * pulse);
-    }
+    view.aura.setVisible(charged);
+    if (charged) view.aura.setScale(base(view.aura) * (1 + Math.sin(now / 160) * 0.05)).setAlpha(0.75 + Math.sin(now / 160) * 0.2);
+
+    const empowered = now < player.empoweredUntil;
+    view.empower.setVisible(empowered);
+    if (empowered) view.empower.setY(-268 + Math.sin(now / 300) * 6).setRotation(Math.sin(now / 500) * 0.15);
+
+    const hasted = now < player.hasteUntil;
+    view.haste.setVisible(hasted);
+    if (hasted) view.haste.setScale(base(view.haste), base(view.haste) * 0.35).setRotation(-now / 160);
+
     view.rig.setCharged(charged);
   }
 
@@ -235,8 +264,12 @@ export class ArenaScene extends Phaser.Scene {
       const to = this.castPoint(opponentOf(projectile.owner));
       const t = Phaser.Math.Clamp((now - releaseAt) / Math.max(1, projectile.arrivesAt - releaseAt), 0, 1);
       const x = Phaser.Math.Linear(from.x, to.x, t);
-      const y = Phaser.Math.Linear(from.y, to.y, t) - Math.sin(t * Math.PI) * 40 * this.unit;
-      view.node.setPosition(x, y).setRotation(now / 90);
+      const arc = Math.sin(t * Math.PI) * 40 * this.unit;
+      const y = Phaser.Math.Linear(from.y, to.y, t) - arc;
+      // Tilt along the arc so the trail streams out behind the orb.
+      const slope = -Math.cos(t * Math.PI) * 0.25;
+      view.node.setPosition(x, y).setRotation(view.node.flipX ? -slope : slope);
+      if (projectile.spell === "ice") view.node.setRotation(now / 120);
       view.trail.setPosition(x, y);
       this.lastPositions.set(projectile.id, { x, y });
     }
@@ -244,22 +277,22 @@ export class ArenaScene extends Phaser.Scene {
 
   private makeProjectile(projectile: Projectile): ProjectileView {
     const color = spellColor[projectile.spell];
-    const size = (projectile.spell === "ultimate" ? 26 : projectile.spell === "ice" ? 14 : 18) * this.unit * (projectile.empowered ? 1.35 : 1);
-    const node = this.add.container(0, 0).setDepth(5);
-    node.add(this.add.circle(0, 0, size * 1.8, color, 0.2));
-    node.add(this.add.circle(0, 0, size, color, 1));
-    node.add(this.add.circle(0, 0, size * 0.45, 0xffffff, 0.9));
-    if (projectile.spell === "ice") node.add(this.add.star(0, 0, 6, size * 0.6, size * 1.6, palette.frost, 0.9));
-    if (projectile.spell === "ultimate") node.add(this.add.star(0, 0, 5, size * 0.8, size * 2, palette.goldSoft, 0.8));
+    const look = PROJECTILE_ART[projectile.spell as keyof typeof PROJECTILE_ART];
+    const towardRight = this.anchor(projectile.owner).facing === 1;
+    const node = this.add.image(0, 0, look.key).setDepth(6);
+    const size = look.size * this.unit * (projectile.empowered ? 1.3 : 1);
+    node.setScale(size / node.width);
+    node.setFlipX(!towardRight);
+    node.setOrigin(towardRight ? look.originX : 1 - look.originX, 0.5);
     const trail = this.add.particles(0, 0, SPARK, {
-      speed: { min: 10, max: 60 },
-      lifespan: 380,
-      scale: { start: size / 10, end: 0 },
-      tint: color,
+      speed: { min: 10, max: 50 },
+      lifespan: 420,
+      scale: { start: 0.7 * this.unit, end: 0 },
+      tint: [color, palette.goldSoft],
       blendMode: "ADD",
-      frequency: 16,
+      frequency: 22,
     });
-    trail.setDepth(4);
+    trail.setDepth(5);
     return { node, trail };
   }
 
@@ -286,23 +319,24 @@ export class ArenaScene extends Phaser.Scene {
         break;
       }
       case "DAMAGE_APPLIED":
-        this.onHit(event.target, event.amount, spellColor[event.spell]);
+        this.onHit(event.target, event.amount, event.spell);
         break;
       case "SPELL_BLOCKED": {
         const point = this.castPoint(event.defender);
-        this.burst(point.x, point.y, palette.gold, 28, 1.4);
-        this.floatText(point.x, point.y - 40 * this.unit, "BLOCKED!", "#ffe7a8");
+        this.flash("shield-shatter", point.x, point.y, 280, 520);
+        this.burst(point.x, point.y, palette.gold, 18, 1.2);
+        this.floatText(point.x, point.y - 60 * this.unit, "BLOCKED!", "#ffe7a8");
         break;
       }
       case "FROZEN": {
         const { x, y } = this.anchor(event.slot);
-        this.burst(x, y - 100 * this.unit, palette.frost, 24, 1.2);
+        this.burst(x, y - 110 * this.unit, palette.frost, 24, 1.2);
         break;
       }
       case "SPELL_CLASH": {
         const point = event.fizzledIds.map((id) => this.lastPositions.get(id)).find(Boolean) ?? { x: this.scale.width / 2, y: this.scale.height * 0.55 };
-        this.burst(point.x, point.y, palette.goldSoft, 50, 2.2);
-        this.burst(point.x, point.y, palette.rose, 25, 1.6);
+        this.flash("clash", point.x, point.y, 360, 700, true);
+        this.burst(point.x, point.y, palette.goldSoft, 30, 2);
         this.cameras.main.shake(260, 0.012);
         this.cameras.main.flash(160, 255, 231, 168);
         break;
@@ -312,69 +346,46 @@ export class ArenaScene extends Phaser.Scene {
     }
   }
 
-  private onHit(target: PlayerSlot, amount: number, color: number) {
+  private onHit(target: PlayerSlot, amount: number, spell: SpellId) {
     const view = this.wizards[target];
     const { x, y, facing } = this.anchor(target);
-    this.burst(x, y - 110 * this.unit, color, 20 + amount, 1.3);
-    this.floatText(x, y - 240 * this.unit, `-${amount}`, "#ff4f7b");
+    const impact = IMPACT_ART[spell as keyof typeof IMPACT_ART];
+    if (impact) this.flash(impact.key, x + facing * 10 * this.unit, y - 112 * this.unit, impact.size, 560, true);
+    this.burst(x, y - 110 * this.unit, spellColor[spell], 10 + amount / 2, 1.2);
+    this.floatText(x, y - 250 * this.unit, `-${amount}`, "#ff4f7b");
     this.cameras.main.shake(120 + amount * 6, 0.004 + amount * 0.0003);
     view.rig.play("hit", this.time.now);
-    this.tweens.add({ targets: view.body, alpha: 0.25, duration: 70, yoyo: true, repeat: 2 });
+    this.tweens.add({ targets: view.body, alpha: 0.35, duration: 70, yoyo: true, repeat: 2 });
     this.tweens.add({ targets: view.root, x: x - facing * 16 * this.unit, duration: 90, yoyo: true, ease: "Quad.easeOut" });
   }
 
   private transform(slot: PlayerSlot, form: MatchState["loserForm"]) {
     const view = this.wizards[slot];
     const { x, y } = this.anchor(slot);
-    this.burst(x, y - 90 * this.unit, palette.mint, 60, 2);
-    this.burst(x, y - 90 * this.unit, palette.goldSoft, 40, 1.6);
+    this.flash("clash", x, y - 100 * this.unit, 300, 800, true);
+    this.burst(x, y - 90 * this.unit, palette.lavender, 40, 1.8);
     view.body.setVisible(false);
-    view.shield.setVisible(false);
-    view.frost.setVisible(false);
+    for (const layer of [view.shield, view.frost, view.aura, view.empower, view.haste]) layer.setVisible(false);
 
-    const g = this.add.graphics();
-    if (form === "frog") {
-      g.fillStyle(palette.leaf, 1);
-      g.fillEllipse(0, -30, 110, 60);
-      g.fillEllipse(-30, -62, 34, 30);
-      g.fillEllipse(30, -62, 34, 30);
-      g.fillStyle(0xffffff, 1);
-      g.fillCircle(-30, -66, 11);
-      g.fillCircle(30, -66, 11);
-      g.fillStyle(palette.night, 1);
-      g.fillCircle(-28, -66, 5);
-      g.fillCircle(32, -66, 5);
-      g.lineStyle(3, palette.night, 1);
-      g.beginPath();
-      g.arc(0, -36, 22, 0.2, Math.PI - 0.2);
-      g.strokePath();
-      g.fillStyle(palette.gold, 1); // a tiny crown: this frog was a wizard once
-      g.fillTriangle(-16, -78, -8, -98, 0, -78);
-      g.fillTriangle(-4, -78, 4, -102, 12, -78);
-      g.fillTriangle(8, -78, 16, -98, 24, -78);
-    } else {
-      g.fillStyle(palette.parchment, 1);
-      g.fillEllipse(0, -45, 110, 80);
-      g.fillTriangle(50, -50, 95, -85, 52, -28);
-      g.lineStyle(9, palette.parchment, 1);
-      g.strokeCircle(-62, -48, 22);
-      g.fillStyle(palette.rose, 1);
-      g.fillEllipse(0, -84, 60, 14);
-      g.fillCircle(0, -94, 8);
-      g.fillStyle(palette.rose, 0.8);
-      g.fillCircle(-20, -48, 7);
-      g.fillCircle(10, -36, 7);
-      g.fillCircle(25, -58, 6);
-    }
-    const node = this.add.container(0, 0, [g]).setScale(0.2);
+    const critter = this.sized(form, 0, 0, form === "frog" ? 190 : 200).setOrigin(0.5, 0.92);
+    const node = this.add.container(0, 0, [critter]).setScale(0.2);
     view.root.add(node);
     view.transformed = node;
     this.tweens.add({ targets: node, scale: 1, duration: 450, ease: "Back.easeOut" });
-    this.tweens.add({ targets: node, y: -18, duration: 380, yoyo: true, repeat: -1, ease: "Sine.easeInOut", delay: 500 });
+    this.tweens.add({ targets: node, y: -16, duration: 380, yoyo: true, repeat: -1, ease: "Sine.easeInOut", delay: 500 });
     this.cameras.main.shake(300, 0.01);
   }
 
   // ---------- helpers ----------
+
+  /** A one-shot illustrated effect that pops in, swells and fades. */
+  private flash(key: string, x: number, y: number, size: number, duration: number, additive = false) {
+    const image = this.add.image(x, y, key).setDepth(8);
+    const scale = (size * this.unit) / Math.max(image.width, image.height);
+    image.setScale(scale * 0.55).setAlpha(1).setRotation(Math.random() * 0.6 - 0.3);
+    if (additive) image.setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: image, scale: scale * 1.1, alpha: 0, duration, ease: "Cubic.easeOut", onComplete: () => image.destroy() });
+  }
 
   private burst(x: number, y: number, color: number, count: number, power: number) {
     const emitter = this.add.particles(x, y, SPARK, {
@@ -386,13 +397,13 @@ export class ArenaScene extends Phaser.Scene {
       emitting: false,
     });
     emitter.setDepth(8);
-    emitter.explode(count);
+    emitter.explode(Math.round(count));
     this.time.delayedCall(900, () => emitter.destroy());
   }
 
   private floatText(x: number, y: number, text: string, color: string) {
     const label = this.add
-      .text(x, y, text, { fontFamily: "Cinzel Decorative, serif", fontSize: `${Math.round(30 * this.unit)}px`, color, stroke: "#120d2b", strokeThickness: 6 })
+      .text(x, y, text, { fontFamily: "Cinzel Decorative, serif", fontSize: `${Math.round(30 * this.unit)}px`, color, stroke: "#1c1236", strokeThickness: 6 })
       .setOrigin(0.5)
       .setDepth(10);
     this.tweens.add({ targets: label, y: y - 60 * this.unit, alpha: 0, duration: 900, ease: "Quad.easeOut", onComplete: () => label.destroy() });

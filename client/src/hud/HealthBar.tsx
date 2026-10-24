@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { PlayerSlot } from "@spellcaster/shared";
+import { art } from "../theme";
 
 interface HealthBarProps {
   slot: PlayerSlot;
@@ -29,6 +30,7 @@ export function HealthBar({ slot, name, hp, maxHp, side, isYou }: HealthBarProps
 
   return (
     <div className={`health ${side} player-${slot} ${level}`}>
+      <img className="health-portrait" src={art.portrait[slot]} alt="" />
       <div className="health-label">
         <span className="health-name">
           {name}

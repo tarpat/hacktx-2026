@@ -1225,3 +1225,288 @@ kbd {
   .gesture-cam { width: 120px; }
   .gesture-cam-legend { display: none; }
 }
+
+/* ---------- illustrated art (Rapunzel theme) ---------- */
+
+body {
+  background:
+    linear-gradient(180deg, #1c1236cc 0%, #1c1236aa 45%, #1c1236ee 100%),
+    url("/assets/background.jpg") center bottom / cover no-repeat fixed,
+    var(--night);
+}
+
+.duel-stage {
+  background: var(--dusk);
+  border-color: #f6c45366;
+}
+
+/* Map picker */
+.map-picker {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.map-picker-label {
+  font: 700 10px var(--font-label);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.map-picker select {
+  appearance: none;
+  width: 100%;
+  padding: 12px 40px 12px 18px;
+  border-radius: 999px;
+  border: 1px solid #f6c45366;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23f6c453' stroke-width='2' fill='none'/%3E%3C/svg%3E") right 18px center no-repeat,
+    var(--night);
+  color: var(--parchment);
+  font: 700 14px var(--font-label);
+  cursor: pointer;
+}
+
+.map-picker select:focus {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.map-picker-blurb {
+  color: var(--mist);
+  font-size: 12px;
+}
+
+.map-picker.compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.map-picker.compact select {
+  width: auto;
+  padding: 6px 32px 6px 14px;
+  font-size: 12px;
+  background-position: right 12px center, 0 0;
+}
+
+/* Health bars: portrait + wooden vine frame */
+.health {
+  grid-template-columns: 58px 1fr;
+  grid-template-areas: "portrait label" "portrait track";
+  column-gap: 10px;
+  align-items: center;
+}
+
+.health.right {
+  grid-template-columns: 1fr 58px;
+  grid-template-areas: "label portrait" "track portrait";
+}
+
+.health-portrait {
+  grid-area: portrait;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--gold);
+  box-shadow: 0 0 16px #f6c45355;
+}
+
+.health.player-A .health-portrait {
+  background: radial-gradient(circle, #4f9e48, #2f6b3f);
+}
+
+.health.player-B .health-portrait {
+  background: radial-gradient(circle, #7a4bb0, #3a2466);
+}
+
+.health.right .health-portrait {
+  transform: scaleX(-1);
+}
+
+.health-label {
+  grid-area: label;
+}
+
+.health-track {
+  grid-area: track;
+  height: 34px;
+  border: 0;
+  border-radius: 0;
+  background: url("/assets/hp-frame.png") center / 100% 100% no-repeat;
+  overflow: visible;
+}
+
+.health-track i {
+  top: 26%;
+  bottom: 30%;
+  left: 9%;
+  border-radius: 6px;
+  max-width: 85%;
+}
+
+.health.right .health-track i {
+  left: auto;
+  right: 6.5%;
+}
+
+.health-notches {
+  inset: 26% 6.5% 30% 9%;
+  border-radius: 6px;
+}
+
+.health.critical .health-track {
+  box-shadow: none;
+  filter: drop-shadow(0 0 8px var(--berry));
+}
+
+/* Clock: golden sun frame */
+.clock {
+  position: relative;
+  min-width: 0;
+  width: 132px;
+  height: 122px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: url("/assets/clock-frame.png") center / contain no-repeat;
+  box-shadow: none;
+  place-content: center;
+  justify-items: center;
+}
+
+.clock-label {
+  font-size: 7px;
+  letter-spacing: 0.14em;
+  color: var(--gold-soft);
+  margin-top: -6px;
+}
+
+.clock-time {
+  font-size: 26px;
+  text-shadow: 0 2px 6px #0008;
+}
+
+.clock-progress {
+  width: 52px;
+}
+
+.clock.urgent {
+  box-shadow: none;
+  filter: drop-shadow(0 0 12px #ff4f7baa);
+}
+
+/* Spell buttons: ivy-covered tower window tiles */
+.spell {
+  width: 78px;
+  height: 78px;
+  border: 0;
+  border-radius: 12px;
+  background: url("/assets/spell-tile.png") center / 100% 100% no-repeat;
+}
+
+.spell::after {
+  inset: 10%;
+  border-radius: 6px;
+}
+
+.spell.ready {
+  box-shadow: none;
+  filter: drop-shadow(0 0 10px #f6c45399);
+}
+
+.spell.locked {
+  background: url("/assets/spell-tile.png") center / 100% 100% no-repeat;
+  filter: hue-rotate(160deg) saturate(0.7);
+}
+
+img.spell-glyph {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  font-size: 0;
+}
+
+.spell-ultimate img.spell-glyph {
+  width: 46px;
+  height: 46px;
+}
+
+.spell-name {
+  color: var(--gold-soft);
+  text-shadow: 0 1px 3px #000;
+}
+
+/* Power-ups */
+.powerups button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 6px;
+  background: #2a1a4fd9;
+}
+
+.powerups button img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.powerups button i {
+  font-style: normal;
+  font-size: 18px;
+}
+
+/* Victory: the transformed loser */
+.victory-critter {
+  display: block;
+  width: 120px;
+  margin: 0 auto -6px;
+  filter: drop-shadow(0 6px 10px #0008);
+  animation: critter-hop 0.9s ease-in-out infinite;
+}
+
+@keyframes critter-hop {
+  50% { transform: translateY(-8px); }
+}
+
+@media (max-width: 760px) {
+  .health {
+    grid-template-columns: 40px 1fr;
+  }
+
+  .health.right {
+    grid-template-columns: 1fr 40px;
+  }
+
+  .health-portrait {
+    width: 40px;
+    height: 40px;
+  }
+
+  .health-track {
+    height: 24px;
+  }
+
+  .clock {
+    width: 92px;
+    height: 86px;
+  }
+
+  .clock-time {
+    font-size: 18px;
+  }
+
+  .spell {
+    width: 64px;
+    height: 64px;
+  }
+
+  img.spell-glyph {
+    width: 32px;
+    height: 32px;
+  }
+}

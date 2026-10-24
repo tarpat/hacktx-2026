@@ -1,6 +1,6 @@
 import { DEFAULT_MATCH_CONFIG, SPELL_ORDER, type PlayerState, type SpellId } from "@spellcaster/shared";
 import { keyFor, type KeySet } from "../game/input";
-import { spellGlyph } from "../theme";
+import { art } from "../theme";
 
 interface SpellTrayProps {
   player: PlayerState;
@@ -36,7 +36,7 @@ export function SpellTray({ player, now, onCast, side, keySet }: SpellTrayProps)
               title={`${spellConfig.name}${keySet ? ` (${keyFor(keySet, spell)})` : ""}`}
               style={{ "--cooldown": `${Math.min(1, Math.max(0, fraction)) * 360}deg` } as React.CSSProperties}
             >
-              <span className="spell-glyph">{spellGlyph[spell]}</span>
+              <img className="spell-glyph" src={art.spell[spell]} alt="" draggable={false} />
               <span className="spell-name">{spellConfig.name}</span>
               {remaining > 0 && spell !== "ultimate" && <span className="spell-timer">{(remaining / 1000).toFixed(1)}</span>}
               {keySet && <kbd>{keyFor(keySet, spell)}</kbd>}

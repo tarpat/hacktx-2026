@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, Route, Routes, useNavigate } from "react-router-dom";
 import type { CreateRoomResult, JoinRoomResult, SocketError } from "@spellcaster/shared";
+import { MapPicker, useMapChoice } from "./arena/MapPicker";
 import { setSession, useSession } from "./session";
 import { socket } from "./socket";
 import { ArenaView } from "./views/ArenaView";
@@ -12,6 +13,7 @@ function Lobby() {
   const [code, setCode] = useState("");
   const room = useSession()?.room ?? null;
   const [error, setError] = useState("");
+  const [map, setMap] = useMapChoice();
 
   const handleResult = (result: CreateRoomResult | JoinRoomResult | SocketError) => {
     if ("error" in result) return setError(result.error);
@@ -41,6 +43,7 @@ function Lobby() {
       <p className="eyebrow">THE ARENA AWAITS</p><h1>SpellCaster<span>:</span><br />Wizard Duel</h1>
       <p className="intro">Raise your hands. Choose your spell. Outwit a rival in a duel of magic.</p>
       <div className="lobby-card">
+        <MapPicker value={map} onChange={setMap} />
         <button className="primary-button" onClick={createRoom}>Create a duel <span>↗</span></button>
         <div className="divider"><span>OR JOIN A FRIEND</span></div>
         <div className="join-row"><input aria-label="Room code" placeholder="ENTER ROOM CODE" maxLength={5} value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} /><button className="secondary-button" disabled={code.length < 5} onClick={joinRoom}>Join</button></div>
