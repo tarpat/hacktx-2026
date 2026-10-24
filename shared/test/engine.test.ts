@@ -134,6 +134,23 @@ describe("ultimate", () => {
     const after = engine.snapshot(now + C.spells.ultimate.travelMs).players.B.hp;
     expect(hpBefore - after).toBe(C.spells.ultimate.damage * C.ultimateShieldFactor);
   });
+
+  it("strikes from the sky, so bolts cast at it never clash", () => {
+    const engine = liveEngine();
+    let now = LIVE;
+    while (engine.snapshot(now).players.A.ultimate < C.ultimateMax) {
+      engine.cast("A", "fireball", now);
+      now += C.spells.fireball.cooldownMs;
+    }
+    engine.drainEvents();
+    engine.cast("A", "ultimate", now);
+    engine.cast("B", "fireball", now + 100);
+    engine.tick(now + 3_000);
+    const events = engine.drainEvents();
+    expect(types(events)).not.toContain("SPELL_CLASH");
+    const hits = events.flatMap((event) => (event.type === "DAMAGE_APPLIED" ? [event.spell] : []));
+    expect(hits).toEqual(expect.arrayContaining(["ultimate", "fireball"]));
+  });
 });
 
 describe("clash", () => {

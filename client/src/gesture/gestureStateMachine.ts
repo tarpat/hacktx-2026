@@ -1,21 +1,23 @@
 import type { GestureAction, HandPose } from "./types";
 
-/** A fist charge becomes Fulmen once both fists are seen. */
+/** Fireball charges on a fist; Fulmen charges on a finger pointed at the sky. */
 export type ChargeKind = "fireball" | "ultimate";
 
 export interface ChargeTimings {
-  /** Minimum charge time before an open hand counts as a cast. */
+  /** Minimum charge time before a release counts as a cast. */
   minMs: number;
   /** Charge auto-cancels after this long. */
   maxMs: number;
 }
 
 export interface GestureTimings {
-  /** Fist must be held this long before charging starts. */
+  /** The charge pose must be held this long before charging starts. */
   fistStableMs: number;
   charge: Record<ChargeKind, ChargeTimings>;
   /** After the fist is lost, an open palm within this window still casts. */
   releaseWindowMs: number;
+  /** Lowering the pointed finger casts Fulmen once it has been gone this long. */
+  pointDropMs: number;
   /** Local debounce after a cast. Server cooldowns are separate and authoritative. */
   recoveryMs: number;
   /** How long each one-shot pose must be held before its spell casts. */
@@ -23,16 +25,16 @@ export interface GestureTimings {
 }
 
 /** Poses that cast a spell by simply being held (no charge/release). */
-export type HoldPose = "OPEN_PALM" | "VICTORY";
+export type HoldPose = "BOTH_PALMS" | "VICTORY";
 
 export const HOLD_ACTIONS: Record<HoldPose, GestureAction> = {
-  OPEN_PALM: "SHIELD_CAST",
+  BOTH_PALMS: "SHIELD_CAST",
   VICTORY: "ICE_CAST",
 };
 
 /** After a hold spell, these poses stay inert until the hands leave them. */
 const REARM_BLOCKS: Record<HoldPose, HandPose[]> = {
-  OPEN_PALM: ["OPEN_PALM", "BOTH_PALMS"],
+  BOTH_PALMS: ["OPEN_PALM", "BOTH_PALMS"],
   VICTORY: ["VICTORY"],
 };
 
@@ -43,8 +45,9 @@ export const DEFAULT_TIMINGS: GestureTimings = {
     ultimate: { minMs: 600, maxMs: 2500 },
   },
   releaseWindowMs: 600,
+  pointDropMs: 150,
   recoveryMs: 300,
-  holdMs: { OPEN_PALM: 250, VICTORY: 300 },
+  holdMs: { BOTH_PALMS: 250, VICTORY: 300 },
 };
 
 export type GestureState =
@@ -65,10 +68,13 @@ export interface StepResult {
 const isHoldPose = (pose: HandPose): pose is HoldPose => pose in HOLD_ACTIONS;
 const isFist = (pose: HandPose) => pose === "FIST" || pose === "BOTH_FISTS";
 const isPalm = (pose: HandPose) => pose === "OPEN_PALM" || pose === "BOTH_PALMS";
-const ALL_FIST_AND_PALM: HandPose[] = ["FIST", "BOTH_FISTS", "OPEN_PALM", "BOTH_PALMS"];
-
-/** Seeing both fists at any point upgrades the charge; it never downgrades. */
-const chargeFor = (current: ChargeKind, pose: HandPose): ChargeKind => (pose === "BOTH_FISTS" ? "ultimate" : current);
+/** The pose that starts and sustains each charge. */
+const holdsCharge = (charge: ChargeKind, pose: HandPose) => (charge === "ultimate" ? pose === "POINT" : isFist(pose));
+const chargeFor = (pose: HandPose): ChargeKind | null => (pose === "POINT" ? "ultimate" : isFist(pose) ? "fireball" : null);
+const CHARGE_BLOCKS: Record<ChargeKind, HandPose[]> = {
+  fireball: ["FIST", "BOTH_FISTS", "OPEN_PALM", "BOTH_PALMS"],
+  ultimate: ["POINT"],
+};
 
 /**
  * Pure transition function: feed it smoothed poses with monotonic timestamps.
@@ -81,33 +87,36 @@ export function stepGesture(
   t: GestureTimings = DEFAULT_TIMINGS,
 ): StepResult {
   switch (state.kind) {
-    case "IDLE":
-      if (isFist(pose)) return { state: { kind: "FIST_PENDING", since: now, charge: chargeFor("fireball", pose) }, actions: [] };
+    case "IDLE": {
+      const charge = chargeFor(pose);
+      if (charge) return { state: { kind: "FIST_PENDING", since: now, charge }, actions: [] };
       if (isHoldPose(pose)) return { state: { kind: "HOLD_PENDING", pose, since: now }, actions: [] };
       return { state, actions: [] };
+    }
 
-    case "FIST_PENDING": {
-      if (!isFist(pose)) return stepGesture({ kind: "IDLE" }, pose, now, t);
-      const charge = chargeFor(state.charge, pose);
+    case "FIST_PENDING":
+      if (!holdsCharge(state.charge, pose)) return stepGesture({ kind: "IDLE" }, pose, now, t);
       if (now - state.since >= t.fistStableMs) {
-        return { state: { kind: "CHARGING", since: now, charge }, actions: [startAction(charge)] };
+        return { state: { kind: "CHARGING", since: now, charge: state.charge }, actions: [startAction(state.charge)] };
       }
-      return { state: { ...state, charge }, actions: [] };
-    }
+      return { state, actions: [] };
 
-    case "CHARGING": {
+    case "CHARGING":
       if (now - state.since > t.charge[state.charge].maxMs) {
-        return { state: { kind: "REARM", blockedPoses: ALL_FIST_AND_PALM }, actions: ["CHARGE_CANCEL"] };
+        return { state: { kind: "REARM", blockedPoses: CHARGE_BLOCKS[state.charge] }, actions: ["CHARGE_CANCEL"] };
       }
-      if (isFist(pose)) return upgrade(state, pose);
-      if (isPalm(pose)) return release(state.since, state.charge, pose, now, t);
-      // Opening hands usually passes through a few ambiguous frames.
+      if (holdsCharge(state.charge, pose)) return { state, actions: [] };
+      if (state.charge === "fireball" && isPalm(pose)) return release(state.since, state.charge, now, t);
+      // Opening hands (or lowering a finger) usually passes through a few ambiguous frames.
       return { state: { kind: "RELEASE_WINDOW", since: state.since, charge: state.charge, lostAt: now }, actions: [] };
-    }
 
     case "RELEASE_WINDOW":
-      if (isPalm(pose)) return release(state.since, state.charge, pose, now, t);
-      if (isFist(pose)) return upgrade({ kind: "CHARGING", since: state.since, charge: state.charge }, pose);
+      if (holdsCharge(state.charge, pose)) return { state: { kind: "CHARGING", since: state.since, charge: state.charge }, actions: [] };
+      if (state.charge === "ultimate") {
+        // Any move away from the pointed finger strikes: down, open, out of frame.
+        return now - state.lostAt >= t.pointDropMs ? release(state.since, state.charge, now, t) : { state, actions: [] };
+      }
+      if (isPalm(pose)) return release(state.since, state.charge, now, t);
       if (now - state.lostAt > t.releaseWindowMs) {
         return { state: { kind: "IDLE" }, actions: ["CHARGE_CANCEL"] };
       }
@@ -133,20 +142,11 @@ export function stepGesture(
 
 const startAction = (charge: ChargeKind): GestureAction => (charge === "ultimate" ? "ULTIMATE_CHARGE_START" : "FIREBALL_CHARGE_START");
 
-/** A second fist mid-charge turns a fireball into Fulmen (one hand always curls a moment before the other). */
-function upgrade(state: Extract<GestureState, { kind: "CHARGING" }>, pose: HandPose): StepResult {
-  const charge = chargeFor(state.charge, pose);
-  if (charge === state.charge) return { state, actions: [] };
-  return { state: { ...state, charge }, actions: ["ULTIMATE_CHARGE_START"] };
-}
-
-function release(since: number, charge: ChargeKind, pose: HandPose, now: number, t: GestureTimings): StepResult {
-  // Opening both hands means Fulmen even if the second fist was never cleanly seen.
-  const kind: ChargeKind = pose === "BOTH_PALMS" ? "ultimate" : charge;
-  if (now - since < t.charge[kind].minMs) {
-    return { state: { kind: "REARM", blockedPoses: ["OPEN_PALM", "BOTH_PALMS"] }, actions: ["CHARGE_CANCEL"] };
+function release(since: number, charge: ChargeKind, now: number, t: GestureTimings): StepResult {
+  if (now - since < t.charge[charge].minMs) {
+    return { state: { kind: "REARM", blockedPoses: CHARGE_BLOCKS[charge] }, actions: ["CHARGE_CANCEL"] };
   }
-  return { state: { kind: "RECOVERY", until: now + t.recoveryMs }, actions: [kind === "ultimate" ? "ULTIMATE_CAST" : "FIREBALL_CAST"] };
+  return { state: { kind: "RECOVERY", until: now + t.recoveryMs }, actions: [charge === "ultimate" ? "ULTIMATE_CAST" : "FIREBALL_CAST"] };
 }
 
 /** Actions needed to cleanly close out a state on Stop / camera loss. */

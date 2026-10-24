@@ -33,6 +33,13 @@ interface ProjectileView {
   trail: Phaser.GameObjects.Particles.ParticleEmitter;
 }
 
+/** Fulmen gathering over its target until it strikes. */
+interface StormView {
+  target: PlayerSlot;
+  cloud: Phaser.GameObjects.Particles.ParticleEmitter;
+  sparks: Phaser.GameObjects.Particles.ParticleEmitter;
+}
+
 interface Release {
   /** Match-clock time the hand let go. */
   at: number;
@@ -49,6 +56,8 @@ const BG_SIZE = { width: 1024, height: 572 };
 const BG_PATH_Y = 512;
 
 type Bolt = Exclude<SpellId, "shield">;
+/** Bolts thrown across the arena; Fulmen falls from the sky instead. */
+type Thrown = Exclude<Bolt, "ultimate">;
 
 /**
  * Animated effect sheets in assets/fx. Bolts play a launch, then loop their flight frames;
@@ -60,6 +69,8 @@ const FX_SHEETS = {
   "fx-freeze": { file: "freeze", frameWidth: 160, frameHeight: 160 },
   "fx-explosion": { file: "explosion", frameWidth: 224, frameHeight: 224 },
   "fx-sparkle": { file: "sparkle", frameWidth: 224, frameHeight: 224 },
+  "fx-lightning-strike": { file: "lightning-strike", frameWidth: 256, frameHeight: 256 },
+  "fx-lightning-burst": { file: "lightning-burst", frameWidth: 256, frameHeight: 256 },
 } as const;
 
 const FX_ANIMS: { key: string; sheet: keyof typeof FX_SHEETS; start: number; end: number; frameRate: number; repeat?: number }[] = [
@@ -70,26 +81,30 @@ const FX_ANIMS: { key: string; sheet: keyof typeof FX_SHEETS; start: number; end
   { key: "freeze", sheet: "fx-freeze", start: 0, end: 31, frameRate: 40 },
   { key: "explosion", sheet: "fx-explosion", start: 0, end: 25, frameRate: 36 },
   { key: "sparkle", sheet: "fx-sparkle", start: 0, end: 10, frameRate: 22 },
+  { key: "lightning-strike", sheet: "fx-lightning-strike", start: 0, end: 8, frameRate: 20 },
+  { key: "lightning-burst", sheet: "fx-lightning-burst", start: 0, end: 8, frameRate: 22 },
 ];
 
 /** Soft particle textures (Kenney, CC0) tinted per spell for trails and bursts. */
 const FX_PARTICLES = ["flame-4", "magic-3", "star-6"] as const;
 
 /**
- * How each bolt flies: an animated sheet (fireball, ice) or the illustrated still (ultimate),
- * where the orb sits in the frame, its size, and the particle texture streaming behind it.
+ * How each thrown bolt flies: its animated sheet, where the orb sits in the frame,
+ * its size, and the particle texture streaming behind it.
  */
-const PROJECTILE_ART: Record<Bolt, { key: string; launch?: string; fly?: string; originX: number; size: number; trail: string; glow: number }> = {
+const PROJECTILE_ART: Record<Thrown, { key: string; launch: string; fly: string; originX: number; size: number; trail: string; glow: number }> = {
   fireball: { key: "fx-fireball", launch: "fireball-launch", fly: "fireball-fly", originX: 0.63, size: 190, trail: "flame-4", glow: 0xff6a1f },
   ice: { key: "fx-frostbolt", launch: "frostbolt-launch", fly: "frostbolt-fly", originX: 0.63, size: 180, trail: "magic-3", glow: 0x6fb8ff },
-  ultimate: { key: "fulmen", originX: 0.68, size: 240, trail: "star-6", glow: 0xfff27a },
 };
 
-/** Animated impacts layered on hit; the ultimate also keeps its illustrated flash. */
+/** Fulmen's bolt: a white core inside a pale-blue glow. */
+const LIGHTNING = { core: 0xffffff, glow: 0x9fd8ff };
+
+/** Animated impacts layered on hit; Fulmen's bolt and ground strike are drawn by strike(). */
 const IMPACT_FX: Record<Bolt, { anim: string; size: number; still?: { key: string; size: number } }[]> = {
   fireball: [{ anim: "explosion", size: 300 }],
   ice: [{ anim: "freeze", size: 300 }],
-  ultimate: [{ anim: "explosion", size: 420, still: { key: "fulmen-impact", size: 340 } }, { anim: "sparkle", size: 380 }],
+  ultimate: [{ anim: "sparkle", size: 380 }],
 };
 
 /** The server's synced stage wins online; practice uses the locally picked map. */
@@ -106,6 +121,8 @@ export class ArenaScene extends Phaser.Scene {
   private projectiles = new Map<string, ProjectileView>();
   private lastPositions = new Map<string, { x: number; y: number }>();
   private releases = new Map<string, Release>();
+  private storms = new Map<string, StormView>();
+  private gloom!: Phaser.GameObjects.Rectangle;
   private unit = 1;
   private groundY = 0;
   private builtMap: MapId | null = null;
@@ -175,10 +192,13 @@ export class ArenaScene extends Phaser.Scene {
     this.projectiles.clear();
     this.lastPositions.clear();
     this.releases.clear();
+    this.storms.clear();
     this.builtMap = mapFor(this.getFrame());
     this.builtSize = this.sizeKey();
     this.drawBackdrop(width, height);
     this.wizards = { A: this.makeWizard("A"), B: this.makeWizard("B") };
+    // Darkens the arena while Fulmen gathers; the strike lights it back up.
+    this.gloom = this.add.rectangle(0, 0, width, height, palette.night).setOrigin(0).setDepth(4).setAlpha(0);
   }
 
   private drawBackdrop(width: number, height: number) {
@@ -290,6 +310,8 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private updateProjectiles(list: Projectile[], now: number) {
+    this.updateStorms(list.filter((p) => p.spell === "ultimate"), now);
+    list = list.filter((p) => p.spell !== "ultimate");
     const live = new Set(list.map((p) => p.id));
     for (const [id, view] of this.projectiles) {
       if (live.has(id)) continue;
@@ -314,7 +336,7 @@ export class ArenaScene extends Phaser.Scene {
         release = { at: now, from: this.wizards[projectile.owner].rig.handPoint() };
         this.releases.set(projectile.id, release);
       }
-      if (release && !view.node.visible) this.launch(view, projectile.spell as Bolt);
+      if (release && !view.node.visible) this.launch(view, projectile.spell as Thrown);
       view.node.setVisible(Boolean(release));
       view.trail.emitting = Boolean(release);
       if (!release) continue;
@@ -335,7 +357,7 @@ export class ArenaScene extends Phaser.Scene {
 
   private makeProjectile(projectile: Projectile): ProjectileView {
     const color = spellColor[projectile.spell];
-    const look = PROJECTILE_ART[projectile.spell as Bolt];
+    const look = PROJECTILE_ART[projectile.spell as Thrown];
     const towardRight = this.anchor(projectile.owner).facing === 1;
     const node = this.add.sprite(0, 0, look.key).setDepth(6).setVisible(false).setBlendMode(Phaser.BlendModes.ADD);
     const size = look.size * this.unit * (projectile.empowered ? 1.3 : 1);
@@ -359,18 +381,128 @@ export class ArenaScene extends Phaser.Scene {
     return { node, trail };
   }
 
-  /** The moment a bolt leaves the hand: a launch animation into its looping flight, or a pop-in for stills. */
-  private launch(view: ProjectileView, spell: Bolt) {
+  /** The moment a bolt leaves the hand: its launch animation into the looping flight. */
+  private launch(view: ProjectileView, spell: Thrown) {
     const look = PROJECTILE_ART[spell];
-    const base = view.node.getData("base") as number;
-    if (look.launch && look.fly) {
-      view.node.play(look.launch).chain(look.fly);
-      return;
+    view.node.play(look.launch).chain(look.fly);
+  }
+
+  // ---------- fulmen ----------
+
+  /** Storm clouds build over each Fulmen target; when the engine resolves the spell, lightning falls. */
+  private updateStorms(list: Projectile[], now: number) {
+    const live = new Set(list.map((p) => p.id));
+    for (const [id, storm] of this.storms) {
+      if (live.has(id)) continue;
+      this.storms.delete(id);
+      this.strike(storm);
     }
-    // Stretch along the throw, then settle, so the still feels flung rather than placed.
-    view.node.setScale(base * 1.35, base * 0.7);
-    this.tweens.add({ targets: view.node, scaleX: base, scaleY: base, duration: 220, ease: "Back.easeOut" });
-    this.tweens.add({ targets: view.node, alpha: { from: 0.75, to: 1 }, duration: 90, yoyo: true, repeat: -1 });
+    let gloom = 0;
+    for (const projectile of list) {
+      let storm = this.storms.get(projectile.id);
+      if (!storm) {
+        storm = this.makeStorm(opponentOf(projectile.owner));
+        this.storms.set(projectile.id, storm);
+      }
+      const t = Phaser.Math.Clamp((now - projectile.launchedAt) / Math.max(1, projectile.arrivesAt - projectile.launchedAt), 0, 1);
+      storm.cloud.frequency = Phaser.Math.Linear(70, 18, t);
+      storm.sparks.frequency = Phaser.Math.Linear(260, 50, t);
+      gloom = Math.max(gloom, t * 0.45);
+    }
+    if (this.storms.size > 0) this.gloom.setAlpha(gloom);
+  }
+
+  private stormY() {
+    return this.getFrame().insets.top + 40 * this.unit;
+  }
+
+  private makeStorm(target: PlayerSlot): StormView {
+    const x = this.anchor(target).x;
+    const y = this.stormY();
+    const spread = { min: -130 * this.unit, max: 130 * this.unit };
+    const cloud = this.add.particles(x, y, "magic-3", {
+      x: spread,
+      y: { min: -24 * this.unit, max: 24 * this.unit },
+      speedX: { min: -14, max: 14 },
+      speedY: { min: -6, max: 6 },
+      lifespan: { min: 1200, max: 1800 },
+      scale: { start: 1.1 * this.unit, end: 1.6 * this.unit },
+      alpha: { start: 0.7, end: 0 },
+      rotate: { min: 0, max: 360 },
+      tint: [0x1c1236, 0x2e2850, 0x3a3560],
+      frequency: 70,
+    });
+    cloud.setDepth(5);
+    const sparks = this.add.particles(x, y, "star-6", {
+      x: spread,
+      y: { min: 0, max: 30 * this.unit },
+      speed: { min: 10, max: 50 },
+      lifespan: { min: 120, max: 260 },
+      scale: { start: 0.5 * this.unit, end: 0 },
+      tint: [LIGHTNING.glow, LIGHTNING.core],
+      blendMode: "ADD",
+      frequency: 260,
+    });
+    sparks.setDepth(6);
+    return { target, cloud, sparks };
+  }
+
+  /** A forked bolt from the cloud to the target's feet, flickering a few times before it fades. */
+  private strike(storm: StormView) {
+    storm.sparks.destroy();
+    storm.cloud.stop();
+    this.time.delayedCall(1800, () => storm.cloud.destroy());
+
+    const { x, y } = this.anchor(storm.target);
+    const top = this.stormY();
+    const bolt = this.add.graphics().setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
+    const flickers = [0, 70, 150, 230];
+    flickers.forEach((delay) => this.time.delayedCall(delay, () => this.drawLightning(bolt, x, top, y)));
+    this.tweens.add({ targets: bolt, alpha: 0, delay: 300, duration: 260, onComplete: () => bolt.destroy() });
+
+    this.playFx("lightning-strike", x, y - 70 * this.unit, 300);
+    this.playFx("lightning-burst", x, y - 110 * this.unit, 360);
+    this.burst(x, y, LIGHTNING.glow, 26, 1.6);
+    this.cameras.main.flash(220, 220, 240, 255);
+    this.cameras.main.shake(320, 0.014);
+    if (this.storms.size === 0) this.tweens.add({ targets: this.gloom, alpha: 0, delay: 120, duration: 500 });
+  }
+
+  private drawLightning(g: Phaser.GameObjects.Graphics, x: number, top: number, bottom: number) {
+    g.clear();
+    const trunk = this.jagged(x, top, x + Phaser.Math.Between(-12, 12) * this.unit, bottom, 14, 34);
+    const branches = [0.3, 0.5, 0.7].map((at) => {
+      const from = trunk[Math.floor(at * (trunk.length - 1))];
+      const reach = (bottom - top) * Phaser.Math.FloatBetween(0.12, 0.22);
+      return this.jagged(from.x, from.y, from.x + (Math.random() < 0.5 ? -reach : reach), from.y + reach, 5, 16);
+    });
+    // Wide soft glow, then a narrower bright glow, then the white-hot core.
+    for (const [width, color, alpha] of [[22, LIGHTNING.glow, 0.18], [9, LIGHTNING.glow, 0.5], [3.5, LIGHTNING.core, 1]] as const) {
+      g.lineStyle(width * this.unit, color, alpha);
+      g.strokePoints(trunk);
+      g.lineStyle(width * 0.5 * this.unit, color, alpha);
+      for (const branch of branches) g.strokePoints(branch);
+    }
+  }
+
+  /** A line from one point to another with its midpoints knocked sideways. */
+  private jagged(x1: number, y1: number, x2: number, y2: number, segments: number, jitter: number) {
+    const points = [{ x: x1, y: y1 }];
+    for (let i = 1; i < segments; i++) {
+      const t = i / segments;
+      points.push({ x: Phaser.Math.Linear(x1, x2, t) + Phaser.Math.FloatBetween(-1, 1) * jitter * this.unit, y: Phaser.Math.Linear(y1, y2, t) });
+    }
+    points.push({ x: x2, y: y2 });
+    return points;
+  }
+
+  /** The caster's raised hand sends a spark up into the clouds. */
+  private callLightning(hand: { x: number; y: number }) {
+    const zap = this.add.graphics().setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
+    const points = this.jagged(hand.x, hand.y, hand.x + Phaser.Math.Between(-30, 30) * this.unit, this.stormY(), 9, 14);
+    zap.lineStyle(8 * this.unit, LIGHTNING.glow, 0.4).strokePoints(points);
+    zap.lineStyle(2.5 * this.unit, LIGHTNING.core, 1).strokePoints(points);
+    this.tweens.add({ targets: zap, alpha: 0, duration: 280, onComplete: () => zap.destroy() });
   }
 
   // ---------- events ----------
@@ -390,6 +522,7 @@ export class ArenaScene extends Phaser.Scene {
           onRelease: () => {
             const hand = rig.handPoint();
             if (event.projectileId) this.releases.set(event.projectileId, { at: this.getFrame().now, from: hand });
+            if (event.spell === "ultimate") this.callLightning(hand);
             this.burst(hand.x, hand.y, color, 14, 0.9);
           },
         });
@@ -432,7 +565,6 @@ export class ArenaScene extends Phaser.Scene {
       this.playFx(fx.anim, hitX, hitY, fx.size);
       if (fx.still) this.flash(fx.still.key, hitX, hitY, fx.still.size, 560, true);
     }
-    if (spell === "ultimate") this.cameras.main.flash(180, 255, 242, 122);
     this.burst(x, y - 110 * this.unit, spellColor[spell], 10 + amount / 2, 1.2);
     this.floatText(x, y - 250 * this.unit, `-${amount}`, "#ff4f7b");
     this.cameras.main.shake(120 + amount * 6, 0.004 + amount * 0.0003);

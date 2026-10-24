@@ -17,13 +17,13 @@ const ACTION_SPELLS: Partial<Record<GestureAction, SpellId>> = {
   ULTIMATE_CAST: "ultimate",
 };
 
-const POSE_LABELS: Partial<Record<HandPose, string>> = { FIST: "✊", OPEN_PALM: "✋", VICTORY: "✌️", BOTH_FISTS: "✊✊", BOTH_PALMS: "🙌" };
+const POSE_LABELS: Partial<Record<HandPose, string>> = { FIST: "✊", OPEN_PALM: "✋", VICTORY: "✌️", POINT: "☝️", BOTH_FISTS: "✊✊", BOTH_PALMS: "🙌" };
 
 const LEGEND: { spell: SpellId; pose: string }[] = [
   { spell: "fireball", pose: "✊→✋" },
-  { spell: "shield", pose: "✋" },
+  { spell: "shield", pose: "🙌" },
   { spell: "ice", pose: "✌️" },
-  { spell: "ultimate", pose: "✊✊→🙌" },
+  { spell: "ultimate", pose: "☝️" },
 ];
 
 /** Hand-skeleton glow: gold at rest, the spell's color while charging. */
@@ -159,7 +159,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
 
   const live = status === "TRACKING" || status === "NO_HAND";
   const label =
-    status === "STARTING" ? "Starting camera…" : status === "NO_HAND" ? "Show your hand" : struggling ? "✊✋ PUMP! PUMP!" : charging ? "Charging… open to cast" : POSE_LABELS[pose] ?? "";
+    status === "STARTING" ? "Starting camera…" : status === "NO_HAND" ? "Show your hand" : struggling ? "✊✋ PUMP! PUMP!" : charge?.kind === "ultimate" ? "Charging… drop to strike" : charging ? "Charging… open to cast" : POSE_LABELS[pose] ?? "";
 
   return (
     <>

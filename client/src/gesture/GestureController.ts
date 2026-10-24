@@ -131,7 +131,7 @@ export class GestureController {
     this.pumps.reset();
     // Entering: drop any half-made gesture. Leaving: hands are mid-pump, so wait for them to relax before casting again.
     this.flushGestureState();
-    if (!on) this.gestureState = { kind: "REARM", blockedPoses: ["FIST", "BOTH_FISTS", "OPEN_PALM", "BOTH_PALMS"] };
+    if (!on) this.gestureState = { kind: "REARM", blockedPoses: ["FIST", "BOTH_FISTS", "OPEN_PALM", "BOTH_PALMS", "POINT"] };
   }
 
   stop(): void {
