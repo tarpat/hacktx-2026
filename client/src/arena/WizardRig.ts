@@ -5,7 +5,7 @@ import { palette } from "../theme";
 export type RigAction = "throw" | "ultimate" | "shield";
 
 /** Milliseconds from the start of a cast animation to the moment the spell leaves the hand. */
-export const RELEASE_MS: Record<Exclude<SpellId, "shield">, number> = { fireball: 340, ice: 340, ultimate: 500 };
+export const RELEASE_MS: Record<Exclude<SpellId, "shield">, number> = { fireball: 340, ice: 340, ultimate: 500, taurus: 340 };
 
 export interface WizardStyle {
   robe?: number;
