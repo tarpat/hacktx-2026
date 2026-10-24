@@ -26,6 +26,8 @@ interface WizardView {
   empower: Phaser.GameObjects.Image;
   haste: Phaser.GameObjects.Image;
   transformed: Phaser.GameObjects.Container | null;
+  /** The death animation has started for this match. */
+  fallen: boolean;
 }
 
 interface ProjectileView {
@@ -257,7 +259,7 @@ export class ArenaScene extends Phaser.Scene {
     const frost = this.sized("frozen", 2, -112, 260).setVisible(false);
     const empower = this.sized("empower", 0, -268, 64).setVisible(false);
     root.add([shadow, aura, haste, body, shield, frost, empower]);
-    return { root, body, rig, shield, frost, aura, empower, haste, transformed: null };
+    return { root, body, rig, shield, frost, aura, empower, haste, transformed: null, fallen: false };
   }
 
   /** An image whose larger side is `size` units. */
@@ -277,12 +279,21 @@ export class ArenaScene extends Phaser.Scene {
     view.rig.update(time, delta, now < player.frozenUntil);
     const finishedLoser = state.phase === "finished" && state.winner && state.winner !== slot;
 
-    if (finishedLoser && !view.transformed) return this.transform(slot, state.loserForm);
-    if (finishedLoser) return;
-    if (view.transformed) {
-      view.transformed.destroy();
+    if (finishedLoser) {
+      if (!view.fallen) {
+        view.fallen = true;
+        for (const layer of [view.shield, view.frost, view.aura, view.empower, view.haste]) layer.setVisible(false);
+        this.cameras.main.shake(260, 0.012);
+        view.rig.die(time, () => this.transform(slot, state.loserForm));
+      }
+      return;
+    }
+    if (view.fallen) {
+      view.transformed?.destroy();
       view.transformed = null;
+      view.fallen = false;
       view.body.setVisible(true);
+      view.rig.revive();
     }
 
     const base = (image: Phaser.GameObjects.Image) => image.getData("base") as number;
@@ -568,9 +579,7 @@ export class ArenaScene extends Phaser.Scene {
     this.burst(x, y - 110 * this.unit, spellColor[spell], 10 + amount / 2, 1.2);
     this.floatText(x, y - 250 * this.unit, `-${amount}`, "#ff4f7b");
     this.cameras.main.shake(120 + amount * 6, 0.004 + amount * 0.0003);
-    view.rig.play("hit", this.time.now);
-    this.tweens.add({ targets: view.body, alpha: 0.35, duration: 70, yoyo: true, repeat: 2 });
-    this.tweens.add({ targets: view.root, x: x - facing * 16 * this.unit, duration: 90, yoyo: true, ease: "Quad.easeOut" });
+    view.rig.knockback(amount, this.time.now);
   }
 
   private transform(slot: PlayerSlot, form: MatchState["loserForm"]) {
@@ -578,9 +587,8 @@ export class ArenaScene extends Phaser.Scene {
     const { x, y } = this.anchor(slot);
     this.flash("clash", x, y - 100 * this.unit, 300, 800, true);
     this.burst(x, y - 90 * this.unit, palette.lavender, 40, 1.8);
-    view.body.setVisible(false);
-    for (const layer of [view.shield, view.frost, view.aura, view.empower, view.haste]) layer.setVisible(false);
-
+    this.time.delayedCall(120, () => this.burst(x, y - 90 * this.unit, palette.goldSoft, 30, 1.4));
+    // The body is already dust (see WizardRig.die); its pieces are still drifting away.
     const critter = this.sized(form, 0, 0, form === "frog" ? 190 : 200).setOrigin(0.5, 0.92);
     const node = this.add.container(0, 0, [critter]).setScale(0.2);
     view.root.add(node);
