@@ -6,27 +6,12 @@ const BONES: [number, number][] = [
   [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17],
 ];
 
-// Shoulder–elbow–wrist chains from the body pose (Six Seven reads these).
-const ARM_BONES: [number, number][] = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16]];
-
-export function drawHands(canvas: HTMLCanvasElement, hands: Landmark[][], pose?: Landmark[] | null) {
+export function drawHands(canvas: HTMLCanvasElement, hands: Landmark[][]) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const { width, height } = canvas;
   ctx.clearRect(0, 0, width, height);
-  if (pose && pose.length >= 17) drawArms(ctx, pose, width, height);
   for (const landmarks of hands) drawSkeleton(ctx, landmarks, width, height);
-}
-
-function drawArms(ctx: CanvasRenderingContext2D, pose: Landmark[], width: number, height: number) {
-  ctx.strokeStyle = "#72a9c0";
-  ctx.lineWidth = 5;
-  for (const [a, b] of ARM_BONES) {
-    ctx.beginPath();
-    ctx.moveTo(pose[a].x * width, pose[a].y * height);
-    ctx.lineTo(pose[b].x * width, pose[b].y * height);
-    ctx.stroke();
-  }
 }
 
 function drawSkeleton(ctx: CanvasRenderingContext2D, landmarks: Landmark[], width: number, height: number) {

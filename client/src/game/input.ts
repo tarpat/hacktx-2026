@@ -35,8 +35,8 @@ export const spellInput = {
 export type KeySet = "primary" | "secondary";
 
 export const KEY_BINDINGS: Record<KeySet, Record<string, SpellId>> = {
-  primary: { q: "fireball", w: "shield", e: "ice", r: "ultimate", t: "sixSeven" },
-  secondary: { u: "fireball", i: "shield", o: "ice", p: "ultimate", j: "sixSeven" },
+  primary: { q: "fireball", w: "shield", e: "ice", r: "ultimate" },
+  secondary: { u: "fireball", i: "shield", o: "ice", p: "ultimate" },
 };
 
 /** Demo keys that stand in for the voice track until it is wired up. */

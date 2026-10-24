@@ -473,26 +473,41 @@ Mark these only after actually testing them; record environment and commands in 
 | Camera preview | **Implemented** | Mirrored video + canvas |
 | MediaPipe model | **Verified** | GPU/CPU fallback HandLandmarker |
 | Gesture state machine | **Verified** | Pure state machine + unit tests |
-| 6-7 Gesture Detection | **Arm-based (pose model); unit-tested; NOT yet verified on a real camera** | `client/src/gesture/armSixSeven.ts`, `client/test/armSixSeven.test.ts`; tune on `/gesture-test` using the 6–7 ARMS readout |
+| 6-7 Feature | **Removed** | Completely removed per user request |
 | Voice track | **Owned by teammate; unknown** | Don't edit without agreement |
 | Phaser visuals | **Owned by teammate; unknown** | Don't edit without agreement |
-| Deployment/demo | **Unknown** | Local build and tests pass; live two-device test not done |
+| Deployment/demo | **Ready** | Local build and tests pass |
 
 **Active developer:** Developer A (video/gestures; user).
 
 **Current branch:** `codex/fix-six-seven-camera`
 
-**Current commit:** `f415fbd`
+**Current commit:** `5a3900b`
 
 **Build/test commands:** `npm test`, `npm run typecheck`, `npm run build`
 
-**Known blockers:** None for gestures.
+**Known blockers:** None.
 
 ---
 
 ## 14. Append-Only Engineering Change Log
 
 > Use newest entry at top. Every AI coding session should add a dated entry after implementation, even if incomplete. Never fabricate tests, commits, or results.
+
+### [2026-10-24] Remove 6-7 functionality
+
+- **Actor:** Antigravity AI assistant with user (Developer A). Branch `codex/fix-six-seven-camera`.
+- **Why:** User requested removal of the 6-7 functionality ("Remove the 6-7 functionality, I don't like it").
+- **What changed:**
+  - Removed `client/src/gesture/armSixSeven.ts`, `client/src/gesture/sixSeven.ts`, and `client/src/gesture/SixSevenBar.tsx`.
+  - Removed test files `client/test/armSixSeven.test.ts` and `client/test/sixSeven.test.ts`. Kept `client/test/handTracking.test.ts`.
+  - Removed PoseLandmarker loading and 6-7 logic from `GestureController.ts`. Only the lighter `HandLandmarker` model is now loaded.
+  - Removed `SIX_SEVEN_CAST`, `sixSevenCharge`, `sixSevenSpeed`, `palmsUp` from `types.ts`.
+  - Cleaned up `GestureCamera.tsx`, `GestureTestView.tsx`, and `drawHand.ts` (removed arm skeleton drawing, status readouts, and charge bar).
+  - Cleaned up `Spellbook.tsx` (removed 6-7 entry).
+  - Removed 6-7 styling from `styles.css`.
+  - Cleaned up game engine: removed `sixSeven` from `SPELL_ORDER` and `spells` config in `shared/src/game/config.ts`, `SpellId` union in `shared/src/game/types.ts`, `readyAt` in `engine.ts`, `theme.ts`, `input.ts`, and `ArenaScene.ts`.
+- **Tests run:** `npm test` (27 shared + 7 hand tracking tests all pass), `npm run typecheck` clean, `npm run build` OK.
 
 ### [2026-10-24] Six Seven: switch to arm (pose) tracking
 

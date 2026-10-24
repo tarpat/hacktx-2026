@@ -3,25 +3,14 @@ import { Link } from "react-router-dom";
 import { GestureController, type DebugFrame } from "../gesture/GestureController";
 import { SpellPreview } from "./SpellPreview";
 import { drawHands } from "../gesture/drawHand";
-import { SixSevenBar } from "../gesture/SixSevenBar";
 import type { GestureActionEvent, GestureObservation } from "../gesture/types";
-
-const SIX_SEVEN_STATUS: Record<DebugFrame["sixSevenStatus"], string> = {
-  NO_POSE: "no body seen",
-  ARMS_NOT_VISIBLE: "elbows/hands out of frame",
-  ARMS_DOWN: "raise forearms",
-  HANDS_TOO_HIGH: "lower hands",
-  PALMS_FACING_CAMERA: "turn palms up",
-  READY: "READY 🫴🫴",
-  HAND_FALLBACK: "hand-only mode",
-};
 
 export function GestureTestView() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const controllerRef = useRef<GestureController | null>(null);
   const [observation, setObservation] = useState<GestureObservation | null>(null);
-  const [debug, setDebug] = useState<Pick<DebugFrame, "fps" | "state" | "sixSevenStatus"> & { handCount: number }>({ fps: 0, state: "IDLE", handCount: 0, sixSevenStatus: "NO_POSE" });
+  const [debug, setDebug] = useState<Pick<DebugFrame, "fps" | "state"> & { handCount: number }>({ fps: 0, state: "IDLE", handCount: 0 });
   const [log, setLog] = useState<(GestureActionEvent & { id: number })[]>([]);
   const [shieldUp, setShieldUp] = useState(false);
   const [charging, setCharging] = useState(false);
@@ -49,9 +38,9 @@ export function GestureTestView() {
         if (event.action === "FIREBALL_CAST" || event.action === "CHARGE_CANCEL") setCharging(false);
       }),
       controller.onDebugFrame((frame) => {
-        if (canvasRef.current) drawHands(canvasRef.current, frame.hands, frame.pose);
-        setDebug((d) => (d.fps === frame.fps && d.state === frame.state && d.handCount === frame.hands.length && d.sixSevenStatus === frame.sixSevenStatus
-          ? d : { fps: frame.fps, state: frame.state, handCount: frame.hands.length, sixSevenStatus: frame.sixSevenStatus }));
+        if (canvasRef.current) drawHands(canvasRef.current, frame.hands);
+        setDebug((d) => (d.fps === frame.fps && d.state === frame.state && d.handCount === frame.hands.length
+          ? d : { fps: frame.fps, state: frame.state, handCount: frame.hands.length }));
       }),
     ];
     // Cleanup stops camera tracks, including on React Strict Mode's dev remount.
@@ -103,12 +92,9 @@ export function GestureTestView() {
         <div><dt>STATE</dt><dd>{debug.state}</dd></div>
         <div><dt>HAND</dt><dd>{observation?.hand ?? "—"}</dd></div>
         <div><dt>HANDS TRACKED</dt><dd>{live ? debug.handCount : 0} / 2</dd></div>
-        <div><dt>6–7 ARMS</dt><dd>{live ? SIX_SEVEN_STATUS[debug.sixSevenStatus] : "—"}</dd></div>
-        <div><dt>SIX SEVEN</dt><dd>{Math.round((observation?.sixSevenCharge ?? 0) * 100)}% · {(observation?.sixSevenSpeed ?? 0).toFixed(1)}/s</dd></div>
         <div><dt>FPS</dt><dd>{live ? debug.fps : "—"}</dd></div>
       </dl>
-      <SixSevenBar charge={observation?.sixSevenCharge ?? 0} speed={observation?.sixSevenSpeed ?? 0} active={observation?.palmsUp ?? false} />
-      <p className="gesture-hint">✊ hold → ✋ open: fireball · ✋ palm: shield · ✌️ peace: ice · ✊✊ → 🙌: ultimate · 🫴🫴 six seven: elbows and hands in frame, forearms raised palms-up, alternate up/down, then hold still to fire</p>
+      <p className="gesture-hint">✊ hold → ✋ open: fireball · ✋ palm: shield · ✌️ peace: ice · ✊✊ → 🙌: ultimate</p>
       <ol className="gesture-log">
         {log.length === 0 && <li className="empty">No actions yet</li>}
         {log.map((entry) => <li key={entry.id}><span>{(entry.localTimestampMs / 1000).toFixed(2)}s</span>{entry.action}</li>)}

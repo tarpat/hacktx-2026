@@ -1372,88 +1372,7 @@ kbd {
   to { transform: scale(0.2); opacity: 0; filter: grayscale(1); }
 }
 
-/* ---------- six seven charge bar ---------- */
 
-.six-seven {
-  position: absolute;
-  left: 27%;
-  top: 14%;
-  z-index: 2;
-  width: min(260px, 40%);
-  transform: translateX(-50%);
-  display: grid;
-  gap: 4px;
-  padding: 8px 12px;
-  border-radius: 14px;
-  background: #120d2bdd;
-  border: 2px solid var(--rose);
-  pointer-events: none;
-}
-
-.six-seven-head {
-  display: flex;
-  justify-content: space-between;
-  font: 700 12px var(--font-label);
-  color: var(--rose);
-}
-
-.gesture-test .six-seven {
-  position: static;
-  width: min(360px, 100%);
-  margin: 16px auto;
-  transform: none;
-}
-
-.six-seven-head span {
-  font: 900 14px var(--font-title);
-  color: var(--parchment);
-}
-
-.six-seven-track {
-  position: relative;
-  height: 14px;
-  border-radius: 999px;
-  background: #0008;
-  overflow: hidden;
-}
-
-.six-seven-track i {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--rose), var(--gold));
-  transition: width 0.1s linear;
-}
-
-/* Minimum charge needed to fire. */
-.six-seven-track em {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--parchment);
-  opacity: 0.6;
-}
-
-.six-seven p {
-  margin: 0;
-  font: 800 11px var(--font-body);
-  color: var(--mist);
-  text-align: center;
-}
-
-.six-seven.ready p {
-  color: var(--gold-soft);
-}
-
-.six-seven.full {
-  border-color: var(--gold);
-  animation: six-seven-max 0.25s ease-in-out infinite alternate;
-}
-
-@keyframes six-seven-max {
-  to { box-shadow: 0 0 30px var(--gold); }
-}
 
 /* Fulmen charge: bigger, lightning gold/violet, crackling. */
 .charge-orb.ultimate {
@@ -1500,51 +1419,6 @@ kbd {
 
 @keyframes ultimate-crackle {
   50% { filter: brightness(1.6) hue-rotate(-20deg); }
-}
-
-.six-seven-speed {
-  display: grid;
-  grid-template-columns: auto 1fr 3.5em;
-  align-items: center;
-  gap: 6px;
-  font: 700 9px var(--font-label);
-  letter-spacing: 0.12em;
-  color: var(--muted);
-}
-
-.six-seven-speed > span:last-child {
-  font-size: 11px;
-  text-align: right;
-  letter-spacing: 0;
-}
-
-.six-seven-speed div {
-  position: relative;
-  height: 6px;
-  border-radius: 999px;
-  background: #0008;
-  overflow: hidden;
-}
-
-.six-seven-speed i {
-  display: block;
-  height: 100%;
-  background: var(--muted);
-  transition: width 0.15s linear;
-}
-
-.six-seven-speed i.filling {
-  background: linear-gradient(90deg, var(--ember), var(--gold));
-}
-
-/* Minimum speed before the bar fills. */
-.six-seven-speed em {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--parchment);
-  opacity: 0.5;
 }
 
 /* Spell struggle tug-of-war */

@@ -1,26 +1,18 @@
-import { FilesetResolver, HandLandmarker, PoseLandmarker } from "@mediapipe/tasks-vision";
-import { ArmSixSevenDetector, type ArmStanceStatus, type PoseLandmark } from "./armSixSeven";
+import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import { classifyPose, combinePoses, PoseSmoother } from "./poseClassifier";
 import { filterHands, HandStabilizer } from "./handTracking";
 import { PumpCounter } from "./pumpCounter";
-import { SixSevenDetector } from "./sixSeven";
 import { DEFAULT_TIMINGS, resetGesture, stepGesture, type GestureState, type GestureTimings } from "./gestureStateMachine";
 import type { GestureAction, GestureActionEvent, GestureObservation, Handedness, HandPose, Landmark, TrackingStatus } from "./types";
 
 const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm";
 const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
-const POSE_MODEL_URL =
-  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
 
 /** Local-only debug frame. Never send this over the network. */
 export interface DebugFrame {
   /** One entry per tracked hand (0–2). */
   hands: Landmark[][];
-  /** Body pose (33 points) used for arm-based Six Seven, if the pose model loaded. */
-  pose: PoseLandmark[] | null;
-  /** Why the Six Seven arm stance is or isn't recognised. */
-  sixSevenStatus: ArmStanceStatus | "HAND_FALLBACK";
   fps: number;
   state: GestureState["kind"] | "STRUGGLE";
 }
@@ -28,41 +20,10 @@ export interface DebugFrame {
 export class CameraError extends Error {}
 
 let landmarkerPromise: Promise<HandLandmarker> | null = null;
-let posePromise: Promise<PoseLandmarker> | null = null;
-let filesetPromise: ReturnType<typeof FilesetResolver.forVisionTasks> | null = null;
-
-function loadFileset() {
-  filesetPromise ??= FilesetResolver.forVisionTasks(WASM_URL);
-  filesetPromise.catch(() => (filesetPromise = null));
-  return filesetPromise;
-}
-
-/** Body pose for Six Seven: arms are tracked far more reliably than fast-moving, edge-on hands. */
-function loadPoseLandmarker(): Promise<PoseLandmarker> {
-  posePromise ??= (async () => {
-    const fileset = await loadFileset();
-    const create = (delegate: "GPU" | "CPU") =>
-      PoseLandmarker.createFromOptions(fileset, {
-        baseOptions: { modelAssetPath: POSE_MODEL_URL, delegate },
-        runningMode: "VIDEO",
-        numPoses: 1,
-        minPoseDetectionConfidence: 0.5,
-        minPosePresenceConfidence: 0.5,
-        minTrackingConfidence: 0.5,
-      });
-    try {
-      return await create("GPU");
-    } catch {
-      return await create("CPU");
-    }
-  })();
-  posePromise.catch(() => (posePromise = null));
-  return posePromise;
-}
 
 function loadLandmarker(): Promise<HandLandmarker> {
   landmarkerPromise ??= (async () => {
-    const fileset = await loadFileset();
+    const fileset = await FilesetResolver.forVisionTasks(WASM_URL);
     const create = (delegate: "GPU" | "CPU") =>
       HandLandmarker.createFromOptions(fileset, {
         baseOptions: { modelAssetPath: MODEL_URL, delegate },
@@ -105,12 +66,6 @@ export class GestureController {
   private pumps = new PumpCounter();
   /** During a spell struggle, hands pump to push instead of casting. */
   private struggling = false;
-  /** Hand-only fallback, used if the pose model can't load. */
-  private sixSeven = new SixSevenDetector();
-  private armSixSeven = new ArmSixSevenDetector();
-  private poseLandmarker: PoseLandmarker | null = null;
-  private pose: PoseLandmark[] | null = null;
-  private sixSevenStatus: ArmStanceStatus | "HAND_FALLBACK" = "NO_POSE";
   private gestureState: GestureState = { kind: "IDLE" };
   private hand: Handedness | undefined;
   private status: TrackingStatus = "CAMERA_OFF";
@@ -152,16 +107,11 @@ export class GestureController {
       await video.play();
 
       let landmarker: HandLandmarker;
-      const poseLoad = loadPoseLandmarker().catch((error) => {
-        console.warn("Pose model failed to load; Six Seven falls back to hand tracking.", error);
-        return null;
-      });
       try {
         landmarker = await loadLandmarker();
       } catch {
         throw new CameraError("Could not load the hand-tracking model. Check the network connection and try again.");
       }
-      this.poseLandmarker = await poseLoad;
       if (generation !== this.generation) return;
 
       this.setStatus("NO_HAND");
@@ -219,55 +169,39 @@ export class GestureController {
       const result = landmarker.detectForVideo(video, now);
       const raw = result.landmarks as Landmark[][];
       const hands = this.stabilizer.update(filterHands(raw), now);
-      this.pose = (this.poseLandmarker?.detectForVideo(video, now).landmarks[0] as PoseLandmark[] | undefined) ?? null;
       // Handedness is only meaningful for one-hand gestures.
       this.hand = hands.length === 1 && raw.length === 1 ? (result.handedness[0]?.[0]?.categoryName as Handedness | undefined) : undefined;
-      this.processFrame(hands, now, this.stabilizer.getObservedHands());
+      this.processFrame(hands, now);
     };
     this.rafId = requestAnimationFrame(tick);
   }
 
-  private processFrame(hands: Landmark[][], now: number, observedHands: Landmark[][]) {
+  private processFrame(hands: Landmark[][], now: number) {
     const rawPose = combinePoses(hands.map(classifyPose));
     const pose = this.smoother.push(rawPose);
     this.setStatus(hands.length > 0 ? "TRACKING" : "NO_HAND");
 
     if (this.struggling) {
       if (this.pumps.update(rawPose)) this.emitActions(["STRUGGLE_PUSH"], now);
-      this.notify(pose, rawPose, hands, now, 0, 0, false);
+      this.notify(pose, rawPose, hands, now);
       return;
     }
 
-    const video = this.video;
-    const aspect = video && video.videoHeight ? video.videoWidth / video.videoHeight : 4 / 3;
-    let sixSeven;
-    if (this.poseLandmarker) {
-      sixSeven = this.armSixSeven.update(this.pose, observedHands, now, aspect);
-      this.sixSevenStatus = sixSeven.status;
-    } else {
-      // Held landmarks smooth static poses, but cannot prove motion or a deliberate stop.
-      sixSeven = this.sixSeven.update(observedHands, now, aspect);
-      this.sixSevenStatus = "HAND_FALLBACK";
-    }
-    // While doing 6-7, palms-up hands must not read as shield/ultimate.
-    const { state, actions } = stepGesture(this.gestureState, sixSeven.engaged ? "UNKNOWN" : pose, now, this.timings);
+    const { state, actions } = stepGesture(this.gestureState, pose, now, this.timings);
     this.gestureState = state;
     this.emitActions(actions, now);
-    if (sixSeven.castPower !== null) {
-      for (const listener of this.actionListeners) listener({ action: "SIX_SEVEN_CAST", localTimestampMs: now, power: sixSeven.castPower });
-    }
-    this.notify(pose, rawPose, hands, now, sixSeven.charge, sixSeven.swapsPerSec, sixSeven.palmsUp);
+    this.notify(pose, rawPose, hands, now);
   }
 
-  private notify(pose: HandPose, rawPose: HandPose, hands: Landmark[][], now: number, sixSevenCharge: number, sixSevenSpeed: number, palmsUp: boolean) {
+  private notify(pose: HandPose, rawPose: HandPose, hands: Landmark[][], now: number) {
     for (const listener of this.observationListeners) {
-      listener({ pose, rawPose, status: this.status, hand: this.hand, sixSevenCharge, sixSevenSpeed, palmsUp, timestampMs: now });
+      listener({ pose, rawPose, status: this.status, hand: this.hand, timestampMs: now });
     }
 
     this.frameTimes.push(now);
     while (this.frameTimes.length > 0 && now - this.frameTimes[0] > 1000) this.frameTimes.shift();
     for (const listener of this.debugListeners) {
-      listener({ hands, pose: this.pose, sixSevenStatus: this.sixSevenStatus, fps: this.frameTimes.length, state: this.struggling ? "STRUGGLE" : this.gestureState.kind });
+      listener({ hands, fps: this.frameTimes.length, state: this.struggling ? "STRUGGLE" : this.gestureState.kind });
     }
   }
 
@@ -283,8 +217,6 @@ export class GestureController {
     this.gestureState = { kind: "IDLE" };
     this.smoother.reset();
     this.stabilizer.reset();
-    this.sixSeven.reset();
-    this.armSixSeven.reset();
   }
 
   private handleTrackEnded = () => {
@@ -309,14 +241,13 @@ export class GestureController {
     this.video = null;
     this.lastVideoTime = -1;
     this.frameTimes = [];
-    this.pose = null;
   }
 
   private setStatus(status: TrackingStatus) {
     if (status === this.status) return;
     this.status = status;
     for (const listener of this.observationListeners) {
-      listener({ pose: "NONE", rawPose: "NONE", status, sixSevenCharge: 0, sixSevenSpeed: 0, palmsUp: false, timestampMs: performance.now() });
+      listener({ pose: "NONE", rawPose: "NONE", status, timestampMs: performance.now() });
     }
   }
 }

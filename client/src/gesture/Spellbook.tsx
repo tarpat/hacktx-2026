@@ -41,13 +41,6 @@ const ENTRIES: Entry[] = [
     title: `${spells.ultimate.name} · Ultimate`,
     effect: `${spells.ultimate.damage} damage · needs a full meter`,
   },
-  {
-    gesture: "🫴 ↕ 🫴",
-    how: "Elbows by your sides, forearms raised, palms up (keep elbows and hands in frame). Alternate one hand up as the other goes down. Faster = more charge. Hold still to fire",
-    spell: "sixSeven",
-    title: "Six Seven",
-    effect: `Up to ${spells.sixSeven.damage} damage · ${seconds(spells.sixSeven.cooldownMs)} cooldown`,
-  },
 ];
 
 /** Gesture cheat sheet shown under the practice arena. Numbers come from the engine config. */
