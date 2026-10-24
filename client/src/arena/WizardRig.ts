@@ -42,7 +42,7 @@ interface Keyframe {
 export type RigAction = "throw" | "ultimate" | "shield" | "hit";
 
 /** Milliseconds from the start of a cast animation to the moment the spell leaves the hand. */
-export const RELEASE_MS: Record<Exclude<SpellId, "shield">, number> = { fireball: 340, ice: 340, ultimate: 500, sixSeven: 500 };
+export const RELEASE_MS: Record<Exclude<SpellId, "shield">, number> = { fireball: 340, ice: 340, ultimate: 500 };
 
 // Gather the spell at the chest, coil back with the front knee up, whip the arm through as
 // the front foot plants, follow through, then settle back to idle.

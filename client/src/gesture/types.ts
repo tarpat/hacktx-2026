@@ -10,7 +10,6 @@ export type GestureAction =
   | "ULTIMATE_CAST"
   | "SHIELD_CAST"
   | "ICE_CAST"
-  | "SIX_SEVEN_CAST"
   /** One fist pump during a spell struggle. */
   | "STRUGGLE_PUSH";
 
@@ -23,8 +22,6 @@ export interface GestureActionEvent {
   /** performance.now() clock; local only, never use for cross-device ordering. */
   localTimestampMs: number;
   hand?: Handedness;
-  /** Charge power (0–1) for SIX_SEVEN_CAST. */
-  power?: number;
 }
 
 export interface GestureObservation {
@@ -34,12 +31,6 @@ export interface GestureObservation {
   rawPose: HandPose;
   status: TrackingStatus;
   hand?: Handedness;
-  /** Six Seven charge bar, 0–1. */
-  sixSevenCharge: number;
-  /** Current 6-7 bobbing speed, swaps per second. */
-  sixSevenSpeed: number;
-  /** Both palms read as facing up (the 6-7 stance). */
-  palmsUp: boolean;
   timestampMs: number;
 }
 

@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { DEFAULT_MATCH_CONFIG, opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile, type SpellId } from "@spellcaster/shared";
+import { opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile, type SpellId } from "@spellcaster/shared";
 import { arenaTextures, art, palette, spellColor, textureUrl, wizardStyle } from "../theme";
 import { MAP_ORDER, MAPS, type MapId } from "./maps";
 import { RELEASE_MS, WizardRig } from "./WizardRig";
@@ -51,15 +51,12 @@ const PROJECTILE_ART: Record<Exclude<SpellId, "shield">, { key: string; originX:
   fireball: { key: "fireball", originX: 0.66, size: 150 },
   ice: { key: "ice", originX: 0.67, size: 130 },
   ultimate: { key: "fulmen", originX: 0.68, size: 230 },
-  // Six Seven has no dedicated art yet; the clash sparkle reads as a charged orb.
-  sixSeven: { key: "clash", originX: 0.5, size: 150 },
 };
 
 const IMPACT_ART: Record<Exclude<SpellId, "shield">, { key: string; size: number }> = {
   fireball: { key: "fireball-impact", size: 230 },
   ice: { key: "hit-sparks", size: 210 },
   ultimate: { key: "fulmen-impact", size: 340 },
-  sixSeven: { key: "clash", size: 320 },
 };
 
 /** The server's synced stage wins online; practice uses the locally picked map. */
@@ -289,7 +286,7 @@ export class ArenaScene extends Phaser.Scene {
       // Tilt along the arc so the trail streams out behind the orb.
       const slope = -Math.cos(t * Math.PI) * 0.25;
       view.node.setPosition(x, y).setRotation(view.node.flipX ? -slope : slope);
-      if (projectile.spell === "ice" || projectile.spell === "sixSeven") view.node.setRotation(now / 120);
+      if (projectile.spell === "ice") view.node.setRotation(now / 120);
       view.trail.setPosition(x, y);
       this.lastPositions.set(projectile.id, { x, y });
     }
@@ -300,9 +297,7 @@ export class ArenaScene extends Phaser.Scene {
     const look = PROJECTILE_ART[projectile.spell as keyof typeof PROJECTILE_ART];
     const towardRight = this.anchor(projectile.owner).facing === 1;
     const node = this.add.image(0, 0, look.key).setDepth(6);
-    // Six Seven grows with its charge (damage scales with power).
-    const charge = projectile.spell === "sixSeven" ? 0.45 + 0.75 * (projectile.damage / DEFAULT_MATCH_CONFIG.spells.sixSeven.damage) : 1;
-    const size = look.size * this.unit * charge * (projectile.empowered ? 1.3 : 1);
+    const size = look.size * this.unit * (projectile.empowered ? 1.3 : 1);
     node.setScale(size / node.width);
     node.setFlipX(!towardRight);
     node.setOrigin(towardRight ? look.originX : 1 - look.originX, 0.5);
@@ -329,8 +324,7 @@ export class ArenaScene extends Phaser.Scene {
           rig.play("shield", time);
           break;
         }
-        const twoHanded = event.spell === "ultimate" || event.spell === "sixSeven";
-        rig.play(twoHanded ? "ultimate" : "throw", time, {
+        rig.play(event.spell === "ultimate" ? "ultimate" : "throw", time, {
           color,
           releaseMs: RELEASE_MS[event.spell],
           onRelease: () => {

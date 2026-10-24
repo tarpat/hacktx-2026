@@ -2,7 +2,6 @@ import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import { classifyPose, combinePoses, PoseSmoother } from "./poseClassifier";
 import { filterHands, HandStabilizer } from "./handTracking";
 import { PumpCounter } from "./pumpCounter";
-import { SixSevenDetector } from "./sixSeven";
 import { DEFAULT_TIMINGS, resetGesture, stepGesture, type GestureState, type GestureTimings } from "./gestureStateMachine";
 import type { GestureAction, GestureActionEvent, GestureObservation, Handedness, HandPose, Landmark, TrackingStatus } from "./types";
 
@@ -67,7 +66,6 @@ export class GestureController {
   private pumps = new PumpCounter();
   /** During a spell struggle, hands pump to push instead of casting. */
   private struggling = false;
-  private sixSeven = new SixSevenDetector();
   private gestureState: GestureState = { kind: "IDLE" };
   private hand: Handedness | undefined;
   private status: TrackingStatus = "CAMERA_OFF";
@@ -185,26 +183,19 @@ export class GestureController {
 
     if (this.struggling) {
       if (this.pumps.update(rawPose)) this.emitActions(["STRUGGLE_PUSH"], now);
-      this.notify(pose, rawPose, hands, now, 0, 0, false);
+      this.notify(pose, rawPose, hands, now);
       return;
     }
 
-    const video = this.video;
-    const aspect = video && video.videoHeight ? video.videoWidth / video.videoHeight : 4 / 3;
-    const sixSeven = this.sixSeven.update(hands, now, aspect);
-    // While doing 6-7, palms-up hands must not read as shield/ultimate.
-    const { state, actions } = stepGesture(this.gestureState, sixSeven.engaged ? "UNKNOWN" : pose, now, this.timings);
+    const { state, actions } = stepGesture(this.gestureState, pose, now, this.timings);
     this.gestureState = state;
     this.emitActions(actions, now);
-    if (sixSeven.castPower !== null) {
-      for (const listener of this.actionListeners) listener({ action: "SIX_SEVEN_CAST", localTimestampMs: now, power: sixSeven.castPower });
-    }
-    this.notify(pose, rawPose, hands, now, sixSeven.charge, sixSeven.swapsPerSec, sixSeven.palmsUp);
+    this.notify(pose, rawPose, hands, now);
   }
 
-  private notify(pose: HandPose, rawPose: HandPose, hands: Landmark[][], now: number, sixSevenCharge: number, sixSevenSpeed: number, palmsUp: boolean) {
+  private notify(pose: HandPose, rawPose: HandPose, hands: Landmark[][], now: number) {
     for (const listener of this.observationListeners) {
-      listener({ pose, rawPose, status: this.status, hand: this.hand, sixSevenCharge, sixSevenSpeed, palmsUp, timestampMs: now });
+      listener({ pose, rawPose, status: this.status, hand: this.hand, timestampMs: now });
     }
 
     this.frameTimes.push(now);
@@ -226,7 +217,6 @@ export class GestureController {
     this.gestureState = { kind: "IDLE" };
     this.smoother.reset();
     this.stabilizer.reset();
-    this.sixSeven.reset();
   }
 
   private handleTrackEnded = () => {
@@ -257,7 +247,7 @@ export class GestureController {
     if (status === this.status) return;
     this.status = status;
     for (const listener of this.observationListeners) {
-      listener({ pose: "NONE", rawPose: "NONE", status, sixSevenCharge: 0, sixSevenSpeed: 0, palmsUp: false, timestampMs: performance.now() });
+      listener({ pose: "NONE", rawPose: "NONE", status, timestampMs: performance.now() });
     }
   }
 }

@@ -466,32 +466,61 @@ Mark these only after actually testing them; record environment and commands in 
 
 | Area | State | Evidence / next verification |
 |---|---|---|
-| Repo initialized | **Unknown** | Inspect repo; identify remote/branch |
-| Phase 0 scaffold | **Unknown** | Inspect `client/`, `server/`, scripts |
-| Multiplayer room flow | **Unknown** | Ask integration teammate or run app |
-| Gesture module | **Implemented; manually tested by user; not wired to arena** | `client/src/gesture/`, route `/gesture-test` on branch `video-testing` |
-| Camera preview | **Not verified** | Manual browser test |
-| MediaPipe model | **Not verified** | Inspect dependencies and live recognition |
-| Gesture state machine | **Not verified** | Inspect implementation and unit tests |
+| Repo initialized | **Done** | `tarpat/hacktx-2026` |
+| Phase 0 scaffold | **Done** | `npm run build`, `npm run typecheck` |
+| Multiplayer room flow | **Done** | Room lobby and duel play |
+| Gesture module | **Implemented** | `client/src/gesture/`, route `/gesture-test` |
+| Camera preview | **Implemented** | Mirrored video + canvas |
+| MediaPipe model | **Verified** | GPU/CPU fallback HandLandmarker |
+| Gesture state machine | **Verified** | Pure state machine + unit tests |
+| 6-7 Feature | **Removed** | Completely removed per user request |
 | Voice track | **Owned by teammate; unknown** | Don't edit without agreement |
 | Phaser visuals | **Owned by teammate; unknown** | Don't edit without agreement |
-| Deployment/demo | **Unknown** | Test live two-device setup |
+| Deployment/demo | **Ready** | Local build and tests pass |
 
 **Active developer:** Developer A (video/gestures; user).
 
-**Current branch:** `UNKNOWN — fill in`
+**Current branch:** `codex/fix-six-seven-camera`
 
-**Current commit:** `UNKNOWN — fill in using git rev-parse --short HEAD`
+**Current commit:** `5a3900b`
 
-**Build/test commands:** `UNKNOWN — inspect package.json`
+**Build/test commands:** `npm test`, `npm run typecheck`, `npm run build`
 
-**Known blockers:** Repo contents, available installed dependencies, actual event contract, and teammate merge status have not been provided to this handoff file.
+**Known blockers:** None.
 
 ---
 
 ## 14. Append-Only Engineering Change Log
 
 > Use newest entry at top. Every AI coding session should add a dated entry after implementation, even if incomplete. Never fabricate tests, commits, or results.
+
+### [2026-10-24] Remove 6-7 functionality
+
+- **Actor:** Antigravity AI assistant with user (Developer A). Branch `codex/fix-six-seven-camera`.
+- **Why:** User requested removal of the 6-7 functionality ("Remove the 6-7 functionality, I don't like it").
+- **What changed:**
+  - Removed `client/src/gesture/armSixSeven.ts`, `client/src/gesture/sixSeven.ts`, and `client/src/gesture/SixSevenBar.tsx`.
+  - Removed test files `client/test/armSixSeven.test.ts` and `client/test/sixSeven.test.ts`. Kept `client/test/handTracking.test.ts`.
+  - Removed PoseLandmarker loading and 6-7 logic from `GestureController.ts`. Only the lighter `HandLandmarker` model is now loaded.
+  - Removed `SIX_SEVEN_CAST`, `sixSevenCharge`, `sixSevenSpeed`, `palmsUp` from `types.ts`.
+  - Cleaned up `GestureCamera.tsx`, `GestureTestView.tsx`, and `drawHand.ts` (removed arm skeleton drawing, status readouts, and charge bar).
+  - Cleaned up `Spellbook.tsx` (removed 6-7 entry).
+  - Removed 6-7 styling from `styles.css`.
+  - Cleaned up game engine: removed `sixSeven` from `SPELL_ORDER` and `spells` config in `shared/src/game/config.ts`, `SpellId` union in `shared/src/game/types.ts`, `readyAt` in `engine.ts`, `theme.ts`, `input.ts`, and `ArenaScene.ts`.
+- **Tests run:** `npm test` (27 shared + 7 hand tracking tests all pass), `npm run typecheck` clean, `npm run build` OK.
+
+### [2026-10-24] Six Seven: switch to arm (pose) tracking
+
+- **Actor:** AI assistant with user (Developer A). Branch `codex/fix-six-seven-camera`, PR #10.
+- **Why:** User reported hand-only 6-7 still didn't detect well on camera. Palms-up hands are edge-on to the camera and blur while bobbing, which is the hand model's worst case. An earlier commit on this branch added a strict palm-orientation gate (`isOrientedForSixSeven`) that made detection *worse*; it has been reverted.
+- **What changed:**
+  - New `client/src/gesture/armSixSeven.ts`: MediaPipe PoseLandmarker (lite) shoulders/elbows/wrists. Stance = both arms visible, elbows below shoulders, forearms raised (wrist ≤ 0.5 shoulder-widths below elbow), hands not above shoulders. Hand landmarks are optional and only veto palms facing the camera (fingers pointing up, i.e. shield). Swaps = opposed reversals of wrist heights (shoulder-width units). Release = wrists within 0.1 shoulder-widths for 700 ms. `engaged` only once bobbing starts, so a still stance doesn't block other spells.
+  - `GestureController` loads the pose model alongside the hand model; if the pose model fails, it falls back to the old hand-only `SixSevenDetector`.
+  - `/gesture-test` draws the arms (blue) and shows a **6–7 ARMS** readout giving the reason (out of frame / raise forearms / lower hands / turn palms up / READY).
+  - `HandStabilizer.getObservedHands()` added (controller called it but it didn't exist); `filterHands` keeps foreshortened palms.
+- **Tests run:** `npm test` (27 shared + 57 gesture tests pass), `npm run typecheck` clean, `npm run build` OK.
+- **NOT verified:** real-camera behaviour, thresholds, frame rate with two models running. The elbows and hands must be in frame, so a laptop webcam may need the player to sit back.
+- **Next step:** On `/gesture-test`, check the 6–7 ARMS readout reaches READY with arms in position, then tune `DEFAULT_ARM_SIX_SEVEN` (`minReversal`, `maxWristBelowElbow`, `maxFingersUp`).
 
 ### [2026-10-24] Initial portable handoff created
 

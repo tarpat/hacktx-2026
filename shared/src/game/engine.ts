@@ -18,7 +18,7 @@ function createPlayer(slot: PlayerSlot, config: MatchConfig): PlayerState {
     hp: config.maxHp,
     maxHp: config.maxHp,
     ultimate: 0,
-    readyAt: { fireball: 0, shield: 0, ice: 0, ultimate: 0, sixSeven: 0 },
+    readyAt: { fireball: 0, shield: 0, ice: 0, ultimate: 0 },
     shieldUntil: 0,
     frozenUntil: 0,
     empoweredUntil: 0,

@@ -34,7 +34,6 @@ export const spellColor: Record<SpellId, number> = {
   shield: palette.gold,
   ice: palette.frost,
   ultimate: palette.gold,
-  sixSeven: palette.rose,
 };
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}.png`;
@@ -63,4 +62,4 @@ export const arenaTextures = [
 export const textureUrl = asset;
 
 /** Emoji stand-ins for spells without illustrated art. */
-export const spellGlyph: Record<SpellId, string> = { fireball: "🔥", shield: "🛡️", ice: "❄️", ultimate: "⚡", sixSeven: "🫴" };
+export const spellGlyph: Record<SpellId, string> = { fireball: "🔥", shield: "🛡️", ice: "❄️", ultimate: "⚡" };

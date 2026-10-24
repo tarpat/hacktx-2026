@@ -1,6 +1,6 @@
 export type PlayerSlot = "A" | "B";
 
-export type SpellId = "fireball" | "shield" | "ice" | "ultimate" | "sixSeven";
+export type SpellId = "fireball" | "shield" | "ice" | "ultimate";
 export type PowerUpId = "empower" | "haste" | "heal";
 
 export type MatchPhase = "countdown" | "active" | "suddenDeath" | "finished";
