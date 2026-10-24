@@ -290,7 +290,7 @@ export class ArenaScene extends Phaser.Scene {
     const rig = new WizardRig(this, slot);
     const body = rig.container;
     const shield = this.sized("shield", 3, -65, 150).setVisible(false);
-    const frost = this.sized("frozen", 1, -68, 155).setVisible(false);
+    const frost = this.sized("frozen", 1, -76, 185).setVisible(false);
     const empower = this.sized("empower", 0, -162, 40).setVisible(false);
     root.add([shadow, aura, haste, body, shield, frost, empower]);
     return { root, body, rig, shield, frost, aura, empower, haste, transformed: null, fallen: false };
@@ -340,8 +340,9 @@ export class ArenaScene extends Phaser.Scene {
     view.frost.setVisible(now < player.frozenUntil);
 
     const charged = player.ultimate >= 100;
-    view.aura.setVisible(charged);
-    if (charged) view.aura.setScale(base(view.aura) * (1 + Math.sin(now / 160) * 0.05)).setAlpha(0.75 + Math.sin(now / 160) * 0.2);
+    // The big aura sprite stayed on for as long as the Fulmen meter was full (Incendio casts fill it),
+    // which read as a stuck graphic. "Ultimate ready" is shown by the HUD meter and the staff glow instead.
+    view.aura.setVisible(false);
 
     const empowered = now < player.empoweredUntil;
     view.empower.setVisible(empowered);
