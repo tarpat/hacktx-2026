@@ -24,6 +24,48 @@ interface ProjectileView {
   trail: Phaser.GameObjects.Particles.ParticleEmitter;
 }
 
+interface PlatformSpec {
+  x: number;
+  y: number;
+  width: number;
+  depth: number;
+}
+
+interface StageLayout {
+  spawnY: number;
+  platforms: readonly PlatformSpec[];
+}
+
+const STAGE_LAYOUTS: readonly StageLayout[] = [
+  {
+    spawnY: 0.72,
+    platforms: [
+      { x: 0.08, y: 0.72, width: 0.84, depth: 22 },
+      { x: 0.23, y: 0.49, width: 0.23, depth: 14 },
+      { x: 0.54, y: 0.49, width: 0.23, depth: 14 },
+      { x: 0.41, y: 0.31, width: 0.18, depth: 11 },
+    ],
+  },
+  {
+    spawnY: 0.72,
+    platforms: [
+      { x: 0.05, y: 0.72, width: 0.9, depth: 22 },
+      { x: 0.14, y: 0.5, width: 0.24, depth: 14 },
+      { x: 0.62, y: 0.5, width: 0.24, depth: 14 },
+      { x: 0.38, y: 0.34, width: 0.24, depth: 11 },
+    ],
+  },
+  {
+    spawnY: 0.72,
+    platforms: [
+      { x: 0.1, y: 0.72, width: 0.8, depth: 22 },
+      { x: 0.13, y: 0.51, width: 0.26, depth: 14 },
+      { x: 0.61, y: 0.45, width: 0.26, depth: 14 },
+      { x: 0.39, y: 0.29, width: 0.22, depth: 11 },
+    ],
+  },
+];
+
 const SPARK = "spark";
 
 /** Renders match state; it owns no game rules and never decides outcomes. */
@@ -33,6 +75,9 @@ export class ArenaScene extends Phaser.Scene {
   private wizards = {} as Record<PlayerSlot, WizardView>;
   private projectiles = new Map<string, ProjectileView>();
   private lastPositions = new Map<string, { x: number; y: number }>();
+  private stageObjects: Phaser.GameObjects.GameObject[] = [];
+  private layoutIndex: number | null = null;
+  private previousPhase: MatchState["phase"] | null = null;
   private unit = 1;
 
   constructor(getFrame: () => ArenaFrame) {
@@ -60,6 +105,11 @@ export class ArenaScene extends Phaser.Scene {
   update() {
     const { state, now } = this.getFrame();
     if (!state) return;
+    if (this.previousPhase === "finished" && state.phase === "countdown") {
+      this.chooseNextLayout();
+      this.drawStageLayout();
+    }
+    this.previousPhase = state.phase;
     for (const event of this.queue.splice(0)) this.react(event);
     for (const slot of ["A", "B"] as PlayerSlot[]) this.updateWizard(slot, state, now);
     this.updateProjectiles(state.projectiles, now);
@@ -70,7 +120,8 @@ export class ArenaScene extends Phaser.Scene {
   private anchor(slot: PlayerSlot) {
     const { width, height } = this.scale;
     const left = this.getFrame().leftSlot === slot;
-    return { x: width * (left ? 0.2 : 0.8), y: height * 0.8, facing: left ? 1 : -1 };
+    const spawnY = STAGE_LAYOUTS[this.layoutIndex ?? 0].spawnY;
+    return { x: width * (left ? 0.2 : 0.8), y: height * spawnY, facing: left ? 1 : -1 };
   }
 
   /** Where spells leave the staff and where they strike. */
@@ -82,6 +133,8 @@ export class ArenaScene extends Phaser.Scene {
   private build() {
     const { width, height } = this.scale;
     this.unit = Math.max(0.55, Math.min(1.3, height / 520));
+    if (this.layoutIndex === null) this.layoutIndex = Math.floor(Math.random() * STAGE_LAYOUTS.length);
+    this.stageObjects = [];
     this.projectiles.clear();
     this.lastPositions.clear();
     this.drawBackdrop(width, height);
@@ -120,13 +173,64 @@ export class ArenaScene extends Phaser.Scene {
       castle.fillRoundedRect(width * 0.5 + dx * u, base - dy * u, 10 * u, 16 * u, 4 * u);
     }
 
-    const ground = this.add.graphics();
-    ground.fillStyle(palette.plum, 1);
-    ground.fillEllipse(width * 0.5, height * 0.86, width * 1.3, height * 0.3);
-    ground.fillStyle(palette.dusk, 1);
-    ground.fillEllipse(width * 0.5, height * 0.95, width * 1.4, height * 0.25);
-    ground.lineStyle(2, palette.gold, 0.25);
-    ground.strokeEllipse(width * 0.5, height * 0.86, width * 0.9, height * 0.14);
+    const lowerGround = this.add.graphics();
+    lowerGround.fillStyle(palette.plum, 0.42);
+    lowerGround.fillEllipse(width * 0.5, height * 0.96, width * 1.35, height * 0.22);
+    lowerGround.lineStyle(2, palette.gold, 0.12);
+    lowerGround.strokeEllipse(width * 0.5, height * 0.94, width * 0.9, height * 0.12);
+    this.drawStageLayout();
+  }
+
+  private chooseNextLayout() {
+    const choices = STAGE_LAYOUTS.map((_, index) => index).filter((index) => index !== this.layoutIndex);
+    this.layoutIndex = choices[Math.floor(Math.random() * choices.length)];
+  }
+
+  private drawStageLayout() {
+    for (const object of this.stageObjects) object.destroy();
+    this.stageObjects = [];
+    const { width, height } = this.scale;
+    const layout = STAGE_LAYOUTS[this.layoutIndex ?? 0];
+    for (const [index, spec] of layout.platforms.entries()) {
+      this.drawPlatform(
+        width * spec.x,
+        height * spec.y,
+        width * spec.width,
+        spec.depth * this.unit,
+        index === 0,
+      );
+    }
+  }
+
+  private drawPlatform(x: number, y: number, width: number, depth: number, main: boolean) {
+    const u = this.unit;
+    const shadow = this.add.ellipse(x + width * 0.5, y + depth + 19 * u, width * 0.92, depth * 2.2, 0x000000, 0.28);
+    const platform = this.add.graphics();
+    const inset = (main ? 18 : 10) * u;
+
+    platform.fillStyle(palette.night2, 0.98);
+    platform.fillPoints([
+      new Phaser.Geom.Point(x, y + 8 * u),
+      new Phaser.Geom.Point(x + width, y + 8 * u),
+      new Phaser.Geom.Point(x + width - inset, y + depth + 8 * u),
+      new Phaser.Geom.Point(x + inset, y + depth + 8 * u),
+    ], true);
+    platform.fillStyle(palette.plum, 1);
+    platform.fillPoints([
+      new Phaser.Geom.Point(x + inset, y + 10 * u),
+      new Phaser.Geom.Point(x + width - inset, y + 10 * u),
+      new Phaser.Geom.Point(x + width - inset - 12 * u, y + depth + 7 * u),
+      new Phaser.Geom.Point(x + inset + 12 * u, y + depth + 7 * u),
+    ], true);
+
+    platform.fillStyle(palette.dusk, 1);
+    platform.fillRoundedRect(x, y, width, 10 * u, 5 * u);
+    platform.fillStyle(palette.mint, 0.92);
+    platform.fillRoundedRect(x + 5 * u, y, Math.max(0, width - 10 * u), 3 * u, 2 * u);
+    platform.lineStyle(1.5 * u, palette.gold, main ? 0.42 : 0.24);
+    platform.lineBetween(x + inset, y + 11 * u, x + width - inset, y + 11 * u);
+
+    this.stageObjects.push(shadow, platform);
   }
 
   private makeWizard(slot: PlayerSlot): WizardView {
