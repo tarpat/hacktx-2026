@@ -177,6 +177,61 @@ function crackle(start: number, duration: number, count: number, freq = 1500) {
 const note = (semitonesFromA4: number) => 440 * 2 ** (semitonesFromA4 / 12);
 const C5 = note(3), C6 = note(15);
 
+// ---------- audio clip loading ----------
+
+const audioCache = new Map<string, Promise<AudioBuffer | null>>();
+
+function loadBuffer(url: string, ac: AudioContext): Promise<AudioBuffer | null> {
+  let promise = audioCache.get(url);
+  if (!promise) {
+    promise = fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.arrayBuffer();
+      })
+      .then((data) => ac.decodeAudioData(data))
+      .catch((err) => {
+        console.warn(`Failed to load audio from ${url}:`, err);
+        return null;
+      });
+    audioCache.set(url, promise);
+  }
+  return promise;
+}
+
+export function preloadClips() {
+  const ac = audio();
+  if (!ac) return;
+  for (const file of ["funky.mp3", "hog_raida.mp3", "get_out.mp3"]) {
+    void loadBuffer(`${import.meta.env.BASE_URL}assets/${file}`, ac);
+  }
+}
+
+function playClip(filename: string, duration = 3, volume = 0.85) {
+  const ac = audio();
+  if (!ac || !sfxBus) return;
+  const url = `${import.meta.env.BASE_URL}assets/${filename}`;
+  void loadBuffer(url, ac).then((buffer) => {
+    if (!buffer || !sfxBus || !ctx) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const gain = ctx.createGain();
+    const t = ctx.currentTime;
+    const playLength = Math.min(buffer.duration, duration);
+    const fadeOut = Math.min(0.08, playLength * 0.1);
+
+    gain.gain.setValueAtTime(volume, t);
+    if (playLength < buffer.duration) {
+      gain.gain.setValueAtTime(volume, t + playLength - fadeOut);
+      gain.gain.linearRampToValueAtTime(0.0001, t + playLength);
+    }
+
+    src.connect(gain).connect(sfxBus);
+    src.start(t, 0, playLength);
+    src.stop(t + playLength);
+  });
+}
+
 // ---------- effects ----------
 
 export const sfx = {
@@ -190,22 +245,22 @@ export const sfx = {
     boom(0, 0.7);
     rumble(0, 1.2, 0.3);
   },
+  fireball() {
+    playClip("hog_raida.mp3", 3);
+  },
+  freeze() {
+    playClip("get_out.mp3", 3);
+  },
+  shield() {
+    playClip("funky.mp3", 3);
+  },
   cast(spell: SpellId) {
     if (spell === "fireball") {
-      // Flame bursting out: a low whump and a broadband roar that tails off.
-      noise(0, 0.15, { from: 250, to: 120, volume: 0.6, type: "lowpass" });
-      noise(0, 0.8, { from: 1200, to: 400, volume: 0.45, q: 0.4 });
-      crackle(0.05, 0.6, 12, 1200);
+      sfx.fireball();
     } else if (spell === "ice") {
-      // A cold, sharp blast with crystal fractures.
-      noise(0, 0.5, { from: 6000, to: 3000, volume: 0.25, type: "highpass" });
-      noise(0, 0.12, { from: 800, to: 300, volume: 0.35, type: "lowpass" });
-      crackle(0, 0.35, 10, 5000);
+      sfx.freeze();
     } else if (spell === "shield") {
-      // A barrier snapping up: a soft pressure "whoomp" and a low steady hum.
-      noise(0, 0.3, { from: 200, to: 600, volume: 0.45, type: "lowpass" });
-      tone(80, 0, 0.8, { type: "sine", volume: 0.25, attack: 0.05 });
-      tone(160, 0, 0.6, { type: "sine", volume: 0.08, attack: 0.05 });
+      sfx.shield();
     } else if (spell === "ultimate") {
       // A lightning strike: a split-second crack, then thunder rolling away.
       noise(0, 0.06, { from: 9000, to: 4000, volume: 0.7, type: "highpass" });
@@ -467,6 +522,7 @@ export function startMusic() {
 export function installGlobalSound() {
   const unlock = () => {
     startMusic();
+    preloadClips();
     window.removeEventListener("pointerdown", unlock);
     window.removeEventListener("keydown", unlock);
   };
