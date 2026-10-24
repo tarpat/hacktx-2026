@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { SpellId } from "@spellcaster/shared";
 import { startCharge, stopCharge } from "../audio/sound";
 import { spellInput } from "../game/input";
-import { spellGlyph } from "../theme";
+import { art, spellGlyph } from "../theme";
 import { ChargeOrb, type ActiveCharge, type ChargeOutcome } from "./ChargeOrb";
 import { drawHands } from "./drawHand";
 import { GestureController } from "./GestureController";
@@ -19,7 +19,20 @@ const ACTION_SPELLS: Partial<Record<GestureAction, SpellId>> = {
 
 const POSE_LABELS: Partial<Record<HandPose, string>> = { FIST: "✊", OPEN_PALM: "✋", VICTORY: "✌️", BOTH_FISTS: "✊✊", BOTH_PALMS: "🙌" };
 
-const LEGEND = "✊→✋ fireball · ✊✊→🙌 ultimate · ✋ shield · ✌️ ice";
+const LEGEND: { spell: SpellId; pose: string }[] = [
+  { spell: "fireball", pose: "✊→✋" },
+  { spell: "shield", pose: "✋" },
+  { spell: "ice", pose: "✌️" },
+  { spell: "ultimate", pose: "✊✊→🙌" },
+];
+
+/** Hand-skeleton glow: gold at rest, the spell's color while charging. */
+const HAND_COLOR = { idle: "#f6c453", fireball: "#ff8a4c", ultimate: "#fff27a" };
+
+function SpellIcon({ spell }: { spell: SpellId }) {
+  const src = art.spell[spell];
+  return src ? <img src={src} alt="" /> : <span>{spellGlyph[spell]}</span>;
+}
 
 // Remember the opt-in for this tab so the camera follows the player from lobby to arena.
 const STORAGE_KEY = "spellcaster:gestures";
@@ -61,6 +74,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
     let castId = 0;
     // Mirrors `charge` so the action handler can read the current kind without a stale closure.
     let current: ActiveCharge | null = null;
+    let handColor = HAND_COLOR.idle;
     const unsubscribers = [
       controller.onObservation((o) => {
         setStatus(o.status);
@@ -74,11 +88,13 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
           current = { kind, startedAt: current?.startedAt ?? localTimestampMs };
           setChargeOutcome(null);
           setCharge(current);
+          handColor = HAND_COLOR[kind];
           startCharge(kind);
         }
         if (action === "FIREBALL_CAST" || action === "ULTIMATE_CAST" || action === "CHARGE_CANCEL") {
           const kind: ChargeKind = action === "ULTIMATE_CAST" ? "ultimate" : action === "FIREBALL_CAST" ? "fireball" : current?.kind ?? "fireball";
           current = null;
+          handColor = HAND_COLOR.idle;
           setCharge(null);
           stopCharge(action === "CHARGE_CANCEL" ? 0.4 : 0.06);
           setChargeOutcome({ kind, result: action === "CHARGE_CANCEL" ? "fizzle" : "cast" });
@@ -90,7 +106,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
         setLastCast({ id: ++castId, spell });
       }),
       controller.onDebugFrame((frame) => {
-        if (canvasRef.current) drawHands(canvasRef.current, frame.hands);
+        if (canvasRef.current) drawHands(canvasRef.current, frame.hands, handColor);
       }),
     ];
     return () => {
@@ -148,18 +164,28 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
   return (
     <>
     <ChargeOrb charge={charge} outcome={chargeOutcome} ultimateReady={ultimateReady} />
-    <aside className={`gesture-cam${enabled ? " on" : ""}${charging ? " is-charging" : ""}`}>
+    <aside className={`gesture-cam${enabled ? " on" : ""}${charge ? ` is-charging charge-${charge.kind}` : ""}`}>
       <div className="gesture-cam-view" hidden={!enabled}>
         <video ref={videoRef} className="mirrored" autoPlay playsInline muted />
         <canvas ref={canvasRef} className="mirrored" width={640} height={480} />
+        <i className="gesture-cam-corner tl" /><i className="gesture-cam-corner tr" /><i className="gesture-cam-corner bl" /><i className="gesture-cam-corner br" />
         {live && <span className="gesture-cam-label">{label}</span>}
         {lastCast && (
           <span className="gesture-cam-cast" key={lastCast.id}>
-            {spellGlyph[lastCast.spell]}
+            <SpellIcon spell={lastCast.spell} />
           </span>
         )}
       </div>
-      {enabled && <p className="gesture-cam-legend">{LEGEND}</p>}
+      {enabled && (
+        <ul className="gesture-cam-legend">
+          {LEGEND.map(({ spell, pose }) => (
+            <li key={spell} className={spell === "ultimate" && !ultimateReady ? "locked" : ""}>
+              <SpellIcon spell={spell} />
+              <span>{pose}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {error && <p className="gesture-cam-error">{error}</p>}
       <button className="gesture-cam-toggle" onClick={toggle}>
         {enabled ? "Gestures on · turn off" : "🎥 Cast with gestures"}
