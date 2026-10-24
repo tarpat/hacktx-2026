@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Route, Routes, useNavigate } from "react-router-dom";
-import type { RoomSnapshot, SocketError } from "@spellcaster/shared";
+import type { MatchState, RoomSnapshot, SocketError } from "@spellcaster/shared";
 import { socket } from "./socket";
 import { ArenaView } from "./views/ArenaView";
 import { GestureTestView } from "./views/GestureTestView";
@@ -15,14 +15,16 @@ function Lobby() {
     socket.connect();
     socket.emit("CREATE_ROOM", (result) => {
       if ("error" in result) return setError(result.error);
+      sessionStorage.setItem(`spellcaster:${result.room.code}`, result.sessionToken);
       setRoom(result.room);
     });
   };
 
   const joinRoom = () => {
     socket.connect();
-    socket.emit("JOIN_ROOM", code, (result) => {
+    socket.emit("JOIN_ROOM", code, sessionStorage.getItem(`spellcaster:${code}`), (result) => {
       if ("error" in result) return setError((result as SocketError).error);
+      sessionStorage.setItem(`spellcaster:${result.room.code}`, result.sessionToken);
       setRoom(result.room);
     });
   };
@@ -51,11 +53,22 @@ function Lobby() {
 
 function Calibration() {
   const navigate = useNavigate();
+  const [match, setMatch] = useState<MatchState | null>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const onMatch = (state: MatchState) => setMatch(state);
+    const onStart = (state: MatchState) => { setMatch(state); navigate("/arena"); };
+    socket.on("MATCH_STATE", onMatch);
+    socket.on("MATCH_START", onStart);
+    return () => { socket.off("MATCH_STATE", onMatch); socket.off("MATCH_START", onStart); };
+  }, [navigate]);
   return <main className="shell secondary-shell"><header className="topbar"><Link to="/" className="brand-link"><span className="brand-mark">✦</span> SPELLCASTER</Link><span className="step-label">01 / CALIBRATION</span></header>
     <section className="calibration"><p className="eyebrow">BEFORE YOU ENTER</p><h1>Set your spellcraft</h1><p className="intro">Make sure your wand hand is visible. Camera gestures will be calibrated in the next phase.</p>
       <div className="camera-frame"><div className="camera-corners" /><div className="camera-placeholder"><span className="camera-icon">◉</span><strong>CAMERA PREVIEW</strong><span>Camera setup arrives in Phase 1</span></div></div>
       <div className="gesture-row">{["FIST", "OPEN PALM", "TWO FINGERS"].map((gesture, index) => <div className="gesture-card" key={gesture}><span>0{index + 1}</span><strong>{gesture}</strong><i>{index === 0 ? "✊" : index === 1 ? "✋" : "✌"}</i></div>)}</div>
-      <button className="primary-button" onClick={() => navigate("/arena")}>Enter the arena <span>↗</span></button>
+      <button className="primary-button" onClick={() => { socket.emit("READY_STATUS", !ready); setReady(!ready); }}>{ready ? "Ready · waiting for rival" : "Ready to duel"}<span>✦</span></button>
+      {match?.phase === "countdown" && <p className="match-status">Both wizards are ready. The duel begins in {Math.max(1, Math.ceil(((match.countdownEndsAt ?? Date.now()) - Date.now()) / 1000))}…</p>}
+      {match?.phase === "finished" && <p className="match-status">Duel finished. Return to the lobby to start again.</p>}
     </section>
   </main>;
 }

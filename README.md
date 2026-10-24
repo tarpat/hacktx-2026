@@ -13,8 +13,12 @@ The client runs at `http://localhost:5173` and the server at `http://localhost:3
 
 ## Current flow
 
-The lobby creates a five-character room or joins one by code. The server assigns A/B seats, relays ready state, and reserves a disconnected seat for 30 seconds. The lobby then leads through a camera-calibration placeholder into a Phaser arena shell with two wizard silhouettes and a HUD wireframe.
+The lobby creates a five-character room or joins one by code. The server assigns A/B seats, starts a three-second countdown when both players are ready, and runs a server-authoritative 60-second round with 100 HP per player, spell cooldowns, projectile travel, timed shields, damage, and winner determination. Player A stays on the left facing right; Player B stays on the right facing left. A browser session token reserves the seat for 30 seconds and lets a refreshed client restore its slot and match state. The Phaser scene receives accepted spell events and the HUD follows server HP and clock state.
+
+## Planning documents
+
+See [docs/](docs/README.md) for the preserved source report, game design brief, team ownership, Phase 0 record, and integration contract.
 
 ## Phase 0 boundaries
 
-Gesture recognition, camera capture, match simulation, combat authority, and persistent session recovery are follow-on work. The recovery grace period reserves the room slot; reconnect token handoff is not implemented yet.
+Gesture recognition and camera capture are follow-on work. The arena has keyboard and pointer fallback controls; gesture, UI, and audio modules can share `client/src/gameActions.ts` and the Socket.IO event contract in `shared/src/index.ts`.
