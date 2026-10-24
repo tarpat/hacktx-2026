@@ -6,9 +6,24 @@ import { MAP_ORDER, type MapId } from "./arena/maps";
 import { Spellbook } from "./gesture/Spellbook";
 import { setSession, useSession } from "./session";
 import { socket } from "./socket";
+import { art } from "./theme";
 import { ArenaView } from "./views/ArenaView";
 import { GestureTestView } from "./views/GestureTestView";
 import { PracticeView } from "./views/PracticeView";
+
+/** Drifting motes over the home backdrop; positions are fixed so renders don't reshuffle them. */
+const MOTES = Array.from({ length: 24 }, (_, i) => ({
+  left: `${(i * 37) % 100}%`,
+  delay: `${(i * 0.7) % 9}s`,
+  duration: `${9 + (i % 5) * 2}s`,
+  size: `${2 + (i % 3)}px`,
+}));
+
+function HomeBackdrop() {
+  return <div className="home-backdrop" aria-hidden="true" style={{ backgroundImage: `url(${art.background})` }}>
+    {MOTES.map((m, i) => <i key={i} style={{ left: m.left, animationDelay: m.delay, animationDuration: m.duration, width: m.size, height: m.size }} />)}
+  </div>;
+}
 
 function Lobby() {
   const navigate = useNavigate();
@@ -48,8 +63,10 @@ function Lobby() {
   };
 
   return <main className="shell lobby-shell">
+    <HomeBackdrop />
     <header className="topbar"><span className="brand-mark">✦</span><span>SPELLCASTER</span><span className="topbar-note">A DUEL OF WITS & WIZARDRY</span></header>
     <section className="hero">
+      <div className="hero-duelists" aria-hidden="true"><img className="hero-wizard a" src={art.portrait.A} alt="" /><span className="hero-vs">VS</span><img className="hero-wizard b" src={art.portrait.B} alt="" /></div>
       <p className="eyebrow">THE ARENA AWAITS</p><h1>SpellCaster<span>:</span><br />Wizard Duel</h1>
       <p className="intro">Raise your hands. Choose your spell. Outwit a rival in a duel of magic.</p>
       <div className="lobby-card">
@@ -62,6 +79,7 @@ function Lobby() {
         <Link className="practice-link" to="/practice?mode=training">✧ Practice against the training dummy</Link>
       </div>
       <div className="hero-foot"><span>✧</span> TWO WIZARDS. ONE ARENA. <span>✧</span></div>
+      <p className="credits">Spell effects by <a href="https://v-ktor.itch.io/spell-animations">Viktor Hahn</a> (CC BY 4.0), <a href="https://tornadogames.itch.io/magic-sparksattacks-for-the-devs">TornadoGames</a> and <a href="https://kenney.nl/assets/particle-pack">Kenney</a>.</p>
     </section>
     <section className="home-spellbook">
       <p className="eyebrow">YOUR SPELLBOOK</p>

@@ -525,7 +525,7 @@ kbd {
   background: var(--night-2);
 }
 
-.duel-stage.suddenDeath {
+.duel-stage.phase-suddenDeath {
   border-color: var(--berry);
   animation: stage-pulse 1s ease-in-out infinite;
 }
@@ -1106,17 +1106,48 @@ kbd {
   position: relative;
   width: 100%;
   aspect-ratio: 4 / 3;
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
-  background: var(--night);
-  border: 2px solid #f6c45366;
-  box-shadow: 0 8px 24px #0008;
-  transition: box-shadow 0.15s, border-color 0.15s;
+  background: radial-gradient(ellipse at 50% 40%, var(--dusk), var(--night));
+  border: 2px solid #f6c45399;
+  box-shadow: 0 0 0 4px #1c1236, 0 0 0 5px #f6c45344, 0 10px 30px #000a, inset 0 0 30px #5b2a8666;
+  transition: box-shadow 0.2s, border-color 0.2s;
 }
 
+/* Soft vignette so the feed looks like a scrying mirror. */
+.gesture-cam-view:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, #1c1236aa 100%);
+}
+
+.gesture-cam-corner {
+  position: absolute;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--gold);
+  pointer-events: none;
+  filter: drop-shadow(0 0 4px var(--gold));
+}
+.gesture-cam-corner.tl { top: 5px; left: 5px; border-right: 0; border-bottom: 0; border-top-left-radius: 6px; }
+.gesture-cam-corner.tr { top: 5px; right: 5px; border-left: 0; border-bottom: 0; border-top-right-radius: 6px; }
+.gesture-cam-corner.bl { bottom: 5px; left: 5px; border-right: 0; border-top: 0; border-bottom-left-radius: 6px; }
+.gesture-cam-corner.br { bottom: 5px; right: 5px; border-left: 0; border-top: 0; border-bottom-right-radius: 6px; }
+
 .gesture-cam.is-charging .gesture-cam-view {
-  border-color: var(--ember);
-  box-shadow: 0 0 0 3px var(--ember), 0 0 30px #ff7a5988;
+  --charge: var(--ember);
+  border-color: var(--charge);
+  animation: cam-charge 0.8s ease-in-out infinite alternate;
+}
+.gesture-cam.charge-ultimate .gesture-cam-view { --charge: #fff27a; }
+.gesture-cam.is-charging .gesture-cam-corner { border-color: var(--charge); filter: drop-shadow(0 0 6px var(--charge)); }
+
+@keyframes cam-charge {
+  from { box-shadow: 0 0 0 3px var(--charge), 0 0 18px var(--charge); }
+  to { box-shadow: 0 0 0 3px var(--charge), 0 0 40px var(--charge); }
 }
 
 .gesture-cam-view video,
@@ -1130,17 +1161,23 @@ kbd {
 
 .gesture-cam-label {
   position: absolute;
-  left: 6px;
-  bottom: 6px;
-  padding: 2px 8px;
+  z-index: 2;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 3px 10px;
   border-radius: 999px;
-  background: #120d2bcc;
-  color: var(--parchment);
-  font: 700 11px var(--font-body);
+  background: #120d2bdd;
+  border: 1px solid #f6c45355;
+  color: var(--gold-soft);
+  font: 700 10px var(--font-label);
+  letter-spacing: 0.08em;
 }
 
 .gesture-cam-cast {
   position: absolute;
+  z-index: 2;
   inset: 0;
   display: grid;
   place-items: center;
@@ -1148,35 +1185,61 @@ kbd {
   pointer-events: none;
   animation: cast-pop 0.7s ease-out forwards;
 }
+.gesture-cam-cast img {
+  width: 55%;
+  filter: drop-shadow(0 0 12px #fff8);
+}
 
-.gesture-cam-legend,
+.gesture-cam-legend {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  display: flex;
+  gap: 4px;
+  border-radius: 12px;
+  background: #120d2bdd;
+  border: 1px solid #f6c45333;
+}
+.gesture-cam-legend li {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 3px 5px;
+  border-radius: 8px;
+  font: 700 9px var(--font-body);
+  color: var(--mist);
+}
+.gesture-cam-legend img { width: 24px; height: 24px; object-fit: contain; }
+.gesture-cam-legend li.locked { opacity: 0.35; filter: grayscale(1); }
+
 .gesture-cam-error {
   margin: 0;
   padding: 4px 8px;
   border-radius: 10px;
   background: #120d2bcc;
   font: 700 10px var(--font-body);
-  color: var(--mist);
-  text-align: right;
-}
-
-.gesture-cam-error {
   color: #ffc2d1;
+  text-align: right;
   border: 1px solid var(--berry);
 }
 
 .gesture-cam-toggle {
-  border: 1px solid var(--line);
-  background: #120d2bcc;
+  border: 1px solid #f6c45366;
+  background: linear-gradient(180deg, #2e2163, #1d1645);
   color: var(--gold-soft);
   border-radius: 999px;
-  padding: 6px 12px;
-  font: 700 11px var(--font-body);
+  padding: 6px 14px;
+  font: 700 11px var(--font-label);
+  letter-spacing: 0.06em;
   cursor: pointer;
+  box-shadow: 0 4px 14px #0007;
+  transition: transform 0.15s, box-shadow 0.15s;
 }
+.gesture-cam-toggle:hover { transform: translateY(-1px); box-shadow: 0 6px 18px #f6c45333; }
 
 .gesture-cam.on .gesture-cam-toggle {
   color: var(--muted);
+  border-color: var(--line);
 }
 
 @keyframes cast-pop {
@@ -1701,7 +1764,7 @@ img.spell-glyph {
   animation: none;
 }
 
-.duel .duel-stage.suddenDeath {
+.duel .duel-stage.phase-suddenDeath {
   box-shadow: inset 0 0 0 4px var(--berry), inset 0 0 80px #ff4f7b55;
 }
 
@@ -1821,3 +1884,90 @@ img.spell-glyph {
 .sound-toggle:hover {
   border-color: var(--gold);
 }
+
+/* ---------- home backdrop ---------- */
+
+.lobby-shell { position: relative; isolation: isolate; overflow: hidden; }
+.lobby-shell > :not(.home-backdrop) { position: relative; }
+
+.home-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+}
+.home-backdrop:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #1c1236cc 0%, #1c1236ee 55%, var(--night) 100%);
+}
+.home-backdrop i {
+  position: absolute;
+  bottom: -10px;
+  border-radius: 50%;
+  background: var(--gold-soft);
+  box-shadow: 0 0 8px var(--gold);
+  opacity: 0;
+  animation: mote-rise linear infinite;
+}
+@keyframes mote-rise {
+  0% { transform: translate(0, 0); opacity: 0; }
+  15% { opacity: 0.9; }
+  100% { transform: translate(30px, -100vh); opacity: 0; }
+}
+
+.hero-duelists {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.hero-wizard {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid var(--gold);
+  background: var(--night-2);
+  animation: wizard-bob 3.2s ease-in-out infinite;
+}
+.hero-wizard.a { box-shadow: 0 0 24px var(--player-a); }
+.hero-wizard.b { box-shadow: 0 0 24px var(--player-b); animation-delay: -1.6s; }
+.hero-vs {
+  font: 900 22px var(--font-title);
+  color: var(--gold);
+  text-shadow: 0 0 16px var(--ember);
+}
+@keyframes wizard-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.hero h1 {
+  background-size: 100% 200%;
+  animation: title-shimmer 6s ease-in-out infinite alternate;
+}
+@keyframes title-shimmer {
+  from { background-position: 0 0; }
+  to { background-position: 0 100%; }
+}
+
+.lobby-card { backdrop-filter: blur(6px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .home-backdrop i, .hero-wizard, .hero h1, .gesture-cam.is-charging .gesture-cam-view { animation: none; }
+}
+@media (max-width: 600px) {
+  .hero-wizard { width: 60px; height: 60px; }
+}
+
+.credits {
+  margin: 14px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.credits a { color: var(--mist); }

@@ -476,7 +476,7 @@ Mark these only after actually testing them; record environment and commands in 
 | 6-7 Feature | **Removed** | Completely removed per user request |
 | Voice track | **Owned by teammate; unknown** | Don't edit without agreement |
 | Phaser visuals | **Owned by teammate; unknown** | Don't edit without agreement |
-| Deployment/demo | **Ready** | Local build and tests pass |
+| Deployment/demo | **Render setup implemented; cloud activation being verified** | See `render.yaml` and `docs/DEPLOYMENT.md`; local production tests passed. |
 
 **Active developer:** Developer A (video/gestures; user).
 
@@ -493,6 +493,27 @@ Mark these only after actually testing them; record environment and commands in 
 ## 14. Append-Only Engineering Change Log
 
 > Use newest entry at top. Every AI coding session should add a dated entry after implementation, even if incomplete. Never fabricate tests, commits, or results.
+
+### [2026-10-24] Render hosting from latest main; transcription scrapped
+
+- **Branch/base:** `feat/render-hosting` from `main` / `f415fbd`; old audio/voice branches
+  were not merged. Latest platforms, gestures, struggles and combat contracts are preserved.
+- **User request:** Drop speech transcription and host on Render so no laptop needs to run
+  the backend. DuckTrouble's process-based Render deployment was used as a reference.
+- **Changes:** Production Express app serves `client/dist`, health and SPA routes, while
+  missing assets/APIs stay 404. Socket.IO uses the page origin. Vite proxies sockets during
+  dev. Render Blueprint, Node pin, `npm start`, Procfile, graceful signal shutdown, server
+  and built-client browser checks, and deployment docs were added.
+- **Verified:** `npm run build` and type checks pass. `npm test`: 27 engine/struggle tests
+  plus 4 production-server/routing tests pass. Two Chrome production-browser checks pass,
+  including direct-route refresh, no transcription/device auto-capture, same-origin
+  WebSockets and an online fireball changing HP on both clients.
+- **Cloud:** Render account sign-in/verification is user-assisted; live service URL and
+  health are to be confirmed after deployment. The Render plugin is disabled by admin,
+  so activation uses the authenticated dashboard.
+- **Limits:** Free service can sleep; process restart/redeploy loses in-memory rooms. Use
+  one instance and rehearse/warm the service before judging. Real two-device gesture and
+  network tests remain necessary after cloud activation.
 
 ### [2026-10-24] Remove 6-7 functionality
 
@@ -565,6 +586,13 @@ Mark these only after actually testing them; record environment and commands in 
 ---
 
 ## 15. Next Actions — KEEP CURRENT
+
+### Hosting integrator
+
+1. Deploy `feat/render-hosting` on Render using the checked-in commands/environment.
+2. Confirm Live status and the public `/health`, then play from two independent networks.
+3. Merge the hosting changes and point Render at `main` for future team deployments.
+4. Do not reintroduce speech transcription; user explicitly scrapped it.
 
 ### For the next Developer A work session
 

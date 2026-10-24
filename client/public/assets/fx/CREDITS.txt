@@ -1,0 +1,12 @@
+Spell effect art
+
+fireball.png, frostbolt.png, freeze.png
+  "Spell Animations" by Viktor Hahn (https://v-ktor.itch.io/spell-animations)
+  Licensed CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Downscaled and repacked.
+
+explosion.png, sparkle.png
+  "Magic moves/attacks for the DEVS" by TornadoGames
+  (https://tornadogames.itch.io/magic-sparksattacks-for-the-devs). CC0. Downscaled and repacked.
+
+flame-4.png, magic-3.png, star-6.png
+  "Particle Pack" by Kenney (https://kenney.nl/assets/particle-pack). CC0.
