@@ -13,6 +13,17 @@ npm run typecheck
 
 Set `CLIENT_ORIGIN` or `VITE_SERVER_URL` when using a different local setup (for example two laptops on the same Wi-Fi).
 
+## Deploy on Render
+
+The app can run entirely on a Render Web Service: one public URL serves the game and
+its multiplayer server. `render.yaml` contains the deployment settings. Build with
+`npm ci --include=dev && npm run build`, start with `npm start`, and use `/health` as
+the health check. Leave `VITE_SERVER_URL` unset so clients connect to the hosted origin.
+See [deployment instructions](docs/DEPLOYMENT.md) for branch selection and verification.
+
+Speech transcription has been dropped. This branch uses the latest game from `main`
+and does not automatically request a microphone.
+
 ## Playing
 
 - **Online**: lobby → Create a duel / join by code → calibration → ready room → 3-2-1 → duel. After the match both players press Request rematch.
@@ -43,9 +54,9 @@ Set `CLIENT_ORIGIN` or `VITE_SERVER_URL` when using a different local setup (for
 - `client/src/arena/ArenaScene.ts`: Phaser scene that only renders state and reacts to events.
 - `client/src/theme.css` + `client/src/theme.ts`: the fairy-tale palette. Swap hex values there to restyle everything.
 
-## Hooking in gestures and voice
+## Input integration
 
-Everything that triggers an action goes through one function, so the gesture and voice tracks never touch combat code:
+Gesture, keyboard and button actions use the shared input bridge:
 
 ```ts
 import { spellInput } from "./game/input";
@@ -53,7 +64,7 @@ import { spellInput } from "./game/input";
 spellInput.cast("fireball"); // fist held, then open palm release
 spellInput.cast("shield");   // open palm
 spellInput.cast("ice");      // two fingers
-spellInput.powerUp("empower"); // incantation recognized
+spellInput.powerUp("empower"); // explicit power-up input
 ```
 
 It is also exposed as `window.spellcaster` for quick console testing.
