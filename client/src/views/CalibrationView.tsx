@@ -9,7 +9,8 @@ const GESTURE_INFO: { id: string; num: string; name: string; emoji: string; pose
   { id: "fist", num: "01", name: "FIST", emoji: "✊", pose: ["FIST", "BOTH_FISTS"] },
   { id: "palms", num: "02", name: "BOTH PALMS", emoji: "🙌", pose: ["BOTH_PALMS", "OPEN_PALM"] },
   { id: "victory", num: "03", name: "TWO FINGERS", emoji: "✌️", pose: ["VICTORY"] },
-  { id: "point", num: "04", name: "POINT UP", emoji: "☝️", pose: ["POINT"] },
+  { id: "horns", num: "04", name: "HOOK 'EM", emoji: "🤘", pose: ["HORNS"] },
+  { id: "point", num: "05", name: "POINT UP", emoji: "☝️", pose: ["POINT"] },
 ];
 
 export function CalibrationView() {
@@ -26,6 +27,7 @@ export function CalibrationView() {
     fist: false,
     palms: false,
     victory: false,
+    horns: false,
     point: false,
   });
 

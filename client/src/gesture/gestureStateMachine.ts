@@ -25,17 +25,19 @@ export interface GestureTimings {
 }
 
 /** Poses that cast a spell by simply being held (no charge/release). */
-export type HoldPose = "BOTH_PALMS" | "VICTORY";
+export type HoldPose = "BOTH_PALMS" | "VICTORY" | "HORNS";
 
 export const HOLD_ACTIONS: Record<HoldPose, GestureAction> = {
   BOTH_PALMS: "SHIELD_CAST",
   VICTORY: "ICE_CAST",
+  HORNS: "TAURUS_CAST",
 };
 
 /** After a hold spell, these poses stay inert until the hands leave them. */
 const REARM_BLOCKS: Record<HoldPose, HandPose[]> = {
   BOTH_PALMS: ["OPEN_PALM", "BOTH_PALMS"],
   VICTORY: ["VICTORY"],
+  HORNS: ["HORNS"],
 };
 
 export const DEFAULT_TIMINGS: GestureTimings = {
@@ -47,7 +49,7 @@ export const DEFAULT_TIMINGS: GestureTimings = {
   releaseWindowMs: 600,
   pointDropMs: 150,
   recoveryMs: 300,
-  holdMs: { BOTH_PALMS: 250, VICTORY: 300 },
+  holdMs: { BOTH_PALMS: 250, VICTORY: 300, HORNS: 300 },
 };
 
 export type GestureState =

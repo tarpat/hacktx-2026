@@ -26,11 +26,25 @@ interface WizardView {
   empower: Phaser.GameObjects.Image;
   haste: Phaser.GameObjects.Image;
   transformed: Phaser.GameObjects.Container | null;
+  /** The death animation has started for this match. */
+  fallen: boolean;
 }
 
 interface ProjectileView {
   node: Phaser.GameObjects.Sprite;
   trail: Phaser.GameObjects.Particles.ParticleEmitter;
+}
+
+/** Taurus charging along the path: a tinted run cycle, an additive glow copy, drawn horns and a dust wake. */
+interface BullView {
+  body: Phaser.GameObjects.Sprite;
+  glow: Phaser.GameObjects.Sprite;
+  horns: Phaser.GameObjects.Image;
+  dust: Phaser.GameObjects.Particles.ParticleEmitter;
+  embers: Phaser.GameObjects.Particles.ParticleEmitter;
+  /** +1 running right, -1 running left. */
+  dir: number;
+  lastX: number;
 }
 
 /** Fulmen gathering over its target until it strikes. */
@@ -57,7 +71,7 @@ const BG_PATH_Y = 512;
 
 type Bolt = Exclude<SpellId, "shield">;
 /** Bolts thrown across the arena; Fulmen falls from the sky instead. */
-type Thrown = Exclude<Bolt, "ultimate">;
+type Thrown = Exclude<Bolt, "ultimate" | "taurus">;
 
 /**
  * Animated effect sheets in assets/fx. Bolts play a launch, then loop their flight frames;
@@ -71,6 +85,7 @@ const FX_SHEETS = {
   "fx-sparkle": { file: "sparkle", frameWidth: 224, frameHeight: 224 },
   "fx-lightning-strike": { file: "lightning-strike", frameWidth: 256, frameHeight: 256 },
   "fx-lightning-burst": { file: "lightning-burst", frameWidth: 256, frameHeight: 256 },
+  "fx-bull": { file: "bull-run", frameWidth: 222, frameHeight: 162 },
 } as const;
 
 const FX_ANIMS: { key: string; sheet: keyof typeof FX_SHEETS; start: number; end: number; frameRate: number; repeat?: number }[] = [
@@ -83,6 +98,7 @@ const FX_ANIMS: { key: string; sheet: keyof typeof FX_SHEETS; start: number; end
   { key: "sparkle", sheet: "fx-sparkle", start: 0, end: 10, frameRate: 22 },
   { key: "lightning-strike", sheet: "fx-lightning-strike", start: 0, end: 8, frameRate: 20 },
   { key: "lightning-burst", sheet: "fx-lightning-burst", start: 0, end: 8, frameRate: 22 },
+  { key: "bull-run", sheet: "fx-bull", start: 0, end: 6, frameRate: 16, repeat: -1 },
 ];
 
 /** Soft particle textures (Kenney, CC0) tinted per spell for trails and bursts. */
@@ -100,11 +116,21 @@ const PROJECTILE_ART: Record<Thrown, { key: string; launch: string; fly: string;
 /** Fulmen's bolt: a white core inside a pale-blue glow. */
 const LIGHTNING = { core: 0xffffff, glow: 0x9fd8ff };
 
+/** Taurus: burnt orange, with a bright ember highlight and pale horn. */
+const BULL = { orange: 0xbf5700, ember: 0xff8a3c, horn: 0xfff4de, dust: [0xc8a27a, 0x9c7a58, 0xe0c39a] };
+const HORNS = "longhorn-horns";
+/** Where each run frame's head sits (sheet pixels), so the drawn horns ride the gallop. */
+const BULL_HEAD = [[170, 63], [170, 70], [175, 73], [168, 70], [166, 74], [161, 75], [158, 75]];
+const BULL_FRAME = { width: 222, height: 162, feet: 0.95 };
+/** Horn texture size and where the head sits in it. */
+const HORN_TEX = { width: 132, height: 48, headX: 62, headY: 34 };
+
 /** Animated impacts layered on hit; Fulmen's bolt and ground strike are drawn by strike(). */
 const IMPACT_FX: Record<Bolt, { anim: string; size: number; still?: { key: string; size: number } }[]> = {
   fireball: [{ anim: "explosion", size: 180 }],
   ice: [{ anim: "freeze", size: 180 }],
   ultimate: [{ anim: "sparkle", size: 230 }],
+  taurus: [{ anim: "sparkle", size: 200 }],
 };
 
 /** The server's synced stage wins online; practice uses the locally picked map. */
@@ -122,12 +148,12 @@ export class ArenaScene extends Phaser.Scene {
   private lastPositions = new Map<string, { x: number; y: number }>();
   private releases = new Map<string, Release>();
   private storms = new Map<string, StormView>();
+  private bulls = new Map<string, BullView>();
   private gloom!: Phaser.GameObjects.Rectangle;
   private unit = 1;
   private groundY = 0;
   private builtMap: MapId | null = null;
   private builtSize = "";
-  private lastStrugglePushes: number | null = null;
 
   constructor(getFrame: () => ArenaFrame) {
     super("arena");
@@ -164,7 +190,6 @@ export class ArenaScene extends Phaser.Scene {
     for (const event of this.queue.splice(0)) this.react(event, time);
     for (const slot of ["A", "B"] as PlayerSlot[]) this.updateWizard(slot, state, now, time, delta);
     this.updateProjectiles(state.projectiles, now);
-    this.updateStruggle(state.struggle);
   }
 
   // ---------- layout ----------
@@ -195,7 +220,7 @@ export class ArenaScene extends Phaser.Scene {
     this.lastPositions.clear();
     this.releases.clear();
     this.storms.clear();
-    this.lastStrugglePushes = null;
+    this.bulls.clear();
     this.builtMap = mapFor(this.getFrame());
     this.builtSize = this.sizeKey();
     this.drawBackdrop(width, height);
@@ -268,7 +293,7 @@ export class ArenaScene extends Phaser.Scene {
     const frost = this.sized("frozen", 1, -68, 155).setVisible(false);
     const empower = this.sized("empower", 0, -162, 40).setVisible(false);
     root.add([shadow, aura, haste, body, shield, frost, empower]);
-    return { root, body, rig, shield, frost, aura, empower, haste, transformed: null };
+    return { root, body, rig, shield, frost, aura, empower, haste, transformed: null, fallen: false };
   }
 
   /** An image whose larger side is `size` units. */
@@ -288,12 +313,20 @@ export class ArenaScene extends Phaser.Scene {
     view.rig.update(time, delta, now < player.frozenUntil);
     const finishedLoser = state.phase === "finished" && state.winner && state.winner !== slot;
 
-    if (finishedLoser && !view.transformed) return this.transform(slot, state.loserForm);
-    if (finishedLoser) return;
-    if (view.transformed) {
-      view.transformed.destroy();
+    if (finishedLoser) {
+      if (!view.fallen) {
+        view.fallen = true;
+        for (const layer of [view.shield, view.frost, view.aura, view.empower, view.haste]) layer.setVisible(false);
+        view.rig.die(time, () => this.transform(slot, state.loserForm));
+      }
+      return;
+    }
+    if (view.fallen) {
+      view.transformed?.destroy();
       view.transformed = null;
+      view.fallen = false;
       view.body.setVisible(true);
+      view.rig.revive();
     }
 
     const base = (image: Phaser.GameObjects.Image) => image.getData("base") as number;
@@ -322,7 +355,8 @@ export class ArenaScene extends Phaser.Scene {
 
   private updateProjectiles(list: Projectile[], now: number) {
     this.updateStorms(list.filter((p) => p.spell === "ultimate"), now);
-    list = list.filter((p) => p.spell !== "ultimate");
+    this.updateBulls(list.filter((p) => p.spell === "taurus"), now);
+    list = list.filter((p) => p.spell !== "ultimate" && p.spell !== "taurus");
     const live = new Set(list.map((p) => p.id));
     for (const [id, view] of this.projectiles) {
       if (live.has(id)) continue;
@@ -398,6 +432,152 @@ export class ArenaScene extends Phaser.Scene {
     view.node.play(look.launch).chain(look.fly);
   }
 
+  // ---------- taurus ----------
+
+  /** Bulls wait in the rune until the caster's stomp, then gallop to the target and run straight through. */
+  private updateBulls(list: Projectile[], now: number) {
+    const live = new Set(list.map((p) => p.id));
+    for (const [id, bull] of this.bulls) {
+      if (live.has(id)) continue;
+      this.bulls.delete(id);
+      this.releases.delete(id);
+      this.dissolveBull(bull);
+    }
+    for (const projectile of list) {
+      const release = this.releases.get(projectile.id);
+      const fallbackAt = projectile.launchedAt + RELEASE_MS.taurus + RELEASE_FALLBACK_MS;
+      if (!release && now < fallbackAt) continue;
+      let bull = this.bulls.get(projectile.id);
+      if (!bull) {
+        bull = this.makeBull(projectile.owner);
+        this.bulls.set(projectile.id, bull);
+      }
+      const releaseAt = release?.at ?? fallbackAt;
+      const from = this.anchor(projectile.owner);
+      const to = this.anchor(opponentOf(projectile.owner));
+      const t = Phaser.Math.Clamp((now - releaseAt) / Math.max(1, projectile.arrivesAt - releaseAt), 0, 1);
+      // Ease in from a standing start, then full charge.
+      const run = t < 0.25 ? 2 * t * t * 4 * 0.25 : 0.125 + (t - 0.25) * (0.875 / 0.75);
+      const x = Phaser.Math.Linear(from.x + bull.dir * 20 * this.unit, to.x, run);
+      this.placeBull(bull, x, this.groundY + 2 * this.unit);
+    }
+  }
+
+  private makeBull(owner: PlayerSlot): BullView {
+    const dir = this.anchor(owner).facing;
+    const scale = (125 * this.unit) / BULL_FRAME.height;
+    const body = this.add.sprite(0, 0, "fx-bull").setOrigin(0.5, BULL_FRAME.feet).setScale(scale).setDepth(6).setFlipX(dir < 0);
+    body.setTint(0xffb070).play("bull-run");
+    body.preFX?.addGlow(BULL.ember, 4, 0, false, 0.1, 14);
+    const glow = this.add.sprite(0, 0, "fx-bull").setOrigin(0.5, BULL_FRAME.feet).setScale(scale).setDepth(6).setFlipX(dir < 0);
+    glow.setTintFill(BULL.orange).setAlpha(0.55).setBlendMode(Phaser.BlendModes.ADD).play("bull-run");
+    const horns = this.add.image(0, 0, HORNS).setScale(scale).setDepth(7).setFlipX(dir < 0);
+    horns.setOrigin((dir > 0 ? HORN_TEX.headX : HORN_TEX.width - HORN_TEX.headX) / HORN_TEX.width, HORN_TEX.headY / HORN_TEX.height);
+    horns.preFX?.addGlow(BULL.ember, 3, 0, false, 0.1, 10);
+    const dust = this.add.particles(0, 0, "magic-3", {
+      speedX: { min: -dir * 140, max: -dir * 40 },
+      speedY: { min: -60, max: -10 },
+      lifespan: { min: 400, max: 800 },
+      scale: { start: 0.35 * this.unit, end: 1 * this.unit },
+      alpha: { start: 0.55, end: 0 },
+      rotate: { min: 0, max: 360 },
+      tint: BULL.dust,
+      frequency: 18,
+    });
+    dust.setDepth(5);
+    const embers = this.add.particles(0, 0, "flame-4", {
+      speedX: { min: -dir * 90, max: -dir * 20 },
+      speedY: { min: -70, max: -20 },
+      lifespan: { min: 300, max: 600 },
+      scale: { start: 0.3 * this.unit, end: 0 },
+      tint: [BULL.orange, BULL.ember],
+      blendMode: "ADD",
+      frequency: 30,
+    });
+    embers.setDepth(6);
+    return { body, glow, horns, dust, embers, dir, lastX: 0 };
+  }
+
+  private placeBull(bull: BullView, x: number, y: number) {
+    const scale = bull.body.scaleX;
+    bull.body.setPosition(x, y);
+    bull.glow.setPosition(x, y).setFrame(bull.body.frame.name);
+    const [hx, hy] = BULL_HEAD[Number(bull.body.frame.name) % BULL_HEAD.length];
+    bull.horns.setPosition(x + (hx - BULL_FRAME.width / 2) * scale * bull.dir, y + (hy - BULL_FRAME.height * BULL_FRAME.feet) * scale);
+    bull.dust.setPosition(x - bull.dir * 30 * this.unit, y);
+    bull.embers.setPosition(x - bull.dir * 20 * this.unit, y - 50 * this.unit);
+    bull.lastX = x;
+  }
+
+  /** Past the target the bull keeps running and burns away into embers. */
+  private dissolveBull(bull: BullView) {
+    bull.dust.stop();
+    bull.embers.stop();
+    const parts = [bull.body, bull.glow, bull.horns];
+    this.tweens.add({
+      targets: parts,
+      x: `+=${bull.dir * 60 * this.unit}`,
+      alpha: 0,
+      duration: 320,
+      ease: "Quad.easeOut",
+      onComplete: () => parts.forEach((part) => part.destroy()),
+    });
+    this.burst(bull.lastX, this.groundY - 50 * this.unit, BULL.ember, 22, 1.2);
+    this.time.delayedCall(900, () => {
+      bull.dust.destroy();
+      bull.embers.destroy();
+    });
+  }
+
+  /** The caster's stomp: a burnt-orange rune flares on the ground and the bull bursts out of it. */
+  private summonRune(slot: PlayerSlot) {
+    const { x, facing } = this.anchor(slot);
+    const cx = x + facing * 20 * this.unit;
+    const y = this.groundY;
+    const rune = this.add.graphics({ x: cx, y }).setDepth(4).setBlendMode(Phaser.BlendModes.ADD);
+    const r = 70 * this.unit;
+    rune.lineStyle(4 * this.unit, BULL.ember, 1).strokeEllipse(0, 0, r * 2, r * 0.6);
+    rune.lineStyle(2 * this.unit, BULL.orange, 1).strokeEllipse(0, 0, r * 1.5, r * 0.45);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const [cos, sin] = [Math.cos(a), Math.sin(a)];
+      rune.lineBetween(cos * r * 0.75, sin * r * 0.225, cos * r, sin * r * 0.3);
+    }
+    rune.setScale(0.3);
+    this.tweens.add({ targets: rune, scale: 1.15, duration: 260, ease: "Back.easeOut" });
+    this.tweens.add({ targets: rune, alpha: 0, delay: 420, duration: 420, onComplete: () => rune.destroy() });
+    this.dustBurst(cx, y, 18, 1);
+    this.burst(cx, y - 10 * this.unit, BULL.ember, 16, 1);
+    this.floatText(x, y - 160 * this.unit, "HOOK 'EM!", "#ff8a3c");
+  }
+
+  /** A low cloud of kicked-up dirt. */
+  private dustBurst(x: number, y: number, count: number, power: number) {
+    const dust = this.add.particles(x, y, "magic-3", {
+      speedX: { min: -160 * power, max: 160 * power },
+      speedY: { min: -90 * power, max: -10 },
+      lifespan: { min: 500, max: 900 },
+      scale: { start: 0.4 * this.unit, end: 1.3 * this.unit },
+      alpha: { start: 0.6, end: 0 },
+      rotate: { min: 0, max: 360 },
+      tint: BULL.dust,
+      emitting: false,
+    });
+    dust.setDepth(5);
+    dust.explode(count);
+    this.time.delayedCall(1000, () => dust.destroy());
+  }
+
+  /** The horn toss: a ground shockwave, a dust blast and a hard knockback. */
+  private gore(target: PlayerSlot) {
+    const { x, y } = this.anchor(target);
+    const ring = this.add.graphics({ x, y }).setDepth(4).setBlendMode(Phaser.BlendModes.ADD);
+    ring.lineStyle(6 * this.unit, BULL.ember, 1).strokeEllipse(0, 0, 100 * this.unit, 30 * this.unit);
+    ring.setScale(0.4);
+    this.tweens.add({ targets: ring, scale: 2.4, alpha: 0, duration: 520, ease: "Quad.easeOut", onComplete: () => ring.destroy() });
+    this.dustBurst(x, y, 30, 1.5);
+  }
+
   // ---------- fulmen ----------
 
   /** Storm clouds build over each Fulmen target; when the engine resolves the spell, lightning falls. */
@@ -430,7 +610,7 @@ export class ArenaScene extends Phaser.Scene {
   private makeStorm(target: PlayerSlot): StormView {
     const x = this.anchor(target).x;
     const y = this.stormY();
-    const spread = { min: -130 * this.unit, max: 130 * this.unit };
+    const spread = { min: -90 * this.unit, max: 90 * this.unit };
     const cloud = this.add.particles(x, y, "magic-3", {
       x: spread,
       y: { min: -24 * this.unit, max: 24 * this.unit },
@@ -471,11 +651,10 @@ export class ArenaScene extends Phaser.Scene {
     flickers.forEach((delay) => this.time.delayedCall(delay, () => this.drawLightning(bolt, x, top, y)));
     this.tweens.add({ targets: bolt, alpha: 0, delay: 300, duration: 260, onComplete: () => bolt.destroy() });
 
-    this.playFx("lightning-strike", x, y - 70 * this.unit, 300);
-    this.playFx("lightning-burst", x, y - 110 * this.unit, 360);
+    this.playFx("lightning-strike", x, y - 42 * this.unit, 180);
+    this.playFx("lightning-burst", x, y - 66 * this.unit, 216);
     this.burst(x, y, LIGHTNING.glow, 26, 1.6);
     this.cameras.main.flash(220, 220, 240, 255);
-    this.cameras.main.shake(200, 0.006, true);
     if (this.storms.size === 0) this.tweens.add({ targets: this.gloom, alpha: 0, delay: 120, duration: 500 });
   }
 
@@ -534,9 +713,18 @@ export class ArenaScene extends Phaser.Scene {
             const hand = rig.handPoint();
             if (event.projectileId) this.releases.set(event.projectileId, { at: this.getFrame().now, from: hand });
             if (event.spell === "ultimate") this.callLightning(hand);
+            if (event.spell === "taurus") this.summonRune(event.slot);
             this.burst(hand.x, hand.y, color, 14, 0.9);
           },
         });
+        break;
+      }
+      case "SHIELD_SHATTERED": {
+        const point = this.castPoint(event.defender);
+        this.flash("shield-shatter", point.x, point.y, 220, 620, true);
+        this.burst(point.x, point.y, palette.gold, 30, 1.4);
+        this.burst(point.x, point.y, BULL.ember, 20, 1.2);
+        this.floatText(point.x, point.y - 50 * this.unit, "SHATTERED!", "#ffe7a8");
         break;
       }
       case "DAMAGE_APPLIED":
@@ -558,38 +746,17 @@ export class ArenaScene extends Phaser.Scene {
         const point = { x: this.scale.width / 2, y: this.groundY - 66 * this.unit };
         this.flash("clash", point.x, point.y, 180, 500, true);
         this.burst(point.x, point.y, palette.goldSoft, 20, 1.2);
-        this.cameras.main.shake(140, 0.0035, true);
         break;
       }
       case "SPELL_CLASH": {
         const point = event.fizzledIds.map((id) => this.lastPositions.get(id)).find(Boolean) ?? { x: this.scale.width / 2, y: this.groundY - 66 * this.unit };
         this.flash("clash", point.x, point.y, 220, 700, true);
         this.burst(point.x, point.y, palette.goldSoft, 30, 1.6);
-        this.cameras.main.shake(160, 0.005, true);
         this.cameras.main.flash(160, 255, 231, 168);
         break;
       }
       default:
         break;
-    }
-  }
-
-  private updateStruggle(struggle: MatchState["struggle"]) {
-    if (!struggle) {
-      this.lastStrugglePushes = null;
-      return;
-    }
-
-    const pushes = struggle.pushes.A + struggle.pushes.B;
-    const isNewPush = this.lastStrugglePushes !== null && pushes > this.lastStrugglePushes;
-    this.lastStrugglePushes = pushes;
-
-    if (isNewPush) {
-      // Gentle punch on each push/fist pump during the clash struggle
-      this.cameras.main.shake(90, 0.0035, true);
-    } else if (!this.cameras.main.shakeEffect.isRunning || this.cameras.main.shakeEffect.progress > 0.75) {
-      // Subtle continuous tremor during the clash struggle
-      this.cameras.main.shake(250, 0.002, true);
     }
   }
 
@@ -604,10 +771,9 @@ export class ArenaScene extends Phaser.Scene {
     }
     this.burst(x, y - 66 * this.unit, spellColor[spell], 10 + amount / 2, 1.0);
     this.floatText(x, y - 150 * this.unit, `-${amount}`, "#ff4f7b");
-    this.cameras.main.shake(120 + Math.min(amount, 30) * 1.5, 0.003 + Math.min(amount, 30) * 0.00006, true);
-    view.rig.play("hit", this.time.now);
-    this.tweens.add({ targets: view.body, alpha: 0.35, duration: 70, yoyo: true, repeat: 2 });
-    this.tweens.add({ targets: view.root, x: x - facing * 10 * this.unit, duration: 90, yoyo: true, ease: "Quad.easeOut" });
+    // The bull's horn toss throws far harder than its damage alone would.
+    if (spell === "taurus") this.gore(target);
+    view.rig.knockback(spell === "taurus" ? amount * 2.5 : amount, this.time.now);
   }
 
   private transform(slot: PlayerSlot, form: MatchState["loserForm"]) {
@@ -615,16 +781,14 @@ export class ArenaScene extends Phaser.Scene {
     const { x, y } = this.anchor(slot);
     this.flash("clash", x, y - 60 * this.unit, 180, 800, true);
     this.burst(x, y - 55 * this.unit, palette.lavender, 40, 1.4);
-    view.body.setVisible(false);
-    for (const layer of [view.shield, view.frost, view.aura, view.empower, view.haste]) layer.setVisible(false);
-
+    this.time.delayedCall(120, () => this.burst(x, y - 55 * this.unit, palette.goldSoft, 30, 1.1));
+    // The body is already dust (see WizardRig.die); its pieces are still drifting away.
     const critter = this.sized(form, 0, 0, form === "frog" ? 115 : 120).setOrigin(0.5, 0.92);
     const node = this.add.container(0, 0, [critter]).setScale(0.2);
     view.root.add(node);
     view.transformed = node;
     this.tweens.add({ targets: node, scale: 1, duration: 450, ease: "Back.easeOut" });
     this.tweens.add({ targets: node, y: -10, duration: 380, yoyo: true, repeat: -1, ease: "Sine.easeInOut", delay: 500 });
-    this.cameras.main.shake(300, 0.01);
   }
 
   // ---------- helpers ----------
@@ -667,12 +831,37 @@ export class ArenaScene extends Phaser.Scene {
     this.tweens.add({ targets: label, y: y - 40 * this.unit, alpha: 0, duration: 900, ease: "Quad.easeOut", onComplete: () => label.destroy() });
   }
 
+  /** A longhorn's sweep seen from the side: the near horn forward, the far horn back, both curling up at the tips. */
+  private drawHorns(g: Phaser.GameObjects.Graphics) {
+    const { headX: hx, headY: hy } = HORN_TEX;
+    const horn = (p0: number[], p1: number[], p2: number[], width: number) => {
+      const curve = new Phaser.Curves.QuadraticBezier(new Phaser.Math.Vector2(p0[0], p0[1]), new Phaser.Math.Vector2(p1[0], p1[1]), new Phaser.Math.Vector2(p2[0], p2[1]));
+      const points = curve.getPoints(16);
+      const left: Phaser.Math.Vector2[] = [];
+      const right: Phaser.Math.Vector2[] = [];
+      points.forEach((point, k) => {
+        const tangent = curve.getTangent(k / 16);
+        const w = width * (1 - k / 16) + 0.6;
+        left.push(new Phaser.Math.Vector2(point.x - tangent.y * w, point.y + tangent.x * w));
+        right.push(new Phaser.Math.Vector2(point.x + tangent.y * w, point.y - tangent.x * w));
+      });
+      const outline = [...left, ...right.reverse()];
+      g.fillStyle(0x6e370a, 1).fillPoints(outline.map((p) => new Phaser.Math.Vector2(p.x, p.y + 1.5)), true);
+      g.fillStyle(BULL.horn, 1).fillPoints(outline, true);
+    };
+    horn([hx - 4, hy - 2], [hx - 40, hy + 2], [hx - 56, hy - 24], 5);
+    horn([hx, hy], [hx + 40, hy + 4], [hx + 62, hy - 26], 6);
+  }
+
   private makeTextures() {
     if (this.textures.exists(SPARK)) return;
     const g = this.make.graphics({ x: 0, y: 0 }, false);
     g.fillStyle(0xffffff, 1);
     g.fillCircle(8, 8, 8);
     g.generateTexture(SPARK, 16, 16);
+    g.clear();
+    this.drawHorns(g);
+    g.generateTexture(HORNS, HORN_TEX.width, HORN_TEX.height);
     g.destroy();
   }
 }

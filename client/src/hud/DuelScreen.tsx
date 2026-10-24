@@ -53,6 +53,23 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   const [state, setState] = useState<MatchState | null>(() => source.state());
   const [clashResult, setClashResult] = useState<ClashResult | null>(null);
   const [toast, setToast] = useState<Banner | null>(null);
+  const [activeShake, setActiveShake] = useState<{ type: "hit" | "clash-impact"; id: number } | null>(null);
+  const shakeTimer = useRef<number | null>(null);
+
+  const triggerShake = (type: "hit" | "clash-impact") => {
+    if (shakeTimer.current) window.clearTimeout(shakeTimer.current);
+    setActiveShake((prev) => ({ type, id: (prev?.id ?? 0) + 1 }));
+    shakeTimer.current = window.setTimeout(() => {
+      setActiveShake(null);
+    }, type === "hit" ? 180 : 220);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (shakeTimer.current) window.clearTimeout(shakeTimer.current);
+    };
+  }, []);
+
   const now = useMatchNow(source);
   const host = useRef<HTMLDivElement>(null);
   const top = useRef<HTMLDivElement>(null);
@@ -73,8 +90,16 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
         scene.current?.pushEvents(events);
         playEvents(events, source.localSlot, hotseat);
         for (const event of events) {
-          if (event.type === "SPELL_CLASH") setClashResult(event);
-          if (event.type === "STRUGGLE_START" || (event.type === "PHASE_CHANGED" && event.phase === "countdown")) setClashResult(null);
+          if (event.type === "DAMAGE_APPLIED") triggerShake("hit");
+          if (event.type === "SPELL_CLASH") {
+            setClashResult(event);
+            triggerShake("clash-impact");
+          }
+          if (event.type === "STRUGGLE_START") {
+            setClashResult(null);
+            triggerShake("hit");
+          }
+          if (event.type === "PHASE_CHANGED" && event.phase === "countdown") setClashResult(null);
           if (event.type === "CAST_REJECTED" && (hotseat || event.slot === source.localSlot) && rejectionText[event.reason]) {
             setToast({ id: event.id, text: rejectionText[event.reason] });
           }
@@ -156,10 +181,32 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     if (countdownSecond > 0) sfx.countdownTick();
   }, [countdownSecond]);
 
+  const struggle = state?.struggle;
+  const currentPushes = struggle ? struggle.pushes.A + struggle.pushes.B : 0;
+  const lastPushes = useRef<number>(0);
+
+  useEffect(() => {
+    if (!struggle) {
+      lastPushes.current = 0;
+      return;
+    }
+    if (currentPushes > lastPushes.current) {
+      lastPushes.current = currentPushes;
+      triggerShake("hit");
+    }
+  }, [struggle, currentPushes]);
+
   const castAs = (slot: PlayerSlot) => (slot === left || hotseat ? (spell: SpellId) => spellInput.cast(spell, slot) : undefined);
 
+  const isStruggling = Boolean(state?.struggle);
+  const shakeClass = activeShake
+    ? ` screen-shake-${activeShake.type}-${(activeShake.id % 2) + 1}`
+    : isStruggling
+    ? " screen-shake-clash"
+    : "";
+
   return (
-    <main className="duel" style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
+    <main className={`duel${shakeClass}`} style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
       <div className={`duel-stage phase-${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
         <RisingEmbers />

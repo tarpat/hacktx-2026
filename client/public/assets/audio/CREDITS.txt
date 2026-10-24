@@ -7,6 +7,17 @@ fire-cast, ice-cast, shield, block, clash, frozen, countdown, duel-start, push,
 ultimate-cast, ultimate-ready, click, rejected, power-up
   "Sci-Fi Sounds", "Impact Sounds" and "Interface Sounds" by Kenney (https://kenney.nl). CC0.
 
+taurus-bellow
+  "CC0 Deep Monster Roar" by trazzz123 (https://opengameart.org/content/cc0-deep-monster-roar). CC0.
+  Trimmed and pitched down.
+
+taurus-snort, taurus-stomp
+  "80 CC0 creature SFX #2" by rubberduck (https://opengameart.org/content/80-cc0-creture-sfx-2). CC0.
+
+taurus-gallop
+  "Horse Gallop Loop" by Alan McKinney (https://opengameart.org/node/132682).
+  Licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/). Trimmed.
+
 music-battle
   "Epic Boss Battle [Seamlessly Looping]" by Juhani Junkala
   (https://opengameart.org/content/boss-battle-music). CC0.

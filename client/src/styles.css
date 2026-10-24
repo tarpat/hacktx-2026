@@ -409,7 +409,7 @@ kbd {
 
 .gesture-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px;
   margin-bottom: 20px;
 }
@@ -958,7 +958,8 @@ kbd {
   padding: 16px;
   overflow-y: auto;
   background: radial-gradient(circle, #120d2b88, #120d2bdd);
-  animation: fade-in 0.6s ease-out 0.9s both;
+  /* Waits for the loser's death and transformation to play out in the arena. */
+  animation: fade-in 0.6s ease-out 2.8s both;
 }
 
 .victory-card {
@@ -1938,6 +1939,46 @@ img.spell-glyph {
   min-height: 560px;
   padding: 0;
   overflow: hidden;
+  will-change: transform;
+}
+
+.duel.screen-shake-hit-1,
+.duel.screen-shake-hit-2 {
+  animation: duel-shake-hit 180ms ease-out;
+}
+
+.duel.screen-shake-clash-impact-1,
+.duel.screen-shake-clash-impact-2 {
+  animation: duel-shake-clash-impact 220ms ease-out;
+}
+
+.duel.screen-shake-clash {
+  animation: duel-shake-clash 130ms infinite alternate ease-in-out;
+}
+
+@keyframes duel-shake-hit {
+  0% { transform: scale(1.002) translate3d(0, 0, 0); }
+  20% { transform: scale(1.002) translate3d(-3px, 2px, 0); }
+  40% { transform: scale(1.002) translate3d(3px, -2px, 0); }
+  60% { transform: scale(1.002) translate3d(-2px, 1px, 0); }
+  80% { transform: scale(1.002) translate3d(1px, -1px, 0); }
+  100% { transform: scale(1) translate3d(0, 0, 0); }
+}
+
+@keyframes duel-shake-clash {
+  0% { transform: scale(1.002) translate3d(-1.5px, 1px, 0); }
+  33% { transform: scale(1.002) translate3d(1.5px, -1px, 0); }
+  66% { transform: scale(1.002) translate3d(-1px, -1.5px, 0); }
+  100% { transform: scale(1.002) translate3d(1px, 1px, 0); }
+}
+
+@keyframes duel-shake-clash-impact {
+  0% { transform: scale(1.003) translate3d(0, 0, 0); }
+  20% { transform: scale(1.003) translate3d(-3.5px, 2px, 0); }
+  40% { transform: scale(1.003) translate3d(3.5px, -2.5px, 0); }
+  60% { transform: scale(1.003) translate3d(-2px, 1px, 0); }
+  80% { transform: scale(1.003) translate3d(1px, -1px, 0); }
+  100% { transform: scale(1) translate3d(0, 0, 0); }
 }
 
 .duel .duel-stage {

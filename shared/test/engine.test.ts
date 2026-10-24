@@ -153,6 +153,33 @@ describe("ultimate", () => {
   });
 });
 
+describe("taurus", () => {
+  it("shatters a raised shield and lands the full hit", () => {
+    const engine = liveEngine();
+    engine.cast("A", "taurus", LIVE);
+    engine.cast("B", "shield", LIVE + C.spells.taurus.travelMs - 200);
+    engine.tick(LIVE + C.spells.taurus.travelMs);
+    const events = engine.drainEvents();
+    expect(types(events)).toContain("SHIELD_SHATTERED");
+    expect(types(events)).not.toContain("SPELL_BLOCKED");
+    const state = engine.snapshot(LIVE + C.spells.taurus.travelMs);
+    expect(state.players.B.hp).toBe(100 - C.spells.taurus.damage);
+    expect(state.players.B.shieldUntil).toBeLessThanOrEqual(LIVE + C.spells.taurus.travelMs);
+    expect(state.players.B.stats.blocks).toBe(0);
+  });
+
+  it("runs under spells in the air, so nothing clashes with it", () => {
+    const engine = liveEngine();
+    engine.cast("A", "taurus", LIVE);
+    engine.cast("B", "fireball", LIVE + 100);
+    engine.tick(LIVE + 2_000);
+    const events = engine.drainEvents();
+    expect(types(events)).not.toContain("SPELL_CLASH");
+    const hits = events.flatMap((event) => (event.type === "DAMAGE_APPLIED" ? [event.spell] : []));
+    expect(hits).toEqual(["taurus", "fireball"]);
+  });
+});
+
 describe("clash", () => {
   it("lets the stronger spell push through with the difference", () => {
     const engine = liveEngine();

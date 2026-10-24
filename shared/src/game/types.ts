@@ -1,6 +1,6 @@
 export type PlayerSlot = "A" | "B";
 
-export type SpellId = "fireball" | "shield" | "ice" | "ultimate";
+export type SpellId = "fireball" | "shield" | "ice" | "ultimate" | "taurus";
 export type PowerUpId = "empower" | "haste" | "heal";
 
 export type MatchPhase = "countdown" | "active" | "suddenDeath" | "finished";
@@ -90,6 +90,8 @@ export type GameEvent = EventBase &
     | { type: "SPELL_CAST"; slot: PlayerSlot; spell: SpellId; projectileId: string | null; empowered: boolean }
     | { type: "CAST_REJECTED"; slot: PlayerSlot; spell: SpellId; reason: CastRejectReason }
     | { type: "SPELL_BLOCKED"; defender: PlayerSlot; spell: SpellId; damage: number }
+    /** Taurus rams through a raised shield and destroys it. */
+    | { type: "SHIELD_SHATTERED"; defender: PlayerSlot; spell: SpellId }
     | { type: "DAMAGE_APPLIED"; target: PlayerSlot; spell: SpellId; amount: number; hp: number }
     | { type: "FROZEN"; slot: PlayerSlot; until: number }
     | { type: "SPELL_CLASH"; winner: PlayerSlot | null; survivorId: string | null; fizzledIds: string[] }

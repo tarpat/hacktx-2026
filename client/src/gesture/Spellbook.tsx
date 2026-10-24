@@ -35,6 +35,13 @@ const ENTRIES: Entry[] = [
     effect: `${spells.ice.damage} damage + freezes ${seconds(freezeMs)} · ${seconds(spells.ice.cooldownMs)} cooldown`,
   },
   {
+    gesture: "🤘",
+    how: "Hook 'em: index and pinky up, middle and ring fingers down",
+    spell: "taurus",
+    title: `${spells.taurus.name} · Longhorn charge`,
+    effect: `${spells.taurus.damage} damage · smashes through shields · ${seconds(spells.taurus.cooldownMs)} cooldown`,
+  },
+  {
     gesture: "☝️ → 👇",
     how: "Point one finger at the sky until the orb says \u201cDrop it to strike!\u201d, then lower it",
     spell: "ultimate",

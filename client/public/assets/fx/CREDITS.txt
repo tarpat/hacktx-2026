@@ -14,3 +14,10 @@ flame-4.png, magic-3.png, star-6.png
 lightning-strike.png, lightning-burst.png
   "Lightning VFX Free Pack" by GoVFX (https://govfx.itch.io/lightning-vfx-free-pack).
   Free for commercial use per the author. Repacked as RGBA.
+
+bull-run.png
+  "Bull run cycle" by reivaxcorp (https://opengameart.org/content/bull-run-cycle).
+  Licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/). Upscaled, horns removed (the game draws its own).
+
+../taurus.png
+  Spell icon drawn for this game from the bull run cycle above (CC BY 3.0, reivaxcorp).
