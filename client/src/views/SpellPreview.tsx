@@ -29,7 +29,7 @@ export function SpellPreview({ lastAction }: { lastAction: (GestureActionEvent &
     if (!lastAction) return;
     switch (lastAction.action) {
       case "FIREBALL_CHARGE_START": setCharging(true); break;
-      case "FIREBALL_CHARGE_CANCEL": setCharging(false); break;
+      case "CHARGE_CANCEL": setCharging(false); break;
       case "FIREBALL_CAST": setCharging(false); launch(lastAction.id, "fire"); break;
       case "ICE_CAST": launch(lastAction.id, "ice"); break;
       case "ULTIMATE_CAST": launch(lastAction.id, "bolt"); break;

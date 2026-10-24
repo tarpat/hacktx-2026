@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
-import { opponentOf, type MatchState, type PlayerSlot, type PowerUpId, type SpellId } from "@spellcaster/shared";
+import { DEFAULT_MATCH_CONFIG, opponentOf, type MatchState, type PlayerSlot, type SpellId } from "@spellcaster/shared";
 import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
 import { loadMapChoice, type MapId } from "../arena/maps";
 import { GestureCamera } from "../gesture/GestureCamera";
+import { SpellStruggle } from "./SpellStruggle";
 import type { DuelSource } from "../game/duelSource";
 import { bindKeyboard, spellInput } from "../game/input";
 import { narrate, rejectionText } from "../game/narration";
-import { art, playerName } from "../theme";
+import { playerName } from "../theme";
 import { HealthBar } from "./HealthBar";
 import { CountdownOverlay, MatchClock } from "./MatchClock";
 import { SpellTray } from "./SpellTray";
@@ -22,13 +23,9 @@ interface DuelScreenProps {
   header?: React.ReactNode;
   /** Arena map; defaults to the one picked in the lobby. */
   map?: MapId;
+  /** Extra content under the spell trays, e.g. the practice spellbook. */
+  footer?: React.ReactNode;
 }
-
-const POWER_UPS: { id: PowerUpId; label: string; key: string; fallback: string }[] = [
-  { id: "empower", label: "Empower", key: "1", fallback: "✨" },
-  { id: "haste", label: "Haste", key: "2", fallback: "🪽" },
-  { id: "heal", label: "Heal", key: "3", fallback: "🧪" },
-];
 
 interface Banner {
   id: number;
@@ -48,7 +45,7 @@ function useMatchNow(source: DuelSource) {
   return now;
 }
 
-export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, map = loadMapChoice() }: DuelScreenProps) {
+export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, footer, map = loadMapChoice() }: DuelScreenProps) {
   const [state, setState] = useState<MatchState | null>(() => source.state());
   const [banner, setBanner] = useState<Banner | null>(null);
   const [toast, setToast] = useState<Banner | null>(null);
@@ -80,8 +77,9 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   useEffect(() => {
     const unbindKeys = bindKeyboard(source.localSlot, hotseat ? opponentOf(source.localSlot) : null);
     const unsubscribe = spellInput.subscribe((intent) => {
-      if (intent.kind === "cast") source.cast(intent.spell, intent.slot);
-      else source.powerUp(intent.powerUp, intent.slot);
+      if (intent.kind === "cast") source.cast(intent.spell, intent.slot, intent.power);
+      else if (intent.kind === "push") source.push(intent.slot);
+      else if (intent.kind === "powerUp") source.powerUp(intent.powerUp, intent.slot);
     });
     return () => {
       unbindKeys();
@@ -127,10 +125,6 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   }, [toast]);
 
   const castAs = (slot: PlayerSlot) => (slot === left || hotseat ? (spell: SpellId) => spellInput.cast(spell, slot) : undefined);
-  const grant = (powerUp: PowerUpId) => spellInput.powerUp(powerUp, left);
-
-  const powerUpWait = state ? Math.max(0, state.players[left].powerUpReadyAt - now) : 0;
-  const live = state?.phase === "active" || state?.phase === "suddenDeath";
 
   return (
     <main className="duel">
@@ -150,7 +144,8 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
       <div className={`duel-stage ${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
-        <GestureCamera />
+        <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} />
+        {state?.struggle && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} />}
         {state && <CountdownOverlay state={state} now={now} />}
         {banner && state?.phase !== "finished" && (
           <div className="banner" key={banner.id}>
@@ -168,20 +163,10 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       {state && (
         <section className="duel-trays">
           <SpellTray player={state.players[left]} now={now} onCast={castAs(left)} side="left" keySet="primary" />
-          <div className={`powerups ${live && powerUpWait === 0 ? "ready" : ""}`}>
-            <span>Incantation power-ups {powerUpWait > 0 && `· ${Math.ceil(powerUpWait / 1000)}s`}</span>
-            <div>
-              {POWER_UPS.map(({ id, label, key, fallback }) => (
-                <button key={id} onClick={() => grant(id)} disabled={!live || powerUpWait > 0}>
-                  {art.powerUp[id] ? <img src={art.powerUp[id]!} alt="" /> : <i>{fallback}</i>}
-                  {label} <kbd>{key}</kbd>
-                </button>
-              ))}
-            </div>
-          </div>
           <SpellTray player={state.players[right]} now={now} onCast={castAs(right)} side="right" keySet={hotseat ? "secondary" : null} />
         </section>
       )}
+      {footer}
     </main>
   );
 }

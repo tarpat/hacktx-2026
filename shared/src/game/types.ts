@@ -1,6 +1,6 @@
 export type PlayerSlot = "A" | "B";
 
-export type SpellId = "fireball" | "shield" | "ice" | "ultimate";
+export type SpellId = "fireball" | "shield" | "ice" | "ultimate" | "sixSeven";
 export type PowerUpId = "empower" | "haste" | "heal";
 
 export type MatchPhase = "countdown" | "active" | "suddenDeath" | "finished";
@@ -43,8 +43,28 @@ export interface Projectile {
   arrivesAt: number;
 }
 
+/**
+ * Two of the same spell met mid-air and are locked together. Players push to shove the
+ * clash toward their opponent; the winner's spell absorbs the loser's and flies on.
+ */
+export interface Struggle {
+  spell: SpellId;
+  /** The two locked projectiles, by owner. */
+  projectiles: Record<PlayerSlot, Projectile>;
+  startedAt: number;
+  endsAt: number;
+  /** Where the spells met across the arena: 0 = A's side, 1 = B's side. */
+  meetAt: number;
+  /** Tug-of-war balance: +1 means A has shoved it all the way to B, -1 the reverse. */
+  balance: number;
+  pushes: Record<PlayerSlot, number>;
+  lastPushAt: Record<PlayerSlot, number>;
+}
+
 export interface MatchState {
   phase: MatchPhase;
+  /** Shared arena layout selected by the server for online matches. */
+  stageId?: number;
   /** Server clock when this snapshot was taken; clients use it to estimate offset. */
   now: number;
   /** End of the current phase (countdown, round or sudden death). Zero once finished. */
@@ -52,6 +72,8 @@ export interface MatchState {
   roundMs: number;
   players: Record<PlayerSlot, PlayerState>;
   projectiles: Projectile[];
+  /** Active same-spell clash, if any. */
+  struggle: Struggle | null;
   winner: PlayerSlot | null;
   endReason: EndReason | null;
   loserForm: LoserForm;
@@ -71,6 +93,7 @@ export type GameEvent = EventBase &
     | { type: "DAMAGE_APPLIED"; target: PlayerSlot; spell: SpellId; amount: number; hp: number }
     | { type: "FROZEN"; slot: PlayerSlot; until: number }
     | { type: "SPELL_CLASH"; winner: PlayerSlot | null; survivorId: string | null; fizzledIds: string[] }
+    | { type: "STRUGGLE_START"; spell: SpellId; endsAt: number }
     | { type: "POWER_UP"; slot: PlayerSlot; powerUp: PowerUpId }
     | { type: "ULTIMATE_READY"; slot: PlayerSlot }
     | { type: "MATCH_END"; winner: PlayerSlot | null; reason: EndReason }

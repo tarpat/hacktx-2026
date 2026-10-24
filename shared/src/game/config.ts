@@ -11,6 +11,8 @@ export interface SpellConfig {
   /** Milliseconds a projectile takes to cross the arena. */
   travelMs: number;
   offensive: boolean;
+  /** Damage is multiplied by the cast's charge power (0–1), floored at `minPowerFactor`. */
+  charged?: boolean;
 }
 
 export interface PowerUpConfig {
@@ -18,6 +20,19 @@ export interface PowerUpConfig {
   name: string;
   /** How long the effect lasts. Zero for instant effects. */
   durationMs: number;
+}
+
+export interface StruggleConfig {
+  /** How long the tug-of-war lasts before whoever is ahead wins. */
+  durationMs: number;
+  /** Balance moved by one push (balance runs from -1 to +1). */
+  pushStep: number;
+  /** Pushes closer together than this are ignored, so no input can count twice or be spammed by a script. */
+  minPushGapMs: number;
+  /** At time-out, a lead smaller than this is a draw and both spells fizzle. */
+  drawMargin: number;
+  /** The winning spell flies on this much faster than normal. */
+  speedFactor: number;
 }
 
 export interface MatchConfig {
@@ -31,6 +46,8 @@ export interface MatchConfig {
   ultimateShieldFactor: number;
   /** Opposing attacks launched within this window collide mid-arena. */
   clashWindowMs: number;
+  /** Same-spell clash tug-of-war. */
+  struggle: StruggleConfig;
   ultimateMax: number;
   ultimateGain: { perDamageDealt: number; perBlock: number; perDamageTaken: number };
   empowerMultiplier: number;
@@ -42,17 +59,18 @@ export interface MatchConfig {
   powerUps: Record<PowerUpId, PowerUpConfig>;
 }
 
-export const SPELL_ORDER: SpellId[] = ["fireball", "shield", "ice", "ultimate"];
+export const SPELL_ORDER: SpellId[] = ["fireball", "shield", "ice", "ultimate", "sixSeven"];
 
 export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   maxHp: 100,
   countdownMs: 3_000,
   roundMs: 60_000,
   suddenDeathMs: 15_000,
-  shieldGuardMs: 900,
+  shieldGuardMs: 1_200,
   freezeMs: 1_200,
   ultimateShieldFactor: 0.5,
-  clashWindowMs: 350,
+  clashWindowMs: 500,
+  struggle: { durationMs: 4_000, pushStep: 0.07, minPushGapMs: 60, drawMargin: 0.1, speedFactor: 0.7 },
   ultimateMax: 100,
   ultimateGain: { perDamageDealt: 1.25, perBlock: 25, perDamageTaken: 0.5 },
   empowerMultiplier: 1.5,
@@ -60,10 +78,11 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   healAmount: 15,
   powerUpCooldownMs: 12_000,
   spells: {
-    fireball: { id: "fireball", name: "Incendio", incantation: "Incendio!", damage: 20, cooldownMs: 3_000, travelMs: 900, offensive: true },
-    shield: { id: "shield", name: "Protego", incantation: "Protego!", damage: 0, cooldownMs: 5_000, travelMs: 0, offensive: false },
-    ice: { id: "ice", name: "Glacius", incantation: "Glacius!", damage: 10, cooldownMs: 7_000, travelMs: 700, offensive: true },
-    ultimate: { id: "ultimate", name: "Fulmen", incantation: "Fulmen!", damage: 30, cooldownMs: 0, travelMs: 1_200, offensive: true },
+    fireball: { id: "fireball", name: "Incendio", incantation: "Incendio!", damage: 20, cooldownMs: 4_500, travelMs: 1_600, offensive: true },
+    shield: { id: "shield", name: "Protego", incantation: "Protego!", damage: 0, cooldownMs: 4_000, travelMs: 0, offensive: false },
+    ice: { id: "ice", name: "Glacius", incantation: "Glacius!", damage: 10, cooldownMs: 9_000, travelMs: 1_300, offensive: true },
+    ultimate: { id: "ultimate", name: "Fulmen", incantation: "Fulmen!", damage: 30, cooldownMs: 0, travelMs: 1_900, offensive: true },
+    sixSeven: { id: "sixSeven", name: "Six Seven", incantation: "Six seven!", damage: 40, cooldownMs: 11_000, travelMs: 1_500, offensive: true, charged: true },
   },
   powerUps: {
     empower: { id: "empower", name: "Empowered", durationMs: 8_000 },

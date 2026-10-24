@@ -15,16 +15,21 @@ export class MatchRunner {
   constructor(
     private readonly broadcast: (state: MatchState, events: GameEvent[]) => void,
     private readonly onFinished: () => void,
+    private readonly stageId: number,
   ) {
     this.flush(true);
     this.timer = setInterval(() => this.flush(), TICK_MS);
   }
 
-  cast(slot: PlayerSlot, spell: SpellId, clientActionId: string): CastAck {
+  cast(slot: PlayerSlot, spell: SpellId, clientActionId: string, power?: number): CastAck {
     if (!this.remember(slot, clientActionId)) return { ok: false, clientActionId, reason: "duplicate" };
-    const result = this.engine.cast(slot, spell, Date.now());
+    const result = this.engine.cast(slot, spell, Date.now(), power);
     this.flush(true);
     return result.ok ? { ok: true, clientActionId } : { ok: false, clientActionId, reason: result.reason };
+  }
+
+  push(slot: PlayerSlot): void {
+    if (this.engine.push(slot, Date.now())) this.flush(true);
   }
 
   powerUp(slot: PlayerSlot, powerUp: PowerUpId, clientActionId: string): CastAck {
@@ -52,7 +57,7 @@ export class MatchRunner {
 
   private flush(force = false): void {
     const now = Date.now();
-    const state = this.engine.snapshot(now);
+    const state = { ...this.engine.snapshot(now), stageId: this.stageId };
     const events = this.engine.drainEvents();
     if (!force && events.length === 0 && now - this.lastBroadcastAt < HEARTBEAT_MS) return;
     this.lastBroadcastAt = now;

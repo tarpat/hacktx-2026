@@ -1,6 +1,9 @@
 import {
+  DEFAULT_MATCH_CONFIG,
   DuelBot,
   DuelEngine,
+  EASY_BOT,
+  makeMatchConfig,
   type GameEvent,
   type MatchState,
   type PlayerSlot,
@@ -17,8 +20,10 @@ export interface DuelSource {
   /** Current time on the clock the match state uses. */
   now(): number;
   state(): MatchState | null;
-  cast(spell: SpellId, slot?: PlayerSlot): void;
+  cast(spell: SpellId, slot?: PlayerSlot, power?: number): void;
   powerUp(powerUp: PowerUpId, slot?: PlayerSlot): void;
+  /** One push in a spell struggle. */
+  push(slot?: PlayerSlot): void;
   subscribe(listener: DuelListener): () => void;
   /** Starts a fresh match (practice) or asks the server for a rematch (online). */
   rematch(): void;
@@ -31,16 +36,27 @@ const TICK_MS = 33;
 let actionSeq = 0;
 const actionId = () => `${Date.now().toString(36)}-${(++actionSeq).toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+/** `bot`: easy AI opponent · `training`: dummy that never acts · `hotseat`: two players, one keyboard. */
+export type LocalMode = "bot" | "training" | "hotseat";
+
+/** Long round, sturdy dummy, and a fast ultimate meter so every spell can be tried. */
+const TRAINING_CONFIG = makeMatchConfig({
+  maxHp: 500,
+  roundMs: 10 * 60_000,
+  ultimateGain: { ...DEFAULT_MATCH_CONFIG.ultimateGain, perDamageDealt: 5 },
+});
+
 export class LocalDuel implements DuelSource {
   readonly localSlot: PlayerSlot = "A";
-  private engine = new DuelEngine(Date.now());
+  private engine: DuelEngine;
   private bot: DuelBot | null;
   private latest: MatchState;
   private readonly listeners = new Set<DuelListener>();
   private readonly timer: ReturnType<typeof setInterval>;
 
-  constructor(private readonly withBot: boolean) {
-    this.bot = withBot ? new DuelBot("B") : null;
+  constructor(private readonly mode: LocalMode) {
+    this.engine = this.newEngine();
+    this.bot = this.newBot();
     this.latest = this.engine.snapshot(Date.now());
     this.timer = setInterval(() => this.step(), TICK_MS);
   }
@@ -53,9 +69,15 @@ export class LocalDuel implements DuelSource {
     return this.latest;
   }
 
-  cast(spell: SpellId, slot: PlayerSlot = this.localSlot) {
-    if (slot === "B" && this.bot) return;
-    this.engine.cast(slot, spell, Date.now());
+  cast(spell: SpellId, slot: PlayerSlot = this.localSlot, power?: number) {
+    if (slot === "B" && this.mode !== "hotseat") return;
+    this.engine.cast(slot, spell, Date.now(), power);
+    this.step();
+  }
+
+  push(slot: PlayerSlot = this.localSlot) {
+    if (slot === "B" && this.mode !== "hotseat") return;
+    this.engine.push(slot, Date.now());
     this.step();
   }
 
@@ -71,9 +93,17 @@ export class LocalDuel implements DuelSource {
   }
 
   rematch() {
-    this.engine = new DuelEngine(Date.now());
-    this.bot = this.withBot ? new DuelBot("B") : null;
+    this.engine = this.newEngine();
+    this.bot = this.newBot();
     this.step();
+  }
+
+  private newEngine() {
+    return new DuelEngine(Date.now(), this.mode === "training" ? TRAINING_CONFIG : DEFAULT_MATCH_CONFIG);
+  }
+
+  private newBot() {
+    return this.mode === "bot" ? new DuelBot("B", EASY_BOT) : null;
   }
 
   dispose() {
@@ -83,8 +113,10 @@ export class LocalDuel implements DuelSource {
 
   private step() {
     const now = Date.now();
-    const botSpell = this.bot?.decide(this.engine.snapshot(now), now);
+    const snapshot = this.engine.snapshot(now);
+    const botSpell = this.bot?.decide(snapshot, now);
     if (botSpell) this.engine.cast("B", botSpell, now);
+    if (this.bot?.wantsPush(snapshot, now)) this.engine.push("B", now);
     this.latest = this.engine.snapshot(now);
     const events = this.engine.drainEvents();
     this.listeners.forEach((listener) => listener(this.latest, events));
@@ -119,13 +151,17 @@ export class OnlineDuel implements DuelSource {
     return this.latest;
   }
 
-  cast(spell: SpellId) {
+  cast(spell: SpellId, _slot?: PlayerSlot, power?: number) {
     // Rejections come back as CAST_REJECTED events in the next MATCH_STATE.
-    socket.emit("CAST_REQUEST", { spell, clientActionId: actionId() });
+    socket.emit("CAST_REQUEST", { spell, clientActionId: actionId(), power });
   }
 
   powerUp(powerUp: PowerUpId) {
     socket.emit("POWER_UP_REQUEST", { powerUp, clientActionId: actionId() });
+  }
+
+  push() {
+    socket.emit("STRUGGLE_PUSH");
   }
 
   subscribe(listener: DuelListener) {

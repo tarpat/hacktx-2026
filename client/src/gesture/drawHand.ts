@@ -6,12 +6,15 @@ const BONES: [number, number][] = [
   [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17],
 ];
 
-export function drawHand(canvas: HTMLCanvasElement, landmarks: Landmark[] | null) {
+export function drawHands(canvas: HTMLCanvasElement, hands: Landmark[][]) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const { width, height } = canvas;
   ctx.clearRect(0, 0, width, height);
-  if (!landmarks) return;
+  for (const landmarks of hands) drawSkeleton(ctx, landmarks, width, height);
+}
+
+function drawSkeleton(ctx: CanvasRenderingContext2D, landmarks: Landmark[], width: number, height: number) {
   ctx.strokeStyle = "#d9bd75";
   ctx.lineWidth = 3;
   for (const [a, b] of BONES) {

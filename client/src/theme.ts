@@ -34,6 +34,7 @@ export const spellColor: Record<SpellId, number> = {
   shield: palette.gold,
   ice: palette.frost,
   ultimate: palette.gold,
+  sixSeven: palette.rose,
 };
 
 const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}.png`;
@@ -41,7 +42,7 @@ const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}.png`;
 /** Illustrated art used by the HUD and the arena. */
 export const art = {
   background: `${import.meta.env.BASE_URL}assets/background.jpg`,
-  spell: { fireball: asset("fireball"), shield: asset("shield"), ice: asset("ice"), ultimate: asset("fulmen") } as Record<SpellId, string>,
+  spell: { fireball: asset("fireball"), shield: asset("shield"), ice: asset("ice"), ultimate: asset("fulmen") } as Partial<Record<SpellId, string>>,
   powerUp: { empower: asset("empower"), haste: asset("haste"), heal: null } as Record<PowerUpId, string | null>,
   portrait: { A: asset("portrait-green"), B: asset("portrait-purple") } as Record<PlayerSlot, string>,
   hpFrame: asset("hp-frame"),
@@ -60,3 +61,6 @@ export const arenaTextures = [
 ] as const;
 
 export const textureUrl = asset;
+
+/** Emoji stand-ins for spells without illustrated art. */
+export const spellGlyph: Record<SpellId, string> = { fireball: "🔥", shield: "🛡️", ice: "❄️", ultimate: "⚡", sixSeven: "🫴" };

@@ -1,7 +1,7 @@
 import Phaser from "phaser";
-import { opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile, type SpellId } from "@spellcaster/shared";
+import { DEFAULT_MATCH_CONFIG, opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile, type SpellId } from "@spellcaster/shared";
 import { arenaTextures, art, palette, spellColor, textureUrl, wizardStyle } from "../theme";
-import { MAPS, type MapId } from "./maps";
+import { MAP_ORDER, MAPS, type MapId } from "./maps";
 import { RELEASE_MS, WizardRig } from "./WizardRig";
 
 export interface ArenaFrame {
@@ -49,12 +49,21 @@ const PROJECTILE_ART: Record<Exclude<SpellId, "shield">, { key: string; originX:
   fireball: { key: "fireball", originX: 0.66, size: 150 },
   ice: { key: "ice", originX: 0.67, size: 130 },
   ultimate: { key: "fulmen", originX: 0.68, size: 230 },
+  // Six Seven has no dedicated art yet; the clash sparkle reads as a charged orb.
+  sixSeven: { key: "clash", originX: 0.5, size: 150 },
 };
 
 const IMPACT_ART: Record<Exclude<SpellId, "shield">, { key: string; size: number }> = {
   fireball: { key: "fireball-impact", size: 230 },
   ice: { key: "hit-sparks", size: 210 },
   ultimate: { key: "fulmen-impact", size: 340 },
+  sixSeven: { key: "clash", size: 320 },
+};
+
+/** The server's synced stage wins online; practice uses the locally picked map. */
+const mapFor = (frame: ArenaFrame): MapId => {
+  const stageId = frame.state?.stageId;
+  return stageId !== undefined && MAP_ORDER[stageId] ? MAP_ORDER[stageId] : frame.map;
 };
 
 /** Renders match state; it owns no game rules and never decides outcomes. */
@@ -68,6 +77,7 @@ export class ArenaScene extends Phaser.Scene {
   private unit = 1;
   private groundY = 0;
   private builtMap: MapId | null = null;
+  private builtSize = "";
 
   constructor(getFrame: () => ArenaFrame) {
     super("arena");
@@ -86,19 +96,13 @@ export class ArenaScene extends Phaser.Scene {
   create() {
     this.makeTextures();
     this.build();
-    // Rebuild the layout after the window settles on a new size.
-    let pending: Phaser.Time.TimerEvent | null = null;
-    const onResize = () => {
-      pending?.remove();
-      pending = this.time.delayedCall(150, () => this.scene.restart());
-    };
-    this.scale.on("resize", onResize);
-    this.events.once("shutdown", () => this.scale.off("resize", onResize));
   }
 
   update(time: number, delta: number) {
-    const { state, now, map } = this.getFrame();
-    if (map !== this.builtMap) return this.scene.restart();
+    const frame = this.getFrame();
+    const { state, now } = frame;
+    // Rebuild when the synced map arrives or the stage was resized since the last build.
+    if (mapFor(frame) !== this.builtMap || this.sizeKey() !== this.builtSize) return this.scene.restart();
     if (!state) return;
     for (const event of this.queue.splice(0)) this.react(event, time);
     for (const slot of ["A", "B"] as PlayerSlot[]) this.updateWizard(slot, state, now, time, delta);
@@ -107,10 +111,14 @@ export class ArenaScene extends Phaser.Scene {
 
   // ---------- layout ----------
 
+  private sizeKey() {
+    return `${Math.round(this.scale.width)}x${Math.round(this.scale.height)}`;
+  }
+
   private anchor(slot: PlayerSlot) {
     const { width } = this.scale;
     const left = this.getFrame().leftSlot === slot;
-    return { x: width * (left ? 0.2 : 0.8), y: this.groundY, facing: left ? 1 : -1 };
+    return { x: width * (left ? 0.13 : 0.87), y: this.groundY, facing: left ? 1 : -1 };
   }
 
   /** Where spells strike a wizard (chest height, just in front of them). */
@@ -125,7 +133,8 @@ export class ArenaScene extends Phaser.Scene {
     this.projectiles.clear();
     this.lastPositions.clear();
     this.releases.clear();
-    this.builtMap = this.getFrame().map;
+    this.builtMap = mapFor(this.getFrame());
+    this.builtSize = this.sizeKey();
     this.drawBackdrop(width, height);
     this.wizards = { A: this.makeWizard("A"), B: this.makeWizard("B") };
     this.drawForeground(width, height);
@@ -153,7 +162,7 @@ export class ArenaScene extends Phaser.Scene {
       advance: 10_000,
     });
 
-    for (const ledge of MAPS[this.getFrame().map].ledges) {
+    for (const ledge of MAPS[this.builtMap ?? "twin-ledges"].ledges) {
       const branch = this.add.image(width * ledge.x, height * ledge.y, "platform-upper");
       branch.setScale((width * ledge.width) / branch.width);
       this.tweens.add({ targets: branch, y: branch.y - 5 * this.unit, duration: 2600 + ledge.x * 1200, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
@@ -269,7 +278,7 @@ export class ArenaScene extends Phaser.Scene {
       // Tilt along the arc so the trail streams out behind the orb.
       const slope = -Math.cos(t * Math.PI) * 0.25;
       view.node.setPosition(x, y).setRotation(view.node.flipX ? -slope : slope);
-      if (projectile.spell === "ice") view.node.setRotation(now / 120);
+      if (projectile.spell === "ice" || projectile.spell === "sixSeven") view.node.setRotation(now / 120);
       view.trail.setPosition(x, y);
       this.lastPositions.set(projectile.id, { x, y });
     }
@@ -280,7 +289,9 @@ export class ArenaScene extends Phaser.Scene {
     const look = PROJECTILE_ART[projectile.spell as keyof typeof PROJECTILE_ART];
     const towardRight = this.anchor(projectile.owner).facing === 1;
     const node = this.add.image(0, 0, look.key).setDepth(6);
-    const size = look.size * this.unit * (projectile.empowered ? 1.3 : 1);
+    // Six Seven grows with its charge (damage scales with power).
+    const charge = projectile.spell === "sixSeven" ? 0.45 + 0.75 * (projectile.damage / DEFAULT_MATCH_CONFIG.spells.sixSeven.damage) : 1;
+    const size = look.size * this.unit * charge * (projectile.empowered ? 1.3 : 1);
     node.setScale(size / node.width);
     node.setFlipX(!towardRight);
     node.setOrigin(towardRight ? look.originX : 1 - look.originX, 0.5);
@@ -307,7 +318,8 @@ export class ArenaScene extends Phaser.Scene {
           rig.play("shield", time);
           break;
         }
-        rig.play(event.spell === "ultimate" ? "ultimate" : "throw", time, {
+        const twoHanded = event.spell === "ultimate" || event.spell === "sixSeven";
+        rig.play(twoHanded ? "ultimate" : "throw", time, {
           color,
           releaseMs: RELEASE_MS[event.spell],
           onRelease: () => {
