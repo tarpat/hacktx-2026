@@ -17,7 +17,7 @@ The source report contains an earlier role breakdown with gesture processing, pr
 
 1. Agree on spell IDs and event payloads before separate modules implement them. Use the types in `shared/src/index.ts` and [INTEGRATION.md](INTEGRATION.md).
 2. Each device runs its own camera/gesture inference. Send one discrete action with a unique `clientActionId`; never send camera frames.
-3. Use `client/src/gameActions.ts` for gesture, UI, and fallback inputs. Use `SPELL_ACCEPTED`, `DAMAGE_APPLIED`, and `MATCH_END` for visual/audio reactions.
+3. Use `spellInput.cast(...)` and `spellInput.powerUp(...)` from `client/src/game/input.ts` so online and practice modes share one entry point. Subscribe through `DuelSource` and use its `GameEvent[]` for visual/audio reactions.
 4. Keep A on the left facing right and B on the right facing left across the arena, spell trajectories, HUD, and sound/video cues.
 5. Integrate a single spell-versus-defense exchange early. Add ice, voice, clash, and show polish after that slice is stable on two devices.
 
