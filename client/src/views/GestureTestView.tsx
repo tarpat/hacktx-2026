@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { GestureController, type DebugFrame } from "../gesture/GestureController";
 import { SpellPreview } from "./SpellPreview";
-import { drawHand } from "../gesture/drawHand";
+import { drawHands } from "../gesture/drawHand";
 import type { GestureActionEvent, GestureObservation } from "../gesture/types";
 
 export function GestureTestView() {
@@ -35,10 +35,10 @@ export function GestureTestView() {
           shieldTimer = setTimeout(() => setShieldUp(false), 900);
         }
         if (event.action === "FIREBALL_CHARGE_START") setCharging(true);
-        if (event.action === "FIREBALL_CAST" || event.action === "FIREBALL_CHARGE_CANCEL") setCharging(false);
+        if (event.action === "FIREBALL_CAST" || event.action === "CHARGE_CANCEL") setCharging(false);
       }),
       controller.onDebugFrame((frame) => {
-        if (canvasRef.current) drawHand(canvasRef.current, frame.landmarks);
+        if (canvasRef.current) drawHands(canvasRef.current, frame.hands);
         setDebug((d) => (d.fps === frame.fps && d.state === frame.state ? d : { fps: frame.fps, state: frame.state }));
       }),
     ];
@@ -90,9 +90,11 @@ export function GestureTestView() {
         <div><dt>RAW</dt><dd>{observation?.rawPose ?? "NONE"}</dd></div>
         <div><dt>STATE</dt><dd>{debug.state}</dd></div>
         <div><dt>HAND</dt><dd>{observation?.hand ?? "—"}</dd></div>
+        <div><dt>PALMS UP</dt><dd>{observation?.palmsUp ? "YES 🫴🫴" : "no"}</dd></div>
+        <div><dt>SIX SEVEN</dt><dd>{Math.round((observation?.sixSevenCharge ?? 0) * 100)}% · {(observation?.sixSevenSpeed ?? 0).toFixed(1)}/s</dd></div>
         <div><dt>FPS</dt><dd>{live ? debug.fps : "—"}</dd></div>
       </dl>
-      <p className="gesture-hint">✊ hold → ✋ open: fireball · ✋ quick palm: shield · ✌️ peace: ice · ☝️ point up: ultimate</p>
+      <p className="gesture-hint">✊ hold → ✋ open: fireball · ✋ palm: shield · ✌️ peace: ice · ✊✊ → 🙌: ultimate · 🫴🫴 bob palms-up: six seven</p>
       <ol className="gesture-log">
         {log.length === 0 && <li className="empty">No actions yet</li>}
         {log.map((entry) => <li key={entry.id}><span>{(entry.localTimestampMs / 1000).toFixed(2)}s</span>{entry.action}</li>)}

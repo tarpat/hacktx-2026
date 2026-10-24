@@ -20,9 +20,9 @@ export class MatchRunner {
     this.timer = setInterval(() => this.flush(), TICK_MS);
   }
 
-  cast(slot: PlayerSlot, spell: SpellId, clientActionId: string): CastAck {
+  cast(slot: PlayerSlot, spell: SpellId, clientActionId: string, power?: number): CastAck {
     if (!this.remember(slot, clientActionId)) return { ok: false, clientActionId, reason: "duplicate" };
-    const result = this.engine.cast(slot, spell, Date.now());
+    const result = this.engine.cast(slot, spell, Date.now(), power);
     this.flush(true);
     return result.ok ? { ok: true, clientActionId } : { ok: false, clientActionId, reason: result.reason };
   }

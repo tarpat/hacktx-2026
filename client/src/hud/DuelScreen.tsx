@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
-import { opponentOf, type MatchState, type PlayerSlot, type PowerUpId, type SpellId } from "@spellcaster/shared";
+import { DEFAULT_MATCH_CONFIG, opponentOf, type MatchState, type PlayerSlot, type PowerUpId, type SpellId } from "@spellcaster/shared";
 import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
 import { GestureCamera } from "../gesture/GestureCamera";
 import type { DuelSource } from "../game/duelSource";
@@ -19,6 +19,8 @@ interface DuelScreenProps {
   rematchLabel?: string;
   onLeave?: () => void;
   header?: React.ReactNode;
+  /** Extra content under the spell trays, e.g. the practice spellbook. */
+  footer?: React.ReactNode;
 }
 
 const POWER_UPS: { id: PowerUpId; label: string; key: string }[] = [
@@ -45,7 +47,7 @@ function useMatchNow(source: DuelSource) {
   return now;
 }
 
-export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header }: DuelScreenProps) {
+export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, footer }: DuelScreenProps) {
   const [state, setState] = useState<MatchState | null>(() => source.state());
   const [banner, setBanner] = useState<Banner | null>(null);
   const [toast, setToast] = useState<Banner | null>(null);
@@ -77,7 +79,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   useEffect(() => {
     const unbindKeys = bindKeyboard(source.localSlot, hotseat ? opponentOf(source.localSlot) : null);
     const unsubscribe = spellInput.subscribe((intent) => {
-      if (intent.kind === "cast") source.cast(intent.spell, intent.slot);
+      if (intent.kind === "cast") source.cast(intent.spell, intent.slot, intent.power);
       else source.powerUp(intent.powerUp, intent.slot);
     });
     return () => {
@@ -147,7 +149,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
       <div className={`duel-stage ${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
-        <GestureCamera />
+        <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} />
         {state && <CountdownOverlay state={state} now={now} />}
         {banner && state?.phase !== "finished" && (
           <div className="banner" key={banner.id}>
@@ -178,6 +180,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
           <SpellTray player={state.players[right]} now={now} onCast={castAs(right)} side="right" keySet={hotseat ? "secondary" : null} />
         </section>
       )}
+      {footer}
     </main>
   );
 }

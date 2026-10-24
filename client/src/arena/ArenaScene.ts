@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile } from "@spellcaster/shared";
+import { DEFAULT_MATCH_CONFIG, opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile } from "@spellcaster/shared";
 import { palette, playerColor, spellColor } from "../theme";
 
 export interface ArenaFrame {
@@ -240,7 +240,12 @@ export class ArenaScene extends Phaser.Scene {
 
   private makeProjectile(projectile: Projectile): ProjectileView {
     const color = spellColor[projectile.spell];
-    const size = (projectile.spell === "ultimate" ? 26 : projectile.spell === "ice" ? 14 : 18) * this.unit * (projectile.empowered ? 1.35 : 1);
+    // Six Seven grows with its charge (damage scales with power).
+    const sixSevenSize = 14 + 18 * (projectile.damage / DEFAULT_MATCH_CONFIG.spells.sixSeven.damage);
+    const size =
+      (projectile.spell === "ultimate" ? 26 : projectile.spell === "ice" ? 14 : projectile.spell === "sixSeven" ? sixSevenSize : 18) *
+      this.unit *
+      (projectile.empowered ? 1.35 : 1);
     const node = this.add.container(0, 0).setDepth(5);
     node.add(this.add.circle(0, 0, size * 1.8, color, 0.2));
     node.add(this.add.circle(0, 0, size, color, 1));

@@ -18,7 +18,7 @@ function createPlayer(slot: PlayerSlot, config: MatchConfig): PlayerState {
     hp: config.maxHp,
     maxHp: config.maxHp,
     ultimate: 0,
-    readyAt: { fireball: 0, shield: 0, ice: 0, ultimate: 0 },
+    readyAt: { fireball: 0, shield: 0, ice: 0, ultimate: 0, sixSeven: 0 },
     shieldUntil: 0,
     frozenUntil: 0,
     empoweredUntil: 0,
@@ -71,7 +71,8 @@ export class DuelEngine {
     return this.state.phase;
   }
 
-  cast(slot: PlayerSlot, spell: SpellId, now: number): CastResult {
+  /** `power` (0–1) only matters for charged spells; a weak charge still deals a quarter of full damage. */
+  cast(slot: PlayerSlot, spell: SpellId, now: number, power = 1): CastResult {
     this.tick(now);
     const spellConfig = this.config.spells[spell];
     if (!spellConfig) return { ok: false, reason: "unknown" };
@@ -102,7 +103,9 @@ export class DuelEngine {
       id: `${slot}${++this.projectileSeq}`,
       owner: slot,
       spell,
-      damage: Math.round(spellConfig.damage * (empowered ? this.config.empowerMultiplier : 1)),
+      damage: Math.round(
+        spellConfig.damage * (empowered ? this.config.empowerMultiplier : 1) * (spellConfig.charged ? Math.min(1, Math.max(0.25, power)) : 1),
+      ),
       empowered,
       launchedAt: now,
       arrivesAt: now + spellConfig.travelMs,

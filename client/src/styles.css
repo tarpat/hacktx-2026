@@ -1225,3 +1225,313 @@ kbd {
   .gesture-cam { width: 120px; }
   .gesture-cam-legend { display: none; }
 }
+
+/* ---------- spellbook ---------- */
+
+.spellbook {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.spellbook-card {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  align-content: start;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--night-2);
+  border: 1px solid var(--line);
+}
+
+.spellbook-gesture {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.spellbook-card b {
+  font: 700 12px var(--font-label);
+  color: var(--gold-soft);
+}
+
+.spellbook-card p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--mist);
+}
+
+.spellbook-card em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--parchment);
+}
+
+.spellbook-card kbd {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+@media (max-width: 760px) {
+  .spellbook { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---------- fireball charge orb ---------- */
+
+.charge-orb {
+  --size: clamp(70px, 9vw, 120px);
+  position: absolute;
+  left: 27%;
+  top: 52%;
+  z-index: 2;
+  width: var(--size);
+  height: var(--size);
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.charge-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--gold) var(--ring), #ffffff1a var(--ring));
+  -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%);
+  mask: radial-gradient(circle, transparent 58%, #000 60%);
+}
+
+.charge-core {
+  width: 64%;
+  height: 64%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff6d6, var(--ember) 55%, #ff4d1d00 75%);
+  box-shadow: 0 0 30px var(--ember), 0 0 60px #ff7a5988;
+  transition: transform 0.08s linear;
+}
+
+.charge-text {
+  position: absolute;
+  top: calc(100% + 6px);
+  white-space: nowrap;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #120d2bdd;
+  font: 800 13px var(--font-body);
+  color: var(--gold-soft);
+}
+
+.charge-orb.ready .charge-core {
+  animation: charge-pulse 0.35s ease-in-out infinite alternate;
+}
+
+.charge-orb.ready .charge-text {
+  color: var(--night);
+  background: var(--gold);
+}
+
+.charge-orb.warning .charge-ring {
+  background: conic-gradient(var(--berry) var(--ring), #ffffff1a var(--ring));
+}
+
+.charge-orb.warning .charge-core {
+  animation: charge-pulse 0.12s ease-in-out infinite alternate;
+}
+
+.charge-orb.warning .charge-text {
+  color: #fff;
+  background: var(--berry);
+}
+
+.charge-orb.cast .charge-core {
+  animation: charge-burst 0.5s ease-out forwards;
+}
+
+.charge-orb.fizzle .charge-core {
+  animation: charge-fizzle 0.5s ease-in forwards;
+}
+
+@keyframes charge-pulse {
+  to { filter: brightness(1.5); box-shadow: 0 0 45px var(--gold), 0 0 90px #ff7a59aa; }
+}
+
+@keyframes charge-burst {
+  from { transform: scale(1.2); opacity: 1; }
+  to { transform: scale(2.6); opacity: 0; }
+}
+
+@keyframes charge-fizzle {
+  from { transform: scale(0.9); opacity: 1; }
+  to { transform: scale(0.2); opacity: 0; filter: grayscale(1); }
+}
+
+/* ---------- six seven charge bar ---------- */
+
+.six-seven {
+  position: absolute;
+  left: 27%;
+  top: 14%;
+  z-index: 2;
+  width: min(260px, 40%);
+  transform: translateX(-50%);
+  display: grid;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: #120d2bdd;
+  border: 2px solid var(--rose);
+  pointer-events: none;
+}
+
+.six-seven-head {
+  display: flex;
+  justify-content: space-between;
+  font: 700 12px var(--font-label);
+  color: var(--rose);
+}
+
+.six-seven-head span {
+  font: 900 14px var(--font-title);
+  color: var(--parchment);
+}
+
+.six-seven-track {
+  position: relative;
+  height: 14px;
+  border-radius: 999px;
+  background: #0008;
+  overflow: hidden;
+}
+
+.six-seven-track i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--rose), var(--gold));
+  transition: width 0.1s linear;
+}
+
+/* Minimum charge needed to fire. */
+.six-seven-track em {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--parchment);
+  opacity: 0.6;
+}
+
+.six-seven p {
+  margin: 0;
+  font: 800 11px var(--font-body);
+  color: var(--mist);
+  text-align: center;
+}
+
+.six-seven.ready p {
+  color: var(--gold-soft);
+}
+
+.six-seven.full {
+  border-color: var(--gold);
+  animation: six-seven-max 0.25s ease-in-out infinite alternate;
+}
+
+@keyframes six-seven-max {
+  to { box-shadow: 0 0 30px var(--gold); }
+}
+
+/* Fulmen charge: bigger, lightning gold/violet, crackling. */
+.charge-orb.ultimate {
+  --size: clamp(100px, 13vw, 170px);
+}
+
+.charge-orb.ultimate .charge-core {
+  background: radial-gradient(circle at 45% 40%, #ffffff, var(--gold-soft) 30%, #a77bff 62%, #a77bff00 76%);
+  box-shadow: 0 0 40px var(--gold), 0 0 80px #a77bffaa;
+  animation: ultimate-crackle 0.18s steps(2) infinite;
+}
+
+.charge-orb.ultimate .charge-ring {
+  background: conic-gradient(var(--gold-soft) var(--ring), #ffffff1a var(--ring));
+}
+
+.charge-orb.ultimate .charge-text {
+  font-size: 14px;
+  color: var(--gold-soft);
+  border: 1px solid var(--gold);
+}
+
+.charge-orb.ultimate.ready .charge-text {
+  color: var(--night);
+  background: var(--gold-soft);
+}
+
+.charge-orb.blocked .charge-core {
+  filter: grayscale(0.8) brightness(0.7);
+  animation: none;
+}
+
+.charge-orb.blocked .charge-text,
+.charge-orb.ultimate.blocked.ready .charge-text {
+  color: #ffc2d1;
+  background: #120d2bdd;
+  border-color: var(--berry);
+}
+
+.charge-orb.ultimate.cast .charge-core {
+  animation: charge-burst 0.5s ease-out forwards;
+  box-shadow: 0 0 120px var(--gold-soft);
+}
+
+@keyframes ultimate-crackle {
+  50% { filter: brightness(1.6) hue-rotate(-20deg); }
+}
+
+.six-seven-speed {
+  display: grid;
+  grid-template-columns: auto 1fr 3.5em;
+  align-items: center;
+  gap: 6px;
+  font: 700 9px var(--font-label);
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.six-seven-speed > span:last-child {
+  font-size: 11px;
+  text-align: right;
+  letter-spacing: 0;
+}
+
+.six-seven-speed div {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: #0008;
+  overflow: hidden;
+}
+
+.six-seven-speed i {
+  display: block;
+  height: 100%;
+  background: var(--muted);
+  transition: width 0.15s linear;
+}
+
+.six-seven-speed i.filling {
+  background: linear-gradient(90deg, var(--ember), var(--gold));
+}
+
+/* Minimum speed before the bar fills. */
+.six-seven-speed em {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--parchment);
+  opacity: 0.5;
+}

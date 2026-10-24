@@ -46,6 +46,24 @@ export function classifyPose(landmarks: Landmark[] | undefined): HandPose {
   return "UNKNOWN";
 }
 
+const isClear = (pose: HandPose) => pose !== "NONE" && pose !== "UNKNOWN";
+
+/**
+ * Merge per-hand poses into the one pose the state machine sees.
+ * A relaxed or missing second hand never blocks a one-hand gesture; two clear but
+ * different poses are ambiguous, so nothing casts.
+ */
+export function combinePoses(poses: HandPose[]): HandPose {
+  const clear = poses.filter(isClear);
+  if (clear.length === 0) return poses.includes("UNKNOWN") ? "UNKNOWN" : "NONE";
+  if (clear.length === 1) return clear[0];
+  const [a, b] = clear;
+  if (a !== b) return "UNKNOWN";
+  if (a === "FIST") return "BOTH_FISTS";
+  if (a === "OPEN_PALM") return "BOTH_PALMS";
+  return a;
+}
+
 /** Majority vote over a short window so single-frame flicker never changes the pose. */
 export class PoseSmoother {
   private window: HandPose[] = [];
