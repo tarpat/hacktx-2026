@@ -1,5 +1,5 @@
 /** Single-hand poses plus combined two-hand poses (see combinePoses). */
-export type HandPose = "NONE" | "FIST" | "OPEN_PALM" | "VICTORY" | "POINT" | "BOTH_FISTS" | "BOTH_PALMS" | "UNKNOWN";
+export type HandPose = "NONE" | "FIST" | "OPEN_PALM" | "VICTORY" | "POINT" | "HORNS" | "BOTH_FISTS" | "BOTH_PALMS" | "UNKNOWN";
 
 export type GestureAction =
   | "FIREBALL_CHARGE_START"
@@ -10,6 +10,8 @@ export type GestureAction =
   | "ULTIMATE_CAST"
   | "SHIELD_CAST"
   | "ICE_CAST"
+  /** 🤘 Hook 'em, held. */
+  | "TAURUS_CAST"
   /** One fist pump during a spell struggle. */
   | "STRUGGLE_PUSH";
 

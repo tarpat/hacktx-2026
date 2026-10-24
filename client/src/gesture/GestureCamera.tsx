@@ -14,15 +14,17 @@ const ACTION_SPELLS: Partial<Record<GestureAction, SpellId>> = {
   FIREBALL_CAST: "fireball",
   SHIELD_CAST: "shield",
   ICE_CAST: "ice",
+  TAURUS_CAST: "taurus",
   ULTIMATE_CAST: "ultimate",
 };
 
-const POSE_LABELS: Partial<Record<HandPose, string>> = { FIST: "✊", OPEN_PALM: "✋", VICTORY: "✌️", POINT: "☝️", BOTH_FISTS: "✊✊", BOTH_PALMS: "🙌" };
+const POSE_LABELS: Partial<Record<HandPose, string>> = { FIST: "✊", OPEN_PALM: "✋", VICTORY: "✌️", POINT: "☝️", HORNS: "🤘", BOTH_FISTS: "✊✊", BOTH_PALMS: "🙌" };
 
 const LEGEND: { spell: SpellId; pose: string }[] = [
   { spell: "fireball", pose: "✊→✋" },
   { spell: "shield", pose: "🙌" },
   { spell: "ice", pose: "✌️" },
+  { spell: "taurus", pose: "🤘" },
   { spell: "ultimate", pose: "☝️" },
 ];
 
