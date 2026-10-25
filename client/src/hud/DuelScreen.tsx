@@ -110,8 +110,6 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
             setFlair("A", { ko: "" });
             setFlair("B", { ko: "" });
           }
-          // A fresh webcam face the instant you're hit, so the reaction shows on your wizard.
-          if (event.type === "DAMAGE_APPLIED" && event.target === source.localSlot) shareFace(source);
           // Freeze the loser's real face at the knockout for the victory card. In hotseat
           // both players share one camera, so it catches whoever lost.
           if (event.type === "MATCH_END" && event.winner) {
@@ -142,13 +140,13 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     [source, hotseat],
   );
 
-  // Your name, and your live face on your wizard's head (refreshed every 1.5s), go to the rival.
+  // Your name goes to the rival (resent every few seconds in case they joined late).
   useEffect(() => {
     setFlair(source.localSlot, { name: loadMyName() });
     // Forget whoever sat in the other seat last time; the rival's own name arrives over the network.
     setFlair(opponentOf(source.localSlot), { name: "", face: "", ko: "" });
-    shareFace(source);
-    const timer = window.setInterval(() => shareFace(source), 1_500);
+    shareName(source);
+    const timer = window.setInterval(() => shareName(source), 3_000);
     return () => window.clearInterval(timer);
   }, [source]);
 
@@ -351,9 +349,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   );
 }
 
-/** Captures your current webcam face (if the camera is on) and sends it with your name. */
-function shareFace(source: DuelSource) {
-  const face = captureFace();
-  if (face) setFlair(source.localSlot, { face });
-  source.shareFlair?.({ name: getFlair(source.localSlot).name ?? "", ...(face ? { face } : {}) });
+/** Sends your display name to the rival (online only). */
+function shareName(source: DuelSource) {
+  source.shareFlair?.({ name: getFlair(source.localSlot).name ?? "" });
 }
