@@ -1,4 +1,5 @@
 /// <reference lib="webworker" />
+import { FrameEnhancer } from "./frameEnhancer";
 import { createLandmarker, toDetection, type WorkerReply, type WorkerRequest } from "./landmarker";
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -18,6 +19,7 @@ declare const self: DedicatedWorkerGlobalScope;
 const reply = (message: WorkerReply) => self.postMessage(message);
 
 const ready = createLandmarker();
+const enhancer = new FrameEnhancer();
 ready.then(
   () => reply({ type: "ready" }),
   (error: unknown) => reply({ type: "error", message: error instanceof Error ? error.message : String(error) }),
@@ -27,7 +29,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const { frame, timestamp } = event.data;
   try {
     const landmarker = await ready;
-    reply({ type: "result", detection: toDetection(landmarker.detectForVideo(frame, timestamp)) });
+    reply({ type: "result", detection: toDetection(landmarker.detectForVideo(enhancer.enhance(frame), timestamp)) });
   } catch (error) {
     reply({ type: "error", message: error instanceof Error ? error.message : String(error) });
   } finally {
