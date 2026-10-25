@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { SpellId } from "@spellcaster/shared";
 import { startCharge, stopCharge } from "../audio/sound";
+import { setFaceSource } from "../game/flair";
 import { spellInput } from "../game/input";
 import { art, spellGlyph } from "../theme";
 import { ChargeOrb, type ActiveCharge, type ChargeOutcome } from "./ChargeOrb";
@@ -57,7 +58,8 @@ function writeEnabled(on: boolean) {
 
 /**
  * Floating webcam panel that casts spells for the local wizard through `spellInput`,
- * the same entry point the keyboard fallback uses. Frames never leave the browser.
+ * the same entry point the keyboard fallback uses. Video is processed locally; the only
+ * thing that leaves the browser is the small face snapshot shown on your wizard to your rival.
  */
 export function GestureCamera({ ultimateReady = true, struggling = false }: { ultimateReady?: boolean; struggling?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -137,6 +139,12 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
       setEnabled(false);
       writeEnabled(false);
     });
+  }, [enabled]);
+
+  // Lend the webcam to the duel for the wizard's face and the knockout snapshot.
+  useEffect(() => {
+    setFaceSource(enabled ? videoRef.current : null);
+    return () => setFaceSource(null);
   }, [enabled]);
 
   useEffect(() => {

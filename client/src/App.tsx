@@ -5,6 +5,7 @@ import type { CreateRoomResult, JoinRoomResult, SocketError } from "@spellcaster
 import { MapPicker, useMapChoice } from "./arena/MapPicker";
 import { MAP_ORDER, type MapId } from "./arena/maps";
 import { Spellbook } from "./gesture/Spellbook";
+import { MAX_NAME, loadMyName, saveMyName } from "./game/flair";
 import { setSession, useSession } from "./session";
 import { socket } from "./socket";
 import { art } from "./theme";
@@ -25,6 +26,7 @@ function Lobby() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [map, setMap] = useMapChoice();
+  const [myName, setMyName] = useState(loadMyName);
   const session = useSession();
   const room = session?.room ?? null;
 
@@ -66,6 +68,18 @@ function Lobby() {
       <p className="eyebrow">THE ARENA AWAITS</p><h1>SpellCaster<span>:</span><br />Wizard Duel</h1>
       <p className="intro">Raise your hands. Choose your spell. Outwit a rival in a duel of magic.</p>
       <div className="lobby-card">
+        <label className="name-field">
+          <span>Your wizard name</span>
+          <input
+            placeholder="e.g. Judge Sarah"
+            maxLength={MAX_NAME}
+            value={myName}
+            onChange={(event) => {
+              setMyName(event.target.value);
+              saveMyName(event.target.value);
+            }}
+          />
+        </label>
         <MapPicker value={map} onChange={chooseMap} />
         <button className="primary-button" onClick={createRoom}>Create a duel <span>↗</span></button>
         <div className="divider"><span>OR JOIN A FRIEND</span></div>

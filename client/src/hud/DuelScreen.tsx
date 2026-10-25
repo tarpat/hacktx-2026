@@ -10,6 +10,8 @@ import { SpellStruggle } from "./SpellStruggle";
 import type { DuelSource } from "../game/duelSource";
 import { bindKeyboard, spellInput } from "../game/input";
 import { rejectionText } from "../game/narration";
+import { captureFace, getFlair, loadMyName, setFlair } from "../game/flair";
+import { HypeTracker } from "../game/hype";
 import { playerName } from "../theme";
 import { HealthBar } from "./HealthBar";
 import { CountdownOverlay, MatchClock } from "./MatchClock";
@@ -50,6 +52,8 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   const [state, setState] = useState<MatchState | null>(() => source.state());
   const [clashResult, setClashResult] = useState<ClashResult | null>(null);
   const [toast, setToast] = useState<Banner | null>(null);
+  const [hype, setHype] = useState<Banner | null>(null);
+  const hypeTracker = useRef(new HypeTracker());
   const [activeShake, setActiveShake] = useState<{ type: "hit" | "clash-impact"; id: number } | null>(null);
   const shakeTimer = useRef<number | null>(null);
 
@@ -88,7 +92,28 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
         setState(next);
         scene.current?.pushEvents(events);
         playEvents(events, source.localSlot, hotseat);
+        const callouts = hypeTracker.current.read(events);
+        for (const callout of callouts) if (callout.sound) sfx.meme(callout.sound);
+        if (callouts.length) setHype({ id: events[events.length - 1].id, text: callouts[callouts.length - 1].text });
         for (const event of events) {
+          if (event.type === "PHASE_CHANGED" && event.phase === "countdown") {
+            setFlair("A", { ko: "" });
+            setFlair("B", { ko: "" });
+          }
+          // A fresh webcam face the instant you're hit, so the reaction shows on your wizard.
+          if (event.type === "DAMAGE_APPLIED" && event.target === source.localSlot) shareFace(source);
+          // Freeze the loser's real face at the knockout for the victory card. In hotseat
+          // both players share one camera, so it catches whoever lost.
+          if (event.type === "MATCH_END" && event.winner) {
+            const loser = opponentOf(event.winner);
+            if (hotseat || loser === source.localSlot) {
+              const ko = captureFace(160);
+              if (ko) {
+                setFlair(loser, { ko });
+                source.shareFlair?.({ ko });
+              }
+            }
+          }
           if (event.type === "DAMAGE_APPLIED") triggerShake("hit");
           if (event.type === "SPELL_CLASH") {
             setClashResult(event);
@@ -106,6 +131,20 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       }),
     [source, hotseat],
   );
+
+  // Your name, and your live face on your wizard's head (refreshed every 1.5s), go to the rival.
+  useEffect(() => {
+    setFlair(source.localSlot, { name: loadMyName() });
+    shareFace(source);
+    const timer = window.setInterval(() => shareFace(source), 1_500);
+    return () => window.clearInterval(timer);
+  }, [source]);
+
+  useEffect(() => {
+    if (!hype) return;
+    const timeout = setTimeout(() => setHype(null), 1_800);
+    return () => clearTimeout(timeout);
+  }, [hype]);
 
   useEffect(() => {
     setMusic("battle");
@@ -221,6 +260,11 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
           </section>
         )}
         {state && <CountdownOverlay state={state} now={now} />}
+        {hype && (
+          <div className="hype" key={hype.id}>
+            {hype.text}
+          </div>
+        )}
         {toast && (
           <div className="toast" key={toast.id}>
             {toast.text}
@@ -253,4 +297,11 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       {state && <VictoryOverlay state={state} localSlot={left} onRematch={() => source.rematch()} onLeave={onLeave} rematchLabel={rematchLabel} />}
     </main>
   );
+}
+
+/** Captures your current webcam face (if the camera is on) and sends it with your name. */
+function shareFace(source: DuelSource) {
+  const face = captureFace();
+  if (face) setFlair(source.localSlot, { face });
+  source.shareFlair?.({ name: getFlair(source.localSlot).name ?? "", ...(face ? { face } : {}) });
 }

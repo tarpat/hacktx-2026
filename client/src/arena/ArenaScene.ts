@@ -3,6 +3,7 @@ import { opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Proj
 import { arenaTextures, art, palette, spellColor, textureUrl } from "../theme";
 import { MAP_ORDER, MAPS, type MapId } from "./maps";
 import { RELEASE_MS, WizardRig } from "./WizardRig";
+import { getFlair } from "../game/flair";
 
 const fxUrl = (name: string) => `${import.meta.env.BASE_URL}assets/fx/${name}.png`;
 
@@ -213,6 +214,9 @@ export class ArenaScene extends Phaser.Scene {
 
   private build() {
     const { width, height } = this.scale;
+    // Wizards are rebuilt, so their faces get reapplied on the next frame.
+    for (const face of Object.values(this.faces)) if (face && this.textures.exists(face.key)) this.textures.remove(face.key);
+    this.faces = {};
     const { top, bottom } = this.getFrame().insets;
     // Size wizards to the open band between the floating HUD and the spell cards.
     this.unit = Math.max(0.5, Math.min(1.3, (height - top - bottom) / 430));
@@ -306,9 +310,35 @@ export class ArenaScene extends Phaser.Scene {
 
   // ---------- per-frame ----------
 
+  /** Face image currently on each wizard, and a counter for unique texture keys. */
+  private faces: Partial<Record<PlayerSlot, { url: string; key: string }>> = {};
+  private faceSeq = 0;
+
+  /** Swaps in the player's newest webcam face once its texture has decoded. */
+  private syncFace(slot: PlayerSlot) {
+    const url = getFlair(slot).face;
+    const current = this.faces[slot];
+    if (url === current?.url) return;
+    if (!url) {
+      this.wizards[slot].rig.setFace(null);
+      if (current) this.textures.remove(current.key);
+      delete this.faces[slot];
+      return;
+    }
+    const key = `face-${slot}-${++this.faceSeq}`;
+    this.faces[slot] = { url, key };
+    this.textures.once(`addtexture-${key}`, () => {
+      if (this.faces[slot]?.key !== key) return this.textures.remove(key);
+      this.wizards[slot]?.rig.setFace(key);
+      if (current && this.textures.exists(current.key)) this.textures.remove(current.key);
+    });
+    this.textures.addBase64(key, url);
+  }
+
   private updateWizard(slot: PlayerSlot, state: MatchState, now: number, time: number, delta: number) {
     const view = this.wizards[slot];
     const player = state.players[slot];
+    this.syncFace(slot);
     view.rig.setCheering(state.phase === "finished" && state.winner === slot);
     view.rig.update(time, delta, now < player.frozenUntil);
     const finishedLoser = state.phase === "finished" && state.winner && state.winner !== slot;

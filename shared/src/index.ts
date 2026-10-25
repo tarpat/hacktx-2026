@@ -57,6 +57,15 @@ export interface ClientToServerEvents {
   STRUGGLE_PUSH: () => void;
   /** The room creator's map pick (0-2); every match in the room uses it. */
   STAGE_PREFERENCE: (stageId: number) => void;
+  /** Your display name, live webcam face or knockout snapshot, relayed to your rival. */
+  FLAIR: (flair: FlairPatch) => void;
+}
+
+/** Fun extras shared between duelists. Images are small PNG data URLs. */
+export interface FlairPatch {
+  name?: string;
+  face?: string;
+  ko?: string;
 }
 
 export interface ServerToClientEvents {
@@ -64,6 +73,7 @@ export interface ServerToClientEvents {
   PLAYER_DISCONNECTED: (slot: PlayerSlot, recoveryExpiresAt: number) => void;
   PLAYER_RECONNECTED: (slot: PlayerSlot) => void;
   MATCH_STATE: (state: MatchState, events: GameEvent[]) => void;
+  FLAIR: (slot: PlayerSlot, flair: FlairPatch) => void;
 }
 
 export interface SocketError {

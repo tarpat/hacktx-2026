@@ -2249,3 +2249,85 @@ img.spell-glyph {
 @media (prefers-reduced-motion: reduce) {
   .rising-embers { display: none; }
 }
+
+/* ---------- personal touches: names, webcam faces, hype callouts ---------- */
+
+.name-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.name-field span {
+  font: 700 10px var(--font-label);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.name-field input {
+  width: 100%;
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid #f6c45366;
+  background: var(--night);
+  color: var(--parchment);
+  font: 700 14px var(--font-label);
+  outline: none;
+}
+
+.name-field input:focus {
+  border-color: var(--gold);
+}
+
+.duel .hype {
+  position: absolute;
+  top: calc(var(--top-inset) + 18%);
+  left: 50%;
+  z-index: 7;
+  max-width: 90%;
+  transform: translateX(-50%);
+  font: 900 clamp(26px, 4.6vw, 58px) var(--font-title);
+  text-align: center;
+  color: var(--gold-soft);
+  -webkit-text-stroke: 2px #2a1a4f;
+  text-shadow: 0 0 24px #f6c453aa, 0 6px 0 #2a1a4f;
+  pointer-events: none;
+  animation: hype-pop 1.8s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+
+@keyframes hype-pop {
+  0% { opacity: 0; transform: translateX(-50%) scale(2.2) rotate(-6deg); }
+  14% { opacity: 1; transform: translateX(-50%) scale(1) rotate(-2deg); }
+  80% { opacity: 1; transform: translateX(-50%) scale(1.04) rotate(-2deg); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.9) rotate(-2deg); }
+}
+
+.victory-portraits {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 18px;
+}
+
+.victory-ko {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.victory-ko > img:not(.victory-critter) {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  filter: drop-shadow(0 6px 10px #0008);
+}
+
+.victory-ko figcaption {
+  font: 700 10px var(--font-label);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
