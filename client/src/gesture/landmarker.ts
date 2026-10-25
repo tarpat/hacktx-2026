@@ -1,9 +1,10 @@
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import type { Handedness, Landmark } from "./types";
 
-const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm";
-const MODEL_URL =
-  "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+// Self-hosted so tracking works without internet. The wasm is served from node_modules by vite.config.ts.
+const asset = (path: string) => new URL(`${import.meta.env.BASE_URL}${path}`, self.location.href).href;
+const WASM_URL = asset("mediapipe/wasm");
+const MODEL_URL = asset("models/hand_landmarker.task");
 
 export interface Detection {
   landmarks: Landmark[][];
