@@ -2,7 +2,7 @@ import "dotenv/config";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
-import { DEFAULT_MATCH_CONFIG, type ClientToServerEvents, type ServerToClientEvents } from "@spellcaster/shared";
+import { DEFAULT_MATCH_CONFIG, randomStageId, type ClientToServerEvents, type ServerToClientEvents } from "@spellcaster/shared";
 import { MatchRunner } from "./match.js";
 import { RoomManager } from "./rooms.js";
 import { createWebApp } from "./web.js";
@@ -20,19 +20,12 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
 });
 const rooms = new RoomManager();
 const matches = new Map<string, MatchRunner>();
-const lastStageByRoom = new Map<string, number>();
-const preferredStageByRoom = new Map<string, number>();
-const STAGE_COUNT = 3;
 
 const isActionId = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 64;
 
 function startMatch(code: string) {
   matches.get(code)?.stop();
-  // Use the creator's map pick; without one, rotate to a different random stage each match.
-  const previousStage = lastStageByRoom.get(code);
-  const stageChoices = [0, 1, 2].filter((stageId) => stageId !== previousStage);
-  const stageId = preferredStageByRoom.get(code) ?? stageChoices[Math.floor(Math.random() * stageChoices.length)];
-  lastStageByRoom.set(code, stageId);
+  const stageId = randomStageId();
   const runner = new MatchRunner(
     (state, events) => io.to(code).emit("MATCH_STATE", state, events),
     () => {
@@ -113,15 +106,16 @@ io.on("connection", (socket) => {
     callback?.(ack);
   });
 
-  socket.on("STAGE_PREFERENCE", (stageId) => {
-    if (!roomCode || rooms.slotOf(roomCode, socket.id) !== "A") return;
-    if (Number.isInteger(stageId) && stageId >= 0 && stageId < STAGE_COUNT) preferredStageByRoom.set(roomCode, stageId);
-  });
-
   socket.on("STRUGGLE_PUSH", () => {
     const runner = roomCode ? matches.get(roomCode) : undefined;
     const slot = roomCode ? rooms.slotOf(roomCode, socket.id) : null;
     if (runner && slot) runner.push(slot);
+  });
+
+  socket.on("POSE_SAMPLE", (sample) => {
+    const runner = roomCode ? matches.get(roomCode) : undefined;
+    const slot = roomCode ? rooms.slotOf(roomCode, socket.id) : null;
+    if (runner && slot && typeof sample?.struggleId === "string" && sample.struggleId.length < 80 && Number.isInteger(sample.step)) runner.poseSample(slot, sample);
   });
 
   socket.on("disconnect", () => {

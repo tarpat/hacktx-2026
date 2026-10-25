@@ -147,6 +147,7 @@ export class ArenaScene extends Phaser.Scene {
   private projectiles = new Map<string, ProjectileView>();
   private lastPositions = new Map<string, { x: number; y: number }>();
   private releases = new Map<string, Release>();
+  private posePausedAt: number | null = null;
   private storms = new Map<string, StormView>();
   private bulls = new Map<string, BullView>();
   private gloom!: Phaser.GameObjects.Rectangle;
@@ -183,10 +184,17 @@ export class ArenaScene extends Phaser.Scene {
 
   update(time: number, delta: number) {
     const frame = this.getFrame();
-    const { state, now } = frame;
+    const { state } = frame;
     // Rebuild when the synced map arrives or the stage was resized since the last build.
     if (mapFor(frame) !== this.builtMap || this.sizeKey() !== this.builtSize) return this.scene.restart();
     if (!state) return;
+    const now = state.struggle?.kind === "pose" ? state.struggle.startedAt : frame.now;
+    if (state.struggle?.kind === "pose") this.posePausedAt ??= state.struggle.startedAt;
+    else if (this.posePausedAt !== null) {
+      const endedAt = this.queue.find((event) => event.type === "SPELL_CLASH")?.at ?? state.now;
+      for (const release of this.releases.values()) release.at += Math.max(0, endedAt - this.posePausedAt);
+      this.posePausedAt = null;
+    }
     for (const event of this.queue.splice(0)) this.react(event, time);
     for (const slot of ["A", "B"] as PlayerSlot[]) this.updateWizard(slot, state, now, time, delta);
     this.updateProjectiles(state.projectiles, now);
@@ -712,7 +720,9 @@ export class ArenaScene extends Phaser.Scene {
           releaseMs: RELEASE_MS[event.spell],
           onRelease: () => {
             const hand = rig.handPoint();
-            if (event.projectileId) this.releases.set(event.projectileId, { at: this.getFrame().now, from: hand });
+            const frame = this.getFrame();
+            const releaseAt = frame.state?.struggle?.kind === "pose" ? frame.state.struggle.startedAt : frame.now;
+            if (event.projectileId) this.releases.set(event.projectileId, { at: releaseAt, from: hand });
             if (event.spell === "ultimate") this.callLightning(hand);
             if (event.spell === "taurus") this.summonRune(event.slot);
             this.burst(hand.x, hand.y, color, 14, 0.9);

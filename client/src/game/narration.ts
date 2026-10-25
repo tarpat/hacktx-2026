@@ -17,7 +17,7 @@ export function narrate(event: GameEvent): string | null {
     case "FROZEN":
       return pick([`${playerName[event.slot]} is frozen like a winter tale!`, "Brrr! Somebody fetch a blanket.", "Ice, ice, wizardy."], event.id);
     case "STRUGGLE_START":
-      return "Spells lock together! PUMP to push it through!";
+      return event.kind === "pose" ? "Pose race! Match all five images to win!" : "Spells lock together! PUMP to push it through!";
     case "SPELL_CLASH":
       return event.winner ? `Spells collide! ${playerName[event.winner]} pushes through!` : "Spells collide and vanish in a puff of glitter!";
     case "ULTIMATE_READY":
@@ -42,6 +42,7 @@ export const rejectionText: Record<CastRejectReason, string> = {
   meter: "Fulmen needs a full meter",
   duplicate: "",
   unknown: "Unknown spell",
+  clash: "Combat paused — finish the pose race!",
 };
 
 /** Fairy-tale title for the winner, based on how they played. */

@@ -1,3 +1,5 @@
+import type { PoseRace } from "./poses.js";
+
 export type PlayerSlot = "A" | "B";
 
 export type SpellId = "fireball" | "shield" | "ice" | "ultimate" | "taurus";
@@ -7,7 +9,7 @@ export type MatchPhase = "countdown" | "active" | "suddenDeath" | "finished";
 export type EndReason = "knockout" | "time" | "suddenDeath" | "draw";
 export type LoserForm = "frog" | "teapot";
 
-export type CastRejectReason = "not_active" | "cooldown" | "frozen" | "meter" | "duplicate" | "unknown";
+export type CastRejectReason = "not_active" | "cooldown" | "frozen" | "meter" | "duplicate" | "unknown" | "clash";
 
 export interface PlayerStats {
   casts: number;
@@ -47,7 +49,7 @@ export interface Projectile {
  * Two of the same spell met mid-air and are locked together. Players push to shove the
  * clash toward their opponent; the winner's spell absorbs the loser's and flies on.
  */
-export interface Struggle {
+interface StruggleBase {
   spell: SpellId;
   /** The two locked projectiles, by owner. */
   projectiles: Record<PlayerSlot, Projectile>;
@@ -61,9 +63,11 @@ export interface Struggle {
   lastPushAt: Record<PlayerSlot, number>;
 }
 
+export type Struggle = StruggleBase & ({ kind: "pump" } | { kind: "pose"; poseRace: PoseRace });
+
 export interface MatchState {
   phase: MatchPhase;
-  /** Shared arena layout selected by the server for online matches. */
+  /** Random arena layout; shared by the server online. Omitted in hotseat, which allows a local choice. */
   stageId?: number;
   /** Server clock when this snapshot was taken; clients use it to estimate offset. */
   now: number;
@@ -94,8 +98,9 @@ export type GameEvent = EventBase &
     | { type: "SHIELD_SHATTERED"; defender: PlayerSlot; spell: SpellId }
     | { type: "DAMAGE_APPLIED"; target: PlayerSlot; spell: SpellId; amount: number; hp: number }
     | { type: "FROZEN"; slot: PlayerSlot; until: number }
-    | { type: "SPELL_CLASH"; winner: PlayerSlot | null; survivorId: string | null; fizzledIds: string[] }
-    | { type: "STRUGGLE_START"; spell: SpellId; endsAt: number }
+    | { type: "SPELL_CLASH"; winner: PlayerSlot | null; survivorId: string | null; fizzledIds: string[]; challenge?: "pump" | "pose" }
+    | { type: "STRUGGLE_START"; spell: SpellId; endsAt: number; kind: "pump" | "pose" }
+    | { type: "POSE_MATCHED"; slot: PlayerSlot; step: number }
     | { type: "POWER_UP"; slot: PlayerSlot; powerUp: PowerUpId }
     | { type: "ULTIMATE_READY"; slot: PlayerSlot }
     | { type: "MATCH_END"; winner: PlayerSlot | null; reason: EndReason }

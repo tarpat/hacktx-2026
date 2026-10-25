@@ -3,10 +3,11 @@ import Phaser from "phaser";
 import { castBlocker, DEFAULT_MATCH_CONFIG, opponentOf, type GameEvent, type MatchState, type PlayerSlot, type SpellId } from "@spellcaster/shared";
 import { RisingEmbers } from "../arena/RisingEmbers";
 import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
-import { loadMapChoice, type MapId } from "../arena/maps";
+import { MAP_ORDER, type MapId } from "../arena/maps";
 import { playEvents, setMusic, sfx } from "../audio/sound";
 import { GestureCamera } from "../gesture/GestureCamera";
 import { SpellStruggle } from "./SpellStruggle";
+import { PoseRace } from "./PoseRace";
 import type { DuelSource } from "../game/duelSource";
 import { bindKeyboard, spellInput } from "../game/input";
 import { rejectionText } from "../game/narration";
@@ -23,7 +24,7 @@ interface DuelScreenProps {
   rematchLabel?: string;
   onLeave?: () => void;
   header?: React.ReactNode;
-  /** Arena map; defaults to the one picked in the lobby. */
+  /** Local hotseat map. Other modes use the stage in the match snapshot. */
   map?: MapId;
   /** Extra content under the spell trays, e.g. the practice spellbook. */
   footer?: React.ReactNode;
@@ -46,7 +47,7 @@ function useMatchNow(source: DuelSource) {
   return now;
 }
 
-export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, footer, map = loadMapChoice() }: DuelScreenProps) {
+export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, footer, map = MAP_ORDER[0] }: DuelScreenProps) {
   const [state, setState] = useState<MatchState | null>(() => source.state());
   const [clashResult, setClashResult] = useState<ClashResult | null>(null);
   const [toast, setToast] = useState<Banner | null>(null);
@@ -81,6 +82,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
   const left = source.localSlot;
   const right = opponentOf(left);
+  const combatNow = state?.struggle?.kind === "pose" ? state.struggle.startedAt : now;
 
   useEffect(
     () =>
@@ -202,27 +204,27 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
   const castAs = (slot: PlayerSlot) => (slot === left || hotseat ? (spell: SpellId) => spellInput.cast(spell, slot) : undefined);
 
-  const isStruggling = Boolean(state?.struggle);
   const shakeClass = activeShake
     ? ` screen-shake-${activeShake.type}-${(activeShake.id % 2) + 1}`
-    : isStruggling
+    : state?.struggle?.kind === "pump"
     ? " screen-shake-clash"
     : "";
 
   return (
-    <main className={`duel${shakeClass}`} style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
+    <main className={`duel${shakeClass}`} data-arena={state?.stageId === undefined ? map : MAP_ORDER[state.stageId] ?? map} style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
       <div className={`duel-stage phase-${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
         <RisingEmbers />
-        <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />
-        {state?.struggle && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} />}
+        {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
+        {state?.struggle?.kind === "pump" && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} />}
+        {state?.struggle?.kind === "pose" && <PoseRace key={state.struggle.poseRace.id} struggle={state.struggle} source={source} now={now} hotseat={hotseat} />}
         {clashResult && !state?.struggle && (
           <section className={`clash-result ${clashResult.winner ? `player-${clashResult.winner}` : "draw"}`} role="status" key={clashResult.id}>
             <span>{clashResult.winner ? "✦ CLASH WINNER ✦" : "⚔ CLASH DRAW ⚔"}</span>
             <strong>{clashResult.winner
               ? hotseat ? `${playerName[clashResult.winner]} wins!` : clashResult.winner === left ? "You win the clash!" : "Rival wins the clash!"
-              : "Evenly matched!"}</strong>
-            <p>{clashResult.winner ? "Winning spell absorbs both attacks and flies on." : "Both spells cancel out. No winner."}</p>
+              : clashResult.challenge === "pose" ? "Time's up!" : "Evenly matched!"}</strong>
+            <p>{clashResult.winner ? "Winning spell absorbs both attacks and flies on." : clashResult.challenge === "pose" ? "Neither player finished all five poses. Both spells cancel out." : "Both spells cancel out. No winner."}</p>
           </section>
         )}
         {state && <CountdownOverlay state={state} now={now} />}
@@ -250,8 +252,8 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
       {state && (
         <section className="duel-trays" ref={bottom}>
-          <SpellTray player={state.players[left]} now={now} onCast={castAs(left)} side="left" keySet="primary" />
-          <SpellTray player={state.players[right]} now={now} onCast={castAs(right)} side="right" keySet={hotseat ? "secondary" : null} />
+          <SpellTray player={state.players[left]} now={combatNow} onCast={state.struggle?.kind === "pose" ? undefined : castAs(left)} side="left" keySet="primary" />
+          <SpellTray player={state.players[right]} now={combatNow} onCast={state.struggle?.kind === "pose" ? undefined : castAs(right)} side="right" keySet={hotseat ? "secondary" : null} />
         </section>
       )}
       {footer}

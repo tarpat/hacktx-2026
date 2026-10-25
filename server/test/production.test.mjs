@@ -27,6 +27,10 @@ test("production server runs outside the repo cwd and accepts two WebSocket play
   assert.equal(page.status, 200);
   assert.match(await page.text(), /<div id="root"><\/div>/);
   assert.equal((await fetch(`${base}/assets/missing.js`)).status, 404);
+  assert.equal((await fetch(`${base}/models/hand_landmarker.task`, { method: "HEAD" })).status, 200);
+  const wasm = await fetch(`${base}/mediapipe/wasm/vision_wasm_internal.wasm`, { method: "HEAD" });
+  assert.equal(wasm.status, 200);
+  assert.match(wasm.headers.get("content-type"), /application\/wasm/);
   const a = io(base, { transports: ["websocket"], forceNew: true });
   const b = io(base, { transports: ["websocket"], forceNew: true });
   t.after(() => { a.disconnect(); b.disconnect(); });

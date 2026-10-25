@@ -2,8 +2,6 @@ import { useState } from "react";
 import { RisingEmbers } from "./arena/RisingEmbers";
 import { Link, Route, Routes, useNavigate } from "react-router-dom";
 import type { CreateRoomResult, JoinRoomResult, SocketError } from "@spellcaster/shared";
-import { MapPicker, useMapChoice } from "./arena/MapPicker";
-import { MAP_ORDER, type MapId } from "./arena/maps";
 import { Spellbook } from "./gesture/Spellbook";
 import { setSession, useSession } from "./session";
 import { socket } from "./socket";
@@ -24,15 +22,8 @@ function Lobby() {
   const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
-  const [map, setMap] = useMapChoice();
   const session = useSession();
   const room = session?.room ?? null;
-
-  // The room creator's pick decides the map both players see.
-  const chooseMap = (id: MapId) => {
-    setMap(id);
-    if (session?.slot === "A") socket.emit("STAGE_PREFERENCE", MAP_ORDER.indexOf(id));
-  };
 
   const createRoom = () => {
     socket.connect();
@@ -41,7 +32,6 @@ function Lobby() {
       setError("");
       sessionStorage.setItem(`spellcaster:${result.room.code}`, result.sessionToken);
       setSession({ room: result.room, slot: result.playerSlot, sessionToken: result.sessionToken });
-      if (result.playerSlot === "A") socket.emit("STAGE_PREFERENCE", MAP_ORDER.indexOf(map));
       navigate("/waiting");
     });
   };
@@ -66,7 +56,6 @@ function Lobby() {
       <p className="eyebrow">THE ARENA AWAITS</p><h1>SpellCaster<span>:</span><br />Wizard Duel</h1>
       <p className="intro">Raise your hands. Choose your spell. Outwit a rival in a duel of magic.</p>
       <div className="lobby-card">
-        <MapPicker value={map} onChange={chooseMap} />
         <button className="primary-button" onClick={createRoom}>Create a duel <span>↗</span></button>
         <div className="divider"><span>OR JOIN A FRIEND</span></div>
         <div className="join-row"><input aria-label="Room code" placeholder="ENTER ROOM CODE" maxLength={5} value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} /><button className="secondary-button" disabled={code.length < 5} onClick={joinRoom}>Join</button></div>
