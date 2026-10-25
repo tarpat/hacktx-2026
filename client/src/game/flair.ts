@@ -90,8 +90,7 @@ export function setFaceSource(video: HTMLVideoElement | null) {
 }
 
 /**
- * Grabs the current webcam frame as a round, gold-ringed face. Players sit centered in
- * front of the camera, so a square from the upper middle of the frame holds the face.
+ * Grabs the center of the webcam frame as a round, gold-ringed face.
  */
 export function captureFace(size = 96): string | null {
   const video = faceVideo;
@@ -101,7 +100,7 @@ export function captureFace(size = 96): string | null {
   canvas.width = canvas.height = size;
   const side = Math.min(video.videoWidth, video.videoHeight) * 0.62;
   const sx = (video.videoWidth - side) / 2;
-  const sy = Math.max(0, video.videoHeight * 0.36 - side / 2);
+  const sy = (video.videoHeight - side) / 2;
   ctx.clearRect(0, 0, size, size);
   ctx.save();
   ctx.beginPath();
