@@ -1,6 +1,6 @@
 import { DuelEngine, type CastAck, type GameEvent, type MatchState, type PlayerSlot, type PowerUpId, type SpellId } from "@spellcaster/shared";
 
-const TICK_MS = 50;
+const TICK_MS = 33;
 const HEARTBEAT_MS = 500;
 const MAX_REMEMBERED_ACTIONS = 512;
 

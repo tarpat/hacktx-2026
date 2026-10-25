@@ -4,8 +4,17 @@ import { palette } from "../theme";
 
 export type RigAction = "throw" | "ultimate" | "shield";
 
+/** Wind-ups are short so a cast answers the input at once; hits still land on the engine's clock. */
+const THROW_WINDUP = 180;
+const ULTIMATE_WINDUP = 320;
+
 /** Milliseconds from the start of a cast animation to the moment the spell leaves the hand. */
-export const RELEASE_MS: Record<Exclude<SpellId, "shield">, number> = { fireball: 340, ice: 340, ultimate: 500, taurus: 340 };
+export const RELEASE_MS: Record<Exclude<SpellId, "shield">, number> = {
+  fireball: THROW_WINDUP,
+  ice: THROW_WINDUP,
+  ultimate: ULTIMATE_WINDUP,
+  taurus: THROW_WINDUP,
+};
 
 export interface WizardStyle {
   robe?: number;
@@ -317,29 +326,29 @@ export class WizardRig {
     switch (this.action.action) {
       case "throw":
         // Wind up back, snap forward through the release, then settle.
-        if (elapsed < 340) {
-          const t = elapsed / 340;
+        if (elapsed < THROW_WINDUP) {
+          const t = elapsed / THROW_WINDUP;
           Object.assign(pose, { x: -12 * t, y: -2 * t, lean: -0.3 * smooth(t), scaleY: 1 - 0.04 * t, orb: t * 1.1 });
-        } else if (elapsed < 520) {
-          const t = (elapsed - 340) / 180;
+        } else if (elapsed < THROW_WINDUP + 180) {
+          const t = (elapsed - THROW_WINDUP) / 180;
           const ease = 1 - (1 - t) ** 2;
           Object.assign(pose, { x: -12 + 30 * ease, y: -2 + 4 * t, lean: -0.3 + 0.6 * ease, scaleY: 0.96 + 0.02 * t, orb: Math.max(0, 1 - t * 3) });
-        } else if (elapsed < 800) {
-          const t = smooth((elapsed - 520) / 280);
+        } else if (elapsed < THROW_WINDUP + 460) {
+          const t = smooth((elapsed - THROW_WINDUP - 180) / 280);
           Object.assign(pose, { x: 18 * (1 - t), lean: 0.3 * (1 - t) });
         } else this.action = null;
         break;
       case "ultimate":
         // Rise up and arch back to call the storm, then drive the staff forward.
-        if (elapsed < 500) {
-          const t = elapsed / 500;
+        if (elapsed < ULTIMATE_WINDUP) {
+          const t = elapsed / ULTIMATE_WINDUP;
           Object.assign(pose, { x: -8 * Math.sin(t * Math.PI), y: -18 * t, lean: -0.4 * smooth(t), scaleY: 1 + 0.06 * t, orb: t * 1.4 });
-        } else if (elapsed < 720) {
-          const t = (elapsed - 500) / 220;
+        } else if (elapsed < ULTIMATE_WINDUP + 220) {
+          const t = (elapsed - ULTIMATE_WINDUP) / 220;
           const ease = 1 - (1 - t) ** 2;
           Object.assign(pose, { x: 22 * ease, y: -18 * (1 - t), lean: -0.4 + 0.8 * ease, scaleX: 1.04, scaleY: 0.94 });
-        } else if (elapsed < 1050) {
-          const t = smooth((elapsed - 720) / 330);
+        } else if (elapsed < ULTIMATE_WINDUP + 550) {
+          const t = smooth((elapsed - ULTIMATE_WINDUP - 220) / 330);
           Object.assign(pose, { x: 22 * (1 - t), lean: 0.4 * (1 - t), scaleY: 0.94 + 0.06 * t });
         } else this.action = null;
         break;

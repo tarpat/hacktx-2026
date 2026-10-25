@@ -20,12 +20,12 @@ const ACTION_SPELLS: Partial<Record<GestureAction, SpellId>> = {
 
 const POSE_LABELS: Partial<Record<HandPose, string>> = { FIST: "✊", OPEN_PALM: "✋", VICTORY: "✌️", POINT: "☝️", HORNS: "🤘", BOTH_FISTS: "✊✊", BOTH_PALMS: "🙌" };
 
-const LEGEND: { spell: SpellId; pose: string }[] = [
-  { spell: "fireball", pose: "✊→✋" },
-  { spell: "shield", pose: "🙌" },
-  { spell: "ice", pose: "✌️" },
-  { spell: "taurus", pose: "🤘" },
-  { spell: "ultimate", pose: "☝️" },
+const LEGEND: { spell: SpellId; pose: string; poses: HandPose[] }[] = [
+  { spell: "fireball", pose: "✊→✋", poses: ["FIST", "BOTH_FISTS"] },
+  { spell: "shield", pose: "🙌", poses: ["BOTH_PALMS"] },
+  { spell: "ice", pose: "✌️", poses: ["VICTORY"] },
+  { spell: "taurus", pose: "🤘", poses: ["HORNS"] },
+  { spell: "ultimate", pose: "☝️", poses: ["POINT"] },
 ];
 
 /** Hand-skeleton glow: gold at rest, the spell's color while charging. */
@@ -182,10 +182,11 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
       </div>
       {enabled && (
         <ul className="gesture-cam-legend">
-          {LEGEND.map(({ spell, pose }) => (
-            <li key={spell} className={spell === "ultimate" && !ultimateReady ? "locked" : ""}>
+          {LEGEND.map(({ spell, pose: hint, poses }) => (
+            // Light up the spell the moment its pose is recognized, before the hold completes.
+            <li key={spell} className={spell === "ultimate" && !ultimateReady ? "locked" : live && poses.includes(pose) ? "armed" : ""}>
               <SpellIcon spell={spell} />
-              <span>{pose}</span>
+              <span>{hint}</span>
             </li>
           ))}
         </ul>
