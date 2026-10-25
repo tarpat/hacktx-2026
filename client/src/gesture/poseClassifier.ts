@@ -65,6 +65,34 @@ export function combinePoses(poses: HandPose[]): HandPose {
   return a;
 }
 
+/** Shield-stance limits, tuned on recordings in test/fixtures/gestures (real shields: tilt ≤ 11°, size ratio ≥ 0.93). */
+const SHIELD_MAX_TILT_DEG = 25;
+const SHIELD_MIN_SIZE_RATIO = 0.8;
+const MIDDLE_MCP = 9;
+const THUMB_TIP = 4;
+const PINKY_TIP = 20;
+
+/**
+ * Two open hands only count as a shield when held up like one: fingers pointing up,
+ * both hands at the same distance from the camera, palms facing it (thumbs toward each other).
+ * Open hands while talking or resting fail at least one of these; without it they cast shields.
+ */
+export function isShieldStance(hands: Landmark[][]): boolean {
+  if (hands.length !== 2) return false;
+  const [a, b] = hands;
+  const size = (h: Landmark[]) => Math.hypot(h[MIDDLE_MCP].x - h[WRIST].x, h[MIDDLE_MCP].y - h[WRIST].y);
+  const upright = (h: Landmark[]) =>
+    Math.abs(Math.atan2(h[MIDDLE_MCP].x - h[WRIST].x, h[WRIST].y - h[MIDDLE_MCP].y)) * (180 / Math.PI) <= SHIELD_MAX_TILT_DEG;
+  const thumbInward = (h: Landmark[], other: Landmark[]) => Math.abs(h[THUMB_TIP].x - other[WRIST].x) < Math.abs(h[PINKY_TIP].x - other[WRIST].x);
+  return (
+    upright(a) &&
+    upright(b) &&
+    Math.min(size(a), size(b)) / Math.max(size(a), size(b)) >= SHIELD_MIN_SIZE_RATIO &&
+    thumbInward(a, b) &&
+    thumbInward(b, a)
+  );
+}
+
 /** Majority vote over a short window so single-frame flicker never changes the pose. */
 export class PoseSmoother {
   private window: HandPose[] = [];

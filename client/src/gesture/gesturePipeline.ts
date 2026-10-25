@@ -1,4 +1,4 @@
-import { classifyPose, combinePoses, PoseSmoother } from "./poseClassifier";
+import { classifyPose, combinePoses, isShieldStance, PoseSmoother } from "./poseClassifier";
 import { filterHands, HandStabilizer } from "./handTracking";
 import { PumpCounter } from "./pumpCounter";
 import { DEFAULT_TIMINGS, resetGesture, stepGesture, type GestureState, type GestureTimings } from "./gestureStateMachine";
@@ -36,7 +36,9 @@ export class GesturePipeline {
     const hands = this.stabilizer.update(filterHands(raw), now);
     // Handedness is only meaningful for one-hand gestures.
     const hand = hands.length === 1 && raw.length === 1 ? handedness[0] : undefined;
-    const rawPose = combinePoses(hands.map(classifyPose));
+    const combined = combinePoses(hands.map(classifyPose));
+    // Open hands that aren't held up like a shield still release a fireball, but never cast a shield.
+    const rawPose = combined === "BOTH_PALMS" && !isShieldStance(hands) ? "OPEN_PALM" : combined;
     const pose = this.smoother.push(rawPose);
 
     if (this.struggling) {
