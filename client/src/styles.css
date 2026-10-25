@@ -1494,7 +1494,7 @@ kbd {
   .spellbook { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* ---------- fireball charge orb ---------- */
+/* ---------- charge prompt (the arena draws the casting circle) ---------- */
 
 .charge-orb {
   --size: clamp(70px, 9vw, 120px);
@@ -1510,24 +1510,6 @@ kbd {
   pointer-events: none;
 }
 
-.charge-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(var(--gold) var(--ring), #ffffff1a var(--ring));
-  -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%);
-  mask: radial-gradient(circle, transparent 58%, #000 60%);
-}
-
-.charge-core {
-  width: 64%;
-  height: 64%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #fff6d6, var(--ember) 55%, #ff4d1d00 75%);
-  box-shadow: 0 0 30px var(--ember), 0 0 60px #ff7a5988;
-  transition: transform 0.08s linear;
-}
-
 .charge-text {
   position: absolute;
   top: calc(100% + 6px);
@@ -1539,21 +1521,9 @@ kbd {
   color: var(--gold-soft);
 }
 
-.charge-orb.ready .charge-core {
-  animation: charge-pulse 0.35s ease-in-out infinite alternate;
-}
-
 .charge-orb.ready .charge-text {
   color: var(--night);
   background: var(--gold);
-}
-
-.charge-orb.warning .charge-ring {
-  background: conic-gradient(var(--berry) var(--ring), #ffffff1a var(--ring));
-}
-
-.charge-orb.warning .charge-core {
-  animation: charge-pulse 0.12s ease-in-out infinite alternate;
 }
 
 .charge-orb.warning .charge-text {
@@ -1561,43 +1531,8 @@ kbd {
   background: var(--berry);
 }
 
-.charge-orb.cast .charge-core {
-  animation: charge-burst 0.5s ease-out forwards;
-}
-
-.charge-orb.fizzle .charge-core {
-  animation: charge-fizzle 0.5s ease-in forwards;
-}
-
-@keyframes charge-pulse {
-  to { filter: brightness(1.5); box-shadow: 0 0 45px var(--gold), 0 0 90px #ff7a59aa; }
-}
-
-@keyframes charge-burst {
-  from { transform: scale(1.2); opacity: 1; }
-  to { transform: scale(2.6); opacity: 0; }
-}
-
-@keyframes charge-fizzle {
-  from { transform: scale(0.9); opacity: 1; }
-  to { transform: scale(0.2); opacity: 0; filter: grayscale(1); }
-}
-
-
-
-/* Fulmen charge: bigger, lightning gold/violet, crackling. */
 .charge-orb.ultimate {
   --size: clamp(100px, 13vw, 170px);
-}
-
-.charge-orb.ultimate .charge-core {
-  background: radial-gradient(circle at 45% 40%, #ffffff, var(--gold-soft) 30%, #a77bff 62%, #a77bff00 76%);
-  box-shadow: 0 0 40px var(--gold), 0 0 80px #a77bffaa;
-  animation: ultimate-crackle 0.18s steps(2) infinite;
-}
-
-.charge-orb.ultimate .charge-ring {
-  background: conic-gradient(var(--gold-soft) var(--ring), #ffffff1a var(--ring));
 }
 
 .charge-orb.ultimate .charge-text {
@@ -1611,25 +1546,11 @@ kbd {
   background: var(--gold-soft);
 }
 
-.charge-orb.blocked .charge-core {
-  filter: grayscale(0.8) brightness(0.7);
-  animation: none;
-}
-
 .charge-orb.blocked .charge-text,
 .charge-orb.ultimate.blocked.ready .charge-text {
   color: #ffc2d1;
   background: #120d2bdd;
   border-color: var(--berry);
-}
-
-.charge-orb.ultimate.cast .charge-core {
-  animation: charge-burst 0.5s ease-out forwards;
-  box-shadow: 0 0 120px var(--gold-soft);
-}
-
-@keyframes ultimate-crackle {
-  50% { filter: brightness(1.6) hue-rotate(-20deg); }
 }
 
 /* Spell struggle tug-of-war */

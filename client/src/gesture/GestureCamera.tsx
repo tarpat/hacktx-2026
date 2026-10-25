@@ -5,7 +5,8 @@ import { startCharge, stopCharge } from "../audio/sound";
 import { setFaceSource } from "../game/flair";
 import { spellInput } from "../game/input";
 import { art, spellGlyph } from "../theme";
-import { ChargeOrb, type ActiveCharge, type ChargeOutcome } from "./ChargeOrb";
+import { endLocalCharge, startLocalCharge } from "../arena/localCharge";
+import { ChargeOrb, type ActiveCharge } from "./ChargeOrb";
 import { drawHands } from "./drawHand";
 import { GestureController } from "./GestureController";
 import type { ChargeKind } from "./gestureStateMachine";
@@ -89,7 +90,6 @@ export function GestureCamera({
   const [status, setStatus] = useState<TrackingStatus>("CAMERA_OFF");
   const [pose, setPose] = useState<HandPose>("NONE");
   const [charge, setCharge] = useState<ActiveCharge | null>(null);
-  const [chargeOutcome, setChargeOutcome] = useState<{ kind: ChargeKind; result: ChargeOutcome } | null>(null);
   const [lastCast, setLastCast] = useState<{ id: number; spell: SpellId } | null>(null);
   const charging = charge !== null;
   const [error, setError] = useState("");
@@ -118,6 +118,7 @@ export function GestureCamera({
           blocked = !canCastRef.current(kind);
           if (blocked) {
             if (current) stopCharge(0.06);
+            if (current) endLocalCharge("fizzle");
             current = null;
             handColor = HAND_COLOR.idle;
             setCharge(null);
@@ -125,7 +126,8 @@ export function GestureCamera({
           }
           // An upgrade keeps the original start time, matching the state machine.
           current = { kind, startedAt: current?.startedAt ?? localTimestampMs };
-          setChargeOutcome(null);
+          // The arena draws the casting circle; controller timestamps are performance.now().
+          startLocalCharge(kind, current.startedAt);
           setCharge(current);
           handColor = HAND_COLOR[kind];
           startCharge(kind);
@@ -135,12 +137,11 @@ export function GestureCamera({
             blocked = false;
             return;
           }
-          const kind: ChargeKind = action === "ULTIMATE_CAST" ? "ultimate" : action === "FIREBALL_CAST" ? "fireball" : current?.kind ?? "fireball";
           current = null;
           handColor = HAND_COLOR.idle;
           setCharge(null);
           stopCharge(action === "CHARGE_CANCEL" ? 0.4 : 0.06);
-          setChargeOutcome({ kind, result: action === "CHARGE_CANCEL" ? "fizzle" : "cast" });
+          endLocalCharge(action === "CHARGE_CANCEL" ? "fizzle" : "cast");
         }
         if (action === "STRUGGLE_PUSH") return spellInput.push();
         const spell = ACTION_SPELLS[action];
@@ -166,8 +167,8 @@ export function GestureCamera({
     if (!enabled) {
       controller.stop();
       stopCharge();
+      endLocalCharge("fizzle");
       setCharge(null);
-      setChargeOutcome(null);
       return;
     }
     setError("");
@@ -198,13 +199,6 @@ export function GestureCamera({
   }, [enabled, status, raceTarget, error]);
 
   useEffect(() => {
-    if (!chargeOutcome) return;
-    // Matches the burst/fizzle animation length.
-    const timeout = setTimeout(() => setChargeOutcome(null), 500);
-    return () => clearTimeout(timeout);
-  }, [chargeOutcome]);
-
-  useEffect(() => {
     if (!lastCast) return;
     const timeout = setTimeout(() => setLastCast(null), 700);
     return () => clearTimeout(timeout);
@@ -221,7 +215,7 @@ export function GestureCamera({
 
   return (
     <>
-    {!compact && <ChargeOrb charge={charge} outcome={chargeOutcome} ultimateReady={ultimateReady} />}
+    {!compact && <ChargeOrb charge={charge} ultimateReady={ultimateReady} />}
     <aside className={`gesture-cam${compact || raceTarget ? " pose-camera" : ""}${enabled ? " on" : ""}${charge ? ` is-charging charge-${charge.kind}` : ""}`}>
       {(compact || raceTarget) && !enabled && <div className="pose-camera-placeholder"><span>Camera off</span><button className="gesture-cam-toggle" onClick={toggle}>Enable camera</button></div>}
       <div className="gesture-cam-view" hidden={!enabled}>

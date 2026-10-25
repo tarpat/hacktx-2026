@@ -3,6 +3,9 @@ import { opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Proj
 import { arenaTextures, art, palette, spellColor, textureUrl } from "../theme";
 import { MAP_ORDER, MAPS, type MapId } from "./maps";
 import { StruggleBeams } from "./StruggleBeams";
+import { CastCircle } from "./fx/CastCircle";
+import { clearLocalCharge, localCharge } from "./localCharge";
+import { DEFAULT_TIMINGS } from "../gesture/gestureStateMachine";
 import { RELEASE_MS, WizardRig } from "./WizardRig";
 import { getFlair } from "../game/flair";
 
@@ -154,6 +157,7 @@ export class ArenaScene extends Phaser.Scene {
   private bulls = new Map<string, BullView>();
   private gloom!: Phaser.GameObjects.Rectangle;
   private beams!: StruggleBeams;
+  private circles = {} as Record<PlayerSlot, CastCircle>;
   private unit = 1;
   private groundY = 0;
   private builtMap: MapId | null = null;
@@ -200,6 +204,8 @@ export class ArenaScene extends Phaser.Scene {
     }
     for (const event of this.queue.splice(0)) this.react(event, time);
     for (const slot of ["A", "B"] as PlayerSlot[]) this.updateWizard(slot, state, now, time, delta);
+    this.syncLocalCharge(frame.leftSlot);
+    for (const slot of ["A", "B"] as PlayerSlot[]) this.circles[slot].update(performance.now(), delta, this.wizards[slot].rig.handPoint(), this.anchor(slot).facing);
     this.updateProjectiles(state.projectiles, now);
     const flying = new Set(state.projectiles.map((p) => p.id));
     this.beams.update(
@@ -208,6 +214,23 @@ export class ArenaScene extends Phaser.Scene {
       { A: this.wizards.A.rig.handPoint(), B: this.wizards.B.rig.handPoint() },
       (id) => (flying.has(id) ? this.lastPositions.get(id) : undefined),
     );
+  }
+
+  /** The local player's held gesture charge draws their casting circle before the spell exists. */
+  private syncLocalCharge(slot: PlayerSlot) {
+    const charge = localCharge();
+    if (!charge || charge.ended?.result === "cast") return;
+    const circle = this.circles[slot];
+    const now = performance.now();
+    if (charge.ended) {
+      circle.fizzle(now);
+      return clearLocalCharge();
+    }
+    const { minMs, maxMs } = DEFAULT_TIMINGS.charge[charge.kind];
+    const elapsed = now - charge.startedAt;
+    // The ring closes when the charge is ready to release.
+    if (!circle.isOpen) circle.open(spellColor[charge.kind], charge.startedAt, minMs);
+    circle.charge(elapsed / maxMs, maxMs - elapsed < 600, now);
   }
 
   // ---------- layout ----------
@@ -247,6 +270,7 @@ export class ArenaScene extends Phaser.Scene {
     this.drawBackdrop(width, height);
     this.wizards = { A: this.makeWizard("A"), B: this.makeWizard("B") };
     this.beams = new StruggleBeams(this, this.unit, SPARK);
+    this.circles = { A: new CastCircle(this, this.unit), B: new CastCircle(this, this.unit) };
     // Darkens the arena while Fulmen gathers; the strike lights it back up.
     this.gloom = this.add.rectangle(0, 0, width, height, palette.night).setOrigin(0).setDepth(4).setAlpha(0);
   }
@@ -755,11 +779,16 @@ export class ArenaScene extends Phaser.Scene {
           rig.play("shield", time);
           break;
         }
+        // A charged cast already has its circle open; keyboard, bot and remote casts draw one through the windup.
+        const circle = this.circles[event.slot];
+        if (event.slot === this.getFrame().leftSlot) clearLocalCharge();
+        circle.open(color, performance.now(), RELEASE_MS[event.spell]);
         rig.play(event.spell === "ultimate" ? "ultimate" : "throw", time, {
-          color,
           releaseMs: RELEASE_MS[event.spell],
           onRelease: () => {
-            const hand = rig.handPoint();
+            // The spell leaves from the circle's center.
+            const hand = circle.point ?? rig.handPoint();
+            circle.fire(performance.now());
             const frame = this.getFrame();
             const releaseAt = frame.state?.struggle?.kind === "pose" ? frame.state.struggle.startedAt : frame.now;
             if (event.projectileId) this.releases.set(event.projectileId, { at: releaseAt, from: hand });

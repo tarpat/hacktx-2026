@@ -1,6 +1,5 @@
 import Phaser from "phaser";
 import type { PlayerSlot, SpellId } from "@spellcaster/shared";
-import { palette } from "../theme";
 
 export type RigAction = "throw" | "ultimate" | "shield";
 
@@ -71,10 +70,9 @@ interface Pose {
   lean: number;
   scaleX: number;
   scaleY: number;
-  orb: number;
 }
 
-const REST: Pose = { x: 0, y: 0, lean: 0, scaleX: 1, scaleY: 1, orb: 0 };
+const REST: Pose = { x: 0, y: 0, lean: 0, scaleX: 1, scaleY: 1 };
 
 /** Horizontal slices the illustration is cut into so the body can bend instead of tilting as a board. */
 const STRIPS = 36;
@@ -105,9 +103,6 @@ export class WizardRig {
   private readonly rig: Phaser.GameObjects.Container;
   private readonly strips: Phaser.GameObjects.Image[] = [];
   private readonly castNode: Phaser.GameObjects.Container;
-  private readonly castOrb: Phaser.GameObjects.Container;
-  private readonly castOrbCore: Phaser.GameObjects.Arc;
-  private readonly castOrbGlow: Phaser.GameObjects.Arc;
   private readonly staffGlow: Phaser.GameObjects.Arc;
   private readonly cfg: WizardConfig;
   private readonly texture: string;
@@ -125,7 +120,6 @@ export class WizardRig {
   private readonly squash = new Spring(1, 320, 14);
   private readonly widen = new Spring(1, 320, 18);
   private readonly head = new Spring(0, 40, 9);
-  private orb = 0;
   private glance = { target: 0, nextAt: 0 };
 
   private action: { action: RigAction; start: number; releaseAt: number | null; onRelease?: () => void } | null = null;
@@ -171,14 +165,7 @@ export class WizardRig {
     // Casting node attached to the staff head
     this.castNode = scene.add.container(cfg.staffX, cfg.staffY);
     this.staffGlow = scene.add.circle(0, 0, 14, cfg.orbColor, 0.45).setVisible(false);
-
-    this.castOrb = scene.add.container(0, 0);
-    this.castOrbGlow = scene.add.circle(0, 0, 13, palette.gold, 0.3);
-    this.castOrbCore = scene.add.circle(0, 0, 7, palette.gold, 1);
-    this.castOrb.add([this.castOrbGlow, this.castOrbCore, scene.add.circle(0, 0, 2.5, 0xffffff, 0.9)]);
-    this.castOrb.setScale(0);
-
-    this.castNode.add([this.staffGlow, this.castOrb]);
+    this.castNode.add(this.staffGlow);
     this.rig.add(this.castNode);
   }
 
@@ -200,12 +187,8 @@ export class WizardRig {
     this.face.setData("base", this.face.scaleX);
   }
 
-  play(action: RigAction, now: number, options: { color?: number; releaseMs?: number; onRelease?: () => void } = {}) {
+  play(action: RigAction, now: number, options: { releaseMs?: number; onRelease?: () => void } = {}) {
     if (this.dying) return;
-    if (options.color !== undefined) {
-      this.castOrbCore.setFillStyle(options.color);
-      this.castOrbGlow.setFillStyle(options.color, 0.35);
-    }
     this.action = { action, start: now, releaseAt: options.releaseMs ?? null, onRelease: options.onRelease };
   }
 
@@ -272,12 +255,9 @@ export class WizardRig {
     const trail = this.trail.step(lean, dt);
     const scaleY = this.squash.step(pose.scaleY, dt);
     const scaleX = this.widen.step(pose.scaleX, dt);
-    this.orb += (pose.orb - this.orb) * (1 - Math.exp(-delta / 30));
 
     this.rig.setPosition(x * this.px, y * this.px);
     this.bend(lean, lean - trail, this.head.value, scaleX, scaleY, now);
-    this.castOrb.setScale(Math.max(0, this.orb));
-    this.castOrb.rotation += delta / 120;
 
     if (this.charged && !this.dying) {
       this.staffGlow.setVisible(true);
@@ -360,11 +340,11 @@ export class WizardRig {
         // Wind up back, snap forward through the release, then settle.
         if (elapsed < THROW_WINDUP) {
           const t = elapsed / THROW_WINDUP;
-          Object.assign(pose, { x: -12 * t, y: -2 * t, lean: -0.3 * smooth(t), scaleY: 1 - 0.04 * t, orb: t * 1.1 });
+          Object.assign(pose, { x: -12 * t, y: -2 * t, lean: -0.3 * smooth(t), scaleY: 1 - 0.04 * t });
         } else if (elapsed < THROW_WINDUP + 180) {
           const t = (elapsed - THROW_WINDUP) / 180;
           const ease = 1 - (1 - t) ** 2;
-          Object.assign(pose, { x: -12 + 30 * ease, y: -2 + 4 * t, lean: -0.3 + 0.6 * ease, scaleY: 0.96 + 0.02 * t, orb: Math.max(0, 1 - t * 3) });
+          Object.assign(pose, { x: -12 + 30 * ease, y: -2 + 4 * t, lean: -0.3 + 0.6 * ease, scaleY: 0.96 + 0.02 * t });
         } else if (elapsed < THROW_WINDUP + 460) {
           const t = smooth((elapsed - THROW_WINDUP - 180) / 280);
           Object.assign(pose, { x: 18 * (1 - t), lean: 0.3 * (1 - t) });
@@ -374,7 +354,7 @@ export class WizardRig {
         // Rise up and arch back to call the storm, then drive the staff forward.
         if (elapsed < ULTIMATE_WINDUP) {
           const t = elapsed / ULTIMATE_WINDUP;
-          Object.assign(pose, { x: -8 * Math.sin(t * Math.PI), y: -18 * t, lean: -0.4 * smooth(t), scaleY: 1 + 0.06 * t, orb: t * 1.4 });
+          Object.assign(pose, { x: -8 * Math.sin(t * Math.PI), y: -18 * t, lean: -0.4 * smooth(t), scaleY: 1 + 0.06 * t });
         } else if (elapsed < ULTIMATE_WINDUP + 220) {
           const t = (elapsed - ULTIMATE_WINDUP) / 220;
           const ease = 1 - (1 - t) ** 2;
