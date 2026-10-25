@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { RisingEmbers } from "./arena/RisingEmbers";
 import { Link, Route, Routes, useNavigate } from "react-router-dom";
 import type { CreateRoomResult, JoinRoomResult, SocketError } from "@spellcaster/shared";
 import { MapPicker, useMapChoice } from "./arena/MapPicker";
@@ -8,17 +7,12 @@ import { Spellbook } from "./gesture/Spellbook";
 import { setSession, useSession } from "./session";
 import { socket } from "./socket";
 import { art } from "./theme";
+import { StoryBackdrop } from "./StoryBackdrop";
 import { ArenaView } from "./views/ArenaView";
 import { CalibrationView } from "./views/CalibrationView";
 import { GestureTestView } from "./views/GestureTestView";
 import { PracticeView } from "./views/PracticeView";
 import { WaitingView } from "./views/WaitingView";
-
-function HomeBackdrop() {
-  return <div className="home-backdrop" aria-hidden="true" style={{ backgroundImage: `url(${art.background})` }}>
-    <RisingEmbers />
-  </div>;
-}
 
 function Lobby() {
   const navigate = useNavigate();
@@ -59,7 +53,7 @@ function Lobby() {
   };
 
   return <main className="shell lobby-shell">
-    <HomeBackdrop />
+    <StoryBackdrop />
     <header className="topbar"><span className="brand-mark">✦</span><span>SPELLCASTER</span><span className="topbar-note">A DUEL OF WITS & WIZARDRY</span></header>
     <section className="hero">
       <div className="hero-duelists" aria-hidden="true"><img className="hero-wizard a" src={art.portrait.A} alt="" /><span className="hero-vs">VS</span><img className="hero-wizard b" src={art.portrait.B} alt="" /></div>
@@ -67,14 +61,14 @@ function Lobby() {
       <p className="intro">Raise your hands. Choose your spell. Outwit a rival in a duel of magic.</p>
       <div className="lobby-card">
         <MapPicker value={map} onChange={chooseMap} />
-        <button className="primary-button" onClick={createRoom}>Create a duel <span>↗</span></button>
+        <button className="primary-button" onClick={createRoom}>Create a duel <span>→</span></button>
         <div className="divider"><span>OR JOIN A FRIEND</span></div>
         <div className="join-row"><input aria-label="Room code" placeholder="ENTER ROOM CODE" maxLength={5} value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} /><button className="secondary-button" disabled={code.length < 5} onClick={joinRoom}>Join</button></div>
         {room && <div className="room-ready"><span>ROOM CODE</span><strong>{room.code}</strong><p>{room.players.A && room.players.B ? "Rival joined. Ready when you are." : "Share the code with your rival."}</p><button className="text-button" onClick={() => navigate(room.players.A && !room.players.B ? "/waiting" : "/calibration")}>Go to {room.players.A && !room.players.B ? "waiting room" : "calibration"} →</button></div>}
         {error && <p className="error-message">{error}</p>}
-        <Link className="practice-link" to="/practice?mode=training">✧ Practice against the training dummy</Link>
+        <Link className="practice-link" to="/practice?mode=training">Practice against the training dummy</Link>
       </div>
-      <div className="hero-foot"><span>✧</span> TWO WIZARDS. ONE ARENA. <span>✧</span></div>
+      <div className="hero-foot">Two wizards · One arena</div>
       <p className="credits">Spell effects by <a href="https://v-ktor.itch.io/spell-animations">Viktor Hahn</a> (CC BY 4.0), <a href="https://tornadogames.itch.io/magic-sparksattacks-for-the-devs">TornadoGames</a> and <a href="https://kenney.nl/assets/particle-pack">Kenney</a>. Bull run cycle by <a href="https://opengameart.org/content/bull-run-cycle">reivaxcorp</a> and gallop sound by <a href="https://opengameart.org/node/132682">Alan McKinney</a> (CC BY 3.0).</p>
     </section>
     <section className="home-spellbook">

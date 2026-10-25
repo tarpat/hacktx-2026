@@ -2249,3 +2249,551 @@ img.spell-glyph {
 @media (prefers-reduced-motion: reduce) {
   .rising-embers { display: none; }
 }
+
+/* ---------- enchanted-forest polish ----------
+ * Storybook woods: flat moss-and-pine surfaces with a gold hairline, lantern-amber buttons,
+ * an ornate display face for the title only, gothic headings and flared small-cap labels.
+ * Lives last so it wins over the older layers.
+ */
+
+body {
+  background: linear-gradient(180deg, var(--dusk) 0%, var(--night-2) 40%, var(--night) 100%) fixed;
+}
+
+.story-backdrop,
+.lobby-shell > .story-backdrop,
+.waiting-shell > .story-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--night);
+}
+.story-backdrop svg { width: 100%; height: 100%; display: block; }
+.lobby-shell > :not(.story-backdrop),
+.waiting-shell > :not(.story-backdrop) { position: relative; }
+
+.sb-firefly { animation: firefly 6s ease-in-out infinite; }
+.sb-lantern { animation: lantern-drift 9s ease-in-out infinite; }
+@keyframes firefly {
+  0%, 100% { opacity: 0.15; transform: translate(0, 0); }
+  50% { opacity: 1; transform: translate(6px, -10px); }
+}
+@keyframes lantern-drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-firefly, .sb-lantern { animation: none; }
+}
+
+/* Type roles */
+.topbar {
+  border-bottom: 0;
+  font: 400 15px var(--font-label);
+  letter-spacing: 0.22em;
+}
+.topbar-note,
+.step-label { font-size: 12px; letter-spacing: 0.18em; color: var(--gold-soft); opacity: 0.85; }
+
+.brand-mark {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  font-size: 0;
+  background: var(--gold);
+  transform: rotate(45deg);
+  margin-right: 4px;
+}
+
+.eyebrow {
+  font: 400 13px var(--font-label);
+  letter-spacing: 0.3em;
+  color: var(--gold-soft);
+}
+
+.hero h1 {
+  font: 900 clamp(38px, 6.6vw, 72px) var(--font-display);
+  line-height: 1.08;
+  background: none;
+  color: var(--gold-soft);
+  text-shadow: 0 3px 0 #17241c66;
+  animation: none;
+}
+.hero h1 span { color: var(--parchment); }
+
+.calibration h1 {
+  font: 400 clamp(40px, 6vw, 64px) var(--font-title);
+  background: none;
+  color: var(--gold-soft);
+  text-shadow: 0 3px 0 #17241c66;
+}
+
+.intro {
+  color: var(--parchment);
+  font-size: 16px;
+  line-height: 1.65;
+  text-shadow: 0 1px 2px #17241c55;
+}
+
+.hero-foot {
+  font: 400 13px var(--font-label);
+  letter-spacing: 0.26em;
+  color: var(--mist);
+}
+
+.hero-wizard,
+.hero-wizard.a,
+.hero-wizard.b {
+  border: 3px solid var(--gold-soft);
+  box-shadow: 0 8px 20px #17241c55;
+  background: var(--mint);
+}
+.hero-wizard.b { background: var(--lavender); }
+.hero-vs {
+  font: 400 30px var(--font-title);
+  color: var(--parchment);
+  text-shadow: 0 2px 0 #17241c66;
+}
+
+/* Cards: mossy surface, gold hairline, an inner keyline like a storybook plate. */
+.lobby-card,
+.waiting-panel,
+.waiting-status-card,
+.victory-card,
+.camera-frame,
+.gesture-card,
+.ready-card,
+.spellbook-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 40px #0d150f80;
+  backdrop-filter: none;
+}
+.lobby-card {
+  border-radius: 20px;
+  padding: 30px;
+  outline: 1px solid #ffe1a81a;
+  outline-offset: -8px;
+}
+.spellbook-card { border-radius: 14px; }
+
+/* Buttons: lantern-amber pill that presses down. */
+.primary-button {
+  background: var(--gold);
+  color: var(--night);
+  font: 400 17px var(--font-label);
+  letter-spacing: 0.12em;
+  box-shadow: 0 4px 0 #b97a32;
+  transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
+}
+.primary-button:hover:not(:disabled) {
+  background: var(--gold-soft);
+  transform: translateY(-1px);
+  box-shadow: 0 5px 0 #b97a32;
+}
+.primary-button:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #b97a32;
+}
+.primary-button span { font: 700 18px var(--font-body); }
+
+.secondary-button {
+  background: var(--plum);
+  font: 400 15px var(--font-label);
+  letter-spacing: 0.1em;
+}
+
+.divider { font: 400 12px var(--font-label); letter-spacing: 0.22em; }
+
+.join-row input,
+.map-picker select {
+  background-color: var(--night);
+  border: 1px solid var(--line);
+  font-family: var(--font-label);
+}
+.join-row input:focus,
+.map-picker select:focus { border-color: var(--gold); outline: none; }
+
+.map-picker-label { font: 400 12px var(--font-label); color: var(--gold-soft); letter-spacing: 0.22em; }
+
+.practice-link { color: var(--mint); }
+.practice-link:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+.room-ready strong { font: 400 42px var(--font-title); letter-spacing: 0.16em; }
+
+.home-spellbook h2 {
+  font: 400 clamp(32px, 4vw, 44px) var(--font-title);
+  color: var(--gold-soft);
+  letter-spacing: 0.02em;
+}
+.spellbook-card b { font-family: var(--font-label); letter-spacing: 0.04em; }
+
+.credits { color: var(--mist); opacity: 0.8; }
+
+.sound-toggle {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: 0 8px 20px #0d150f80;
+}
+
+/* Duel HUD over the painted arena: storybook labels, no neon. */
+.duel-top { background: linear-gradient(180deg, #17241cd9 0%, #17241c8c 60%, transparent 100%); }
+.duel .duel-trays { background: linear-gradient(0deg, #17241ce6 0%, #17241c99 60%, transparent 100%); }
+.duel-brand { font-family: var(--font-label); letter-spacing: 0.22em; }
+.health-name { font-family: var(--font-title); font-size: 22px; letter-spacing: 0.02em; }
+.clock-time { font-family: var(--font-display); }
+.health-portrait { border-color: var(--gold-soft); box-shadow: 0 4px 12px #0d150f80; }
+.clash-result { background: var(--surface); box-shadow: 0 18px 40px #0d150f99; }
+.clash-result strong,
+.victory-card h2 { font-family: var(--font-title); letter-spacing: 0.02em; }
+/* Numbers and status words read better in the ornate display face than in gothic. */
+.health-value,
+.spell-state,
+.countdown span { font-family: var(--font-display); }
+.spell-name { font-family: var(--font-label); }
+
+/* Brand lockup: keep the lozenge on the text's centre line everywhere. */
+.topbar .brand-link,
+.duel-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-link .brand-mark { margin-right: 0; }
+
+/* ---------- waiting room: soft, layered storybook panels ---------- */
+
+.waiting-shell { position: relative; isolation: isolate; background: none; }
+.waiting-shell .step-label strong {
+  font: 700 15px var(--font-display);
+  letter-spacing: 0.14em;
+  color: var(--gold-soft);
+  margin-left: 4px;
+}
+
+.waiting-panel,
+.waiting-shell .waiting-panel {
+  max-width: 560px;
+  margin: 28px auto 48px;
+  padding: 34px 34px 30px;
+  border-radius: 28px;
+  border: 1px solid #ffe1a840;
+  outline: 1px solid #ffe1a81f;
+  outline-offset: -9px;
+  background:
+    radial-gradient(120% 70% at 50% 0%, #34563d 0%, transparent 70%),
+    linear-gradient(180deg, #24392ad9, #17241ce6);
+  box-shadow: 0 30px 60px #0d150f8c, inset 0 1px 0 #ffffff14;
+  backdrop-filter: blur(3px);
+}
+.waiting-panel h1 { margin: 10px 0 12px; }
+
+.room-code-display {
+  margin: 26px 0 18px;
+  padding: 22px 20px 24px;
+  border-radius: 22px;
+  border: 1px solid #ffe1a826;
+  background: linear-gradient(180deg, #1b2c20, #142019);
+  box-shadow: inset 0 2px 10px #0008, 0 1px 0 #ffffff10;
+}
+.code-label { font: 400 13px var(--font-label); letter-spacing: 0.24em; color: var(--gold-soft); }
+.code-characters { gap: 12px; }
+.code-box {
+  width: 58px;
+  height: 70px;
+  border-radius: 16px;
+  border: 1px solid #ffe1a855;
+  background: linear-gradient(180deg, #fff4e0, #f2dcb2);
+  color: var(--night);
+  font: 900 34px var(--font-display);
+  text-shadow: none;
+  box-shadow: 0 5px 0 #b97a32, 0 10px 18px #0007;
+}
+
+.copy-button,
+.waiting-actions .secondary-button {
+  padding: 12px 22px;
+  border-radius: 999px;
+  box-shadow: 0 4px 0 #43233a, 0 8px 16px #0005;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.copy-button { margin-top: 10px; }
+.copy-button:active,
+.waiting-actions .secondary-button:active { transform: translateY(3px); box-shadow: 0 1px 0 #43233a; }
+
+.waiting-status-card,
+.waiting-shell .waiting-status-card {
+  border-radius: 20px;
+  padding: 16px 20px;
+  margin-bottom: 22px;
+  border: 1px solid #ffe1a826;
+  background: linear-gradient(180deg, #2a4431, #1f3226);
+  box-shadow: 0 10px 22px #0d150f66, inset 0 1px 0 #ffffff12;
+}
+.status-text strong { font: 400 15px var(--font-label); letter-spacing: 0.04em; }
+.status-text span { color: var(--mist); font-size: 13px; }
+
+/* Legibility over the bright sky. */
+.hero h1 { text-shadow: 0 3px 0 #2c4733, 0 6px 18px #17241c66; }
+.calibration h1 { text-shadow: 0 3px 0 #2c4733, 0 6px 18px #17241c66; }
+.intro,
+.hero-foot,
+.eyebrow,
+.topbar { text-shadow: 0 1px 3px #17241caa; }
+
+/* Waiting status and side action: plain storybook prose, no status light. */
+.waiting-shell .status-pulse-dot { display: none; }
+.waiting-status-card,
+.waiting-shell .waiting-status-card {
+  justify-content: center;
+  text-align: center;
+  padding: 4px 8px 0;
+  margin-bottom: 18px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+.waiting-shell .status-text strong {
+  font: italic 700 17px var(--font-body);
+  letter-spacing: 0;
+  color: var(--gold-soft);
+}
+.waiting-shell .status-text span { font-size: 14px; }
+.waiting-actions .secondary-button {
+  font: 700 15px var(--font-body);
+  letter-spacing: 0.01em;
+  padding: 13px 22px;
+}
+
+/* ---------- readable fantasy faces, calibration backdrop, no button glows ---------- */
+
+.code-box { font: 700 34px var(--font-rune); }
+.step-label strong {
+  font: 700 15px var(--font-rune);
+  letter-spacing: 0.12em;
+  color: var(--gold-soft);
+  margin-left: 4px;
+}
+
+.calibration-shell,
+.waiting-shell { position: relative; isolation: isolate; background: none; }
+.calibration-shell > :not(.story-backdrop) { position: relative; }
+.calibration-shell > .story-backdrop { position: fixed; }
+
+.calibration-shell .intro {
+  font: 500 19px/1.55 var(--font-book);
+  color: var(--parchment);
+}
+.calibration-shell .gesture-card strong { font: 700 16px var(--font-book); letter-spacing: 0.01em; }
+.calibration-shell .gesture-card span { font: 600 12px var(--font-rune); letter-spacing: 0.1em; }
+.calibration-shell .calibration-badge,
+.calibration-shell .camera-placeholder { font-family: var(--font-book); }
+.calibration-shell .primary-button {
+  font: 700 17px var(--font-rune);
+  letter-spacing: 0.08em;
+}
+
+/* Buttons stay flat: the pressed-edge shadow only, never a glow. */
+.primary-button.all-calibrated,
+.primary-button.all-calibrated:hover:not(:disabled) {
+  box-shadow: 0 4px 0 #b97a32;
+  animation: none;
+  filter: none;
+}
+.gesture-cam-toggle,
+.gesture-cam.on .gesture-cam-toggle,
+.secondary-button,
+.duel-nav button,
+.duel-nav a { box-shadow: none; filter: none; }
+.copy-button,
+.waiting-actions .secondary-button { box-shadow: 0 4px 0 #43233a; }
+.waiting-shell .step-label strong,
+.calibration-shell .step-label strong { font: 700 15px var(--font-rune); letter-spacing: 0.12em; }
+.calibration-shell .camera-placeholder strong { font: 700 15px var(--font-rune); letter-spacing: 0.08em; }
+.calibration-shell .camera-placeholder span:not(.camera-icon) { font: 500 15px var(--font-book); letter-spacing: 0; }
+
+/* ---------- calibration: roomier layout and gesture medallions ---------- */
+
+.calibration-shell .calibration { max-width: 780px; margin: 18px auto 56px; }
+.calibration-shell .calibration h1 { margin: 8px 0 10px; }
+.calibration-shell .intro { max-width: 560px; margin-bottom: 22px; }
+.calibration-shell .camera-frame { height: 300px; margin-bottom: 26px; }
+
+.calibration-shell .gesture-row { gap: 14px; margin-bottom: 26px; }
+.calibration-shell .gesture-card {
+  height: auto;
+  padding: 18px 8px 16px;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #24392a, #1a2a1f);
+  border: 1px solid #ffe1a826;
+  box-shadow: 0 10px 22px #0d150f66, inset 0 1px 0 #ffffff10;
+}
+.calibration-shell .gesture-card.detected {
+  transform: translateY(-4px);
+  border-color: var(--gold);
+  background: linear-gradient(180deg, #3a4a2a, #24321f);
+  box-shadow: 0 14px 26px #0d150f80;
+}
+
+.gesture-medallion {
+  position: relative;
+  width: 74px;
+  height: 74px;
+  margin-bottom: 8px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, #fff4e0, #f2dcb2 70%);
+  border: 3px solid var(--gold);
+  outline: 2px solid #ffe1a840;
+  outline-offset: 3px;
+  box-shadow: 0 5px 0 #b97a32, 0 10px 18px #0007;
+  transition: transform 0.25s, border-color 0.25s;
+}
+.calibration-shell .gesture-medallion i {
+  position: static;
+  font-style: normal;
+  font-size: 34px;
+  opacity: 1;
+  line-height: 1;
+}
+.gesture-card.detected .gesture-medallion { transform: rotate(-6deg) scale(1.08); }
+.gesture-card.calibrated .gesture-medallion { border-color: var(--leaf); box-shadow: 0 5px 0 #3f7a34, 0 10px 18px #0007; }
+
+.calibration-shell .gesture-num {
+  position: absolute;
+  top: -6px;
+  left: -8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--plum);
+  color: var(--parchment);
+  font: 700 11px var(--font-rune);
+  letter-spacing: 0.04em;
+}
+.gesture-seal {
+  position: absolute;
+  bottom: -6px;
+  right: -8px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--leaf);
+  color: var(--night);
+  font: 800 14px var(--font-body);
+  border: 2px solid var(--night);
+}
+
+.calibration-shell .gesture-card strong {
+  margin: 0;
+  font: 700 16px var(--font-book);
+  letter-spacing: 0;
+  color: var(--parchment);
+  white-space: nowrap;
+}
+.calibration-shell .gesture-card em {
+  font: italic 500 14px var(--font-book);
+  color: var(--gold-soft);
+}
+.gesture-card.calibrated em { color: var(--mint); }
+
+@media (max-width: 700px) {
+  .calibration-shell .gesture-row { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Waiting page reached without a room: same panel, compact button. */
+.waiting-empty { max-width: 480px; }
+.waiting-empty .primary-button { max-width: 300px; margin: 6px auto 0; }
+
+/* Show the whole webcam frame: match its 4:3 shape instead of cropping a wide strip. */
+.calibration-shell .camera-frame {
+  width: min(560px, 100%);
+  height: auto;
+  aspect-ratio: 4 / 3;
+  margin: 0 auto 26px;
+}
+
+/* ---------- home spellbook: medallion cards, matching calibration ---------- */
+
+.home-spellbook .spellbook { gap: 16px; }
+.home-spellbook .spellbook-card {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  padding: 24px 16px 20px;
+  text-align: center;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #24392a, #1a2a1f);
+  border: 1px solid #ffe1a826;
+  box-shadow: 0 12px 26px #0d150f66, inset 0 1px 0 #ffffff10;
+}
+.home-spellbook .gesture-medallion { margin-bottom: 12px; }
+.home-spellbook .gesture-medallion i { font-style: normal; font-size: 34px; line-height: 1; }
+.home-spellbook .gesture-num {
+  position: absolute;
+  top: -6px;
+  left: -8px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--plum);
+  color: var(--parchment);
+  font: 700 12px var(--font-rune);
+}
+.spellbook-then {
+  position: absolute;
+  bottom: -8px;
+  right: -10px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--parchment);
+  border: 2px solid var(--gold);
+  font-size: 17px;
+  box-shadow: 0 3px 0 #b97a32;
+}
+.home-spellbook .spellbook-card b {
+  font: 700 19px var(--font-rune);
+  letter-spacing: 0.04em;
+  color: var(--parchment);
+}
+.spellbook-kind {
+  font: italic 500 15px var(--font-book);
+  color: var(--gold-soft);
+}
+.home-spellbook .spellbook-card p {
+  margin: 8px 0 10px;
+  font: 500 15px/1.45 var(--font-book);
+  color: var(--mist);
+}
+.spellbook-effects {
+  list-style: none;
+  margin: auto 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.spellbook-effects li {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #ffe1a81a;
+  border: 1px solid #ffe1a833;
+  color: var(--gold-soft);
+  font: 700 12px var(--font-body);
+}
+.home-spellbook .spellbook-card kbd.gesture-num { right: auto; bottom: auto; width: auto; }
+/* Same three stat rows on every card, in the same order. */
+.spellbook-effects { flex-direction: column; align-items: center; }
+.home-spellbook .spellbook-card p { min-height: 2.9em; }
