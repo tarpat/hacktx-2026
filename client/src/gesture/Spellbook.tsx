@@ -1,66 +1,75 @@
 import { DEFAULT_MATCH_CONFIG, type SpellId } from "@spellcaster/shared";
-import { keyFor } from "../game/input";
 
-const { spells, shieldGuardMs, freezeMs } = DEFAULT_MATCH_CONFIG;
+const { spells, shieldGuardMs, freezeMs, ultimateShieldFactor } = DEFAULT_MATCH_CONFIG;
 const seconds = (ms: number) => `${+(ms / 1000).toFixed(1)}s`;
 
 interface Entry {
+  /** Hand pose shown in the medallion; `then` is the follow-up pose for charged spells. */
   gesture: string;
+  then?: string;
   how: string;
   spell: SpellId;
-  title: string;
-  effect: string;
+  kind: string;
+  effects: string[];
 }
 
+/** Every card reads the same way: a one-line gesture, then damage · effect · timing. */
 const ENTRIES: Entry[] = [
   {
-    gesture: "✊ → ✋",
-    how: "Make a fist; when the orb says \u201cOpen your hand!\u201d, open it",
+    gesture: "✊",
+    then: "✋",
+    how: "Make a fist, then open your hand",
     spell: "fireball",
-    title: `${spells.fireball.name} · Fireball`,
-    effect: `${spells.fireball.damage} damage · ${seconds(spells.fireball.cooldownMs)} cooldown`,
+    kind: "Fireball",
+    effects: [`${spells.fireball.damage} damage`, "Clashes mid-air", `${seconds(spells.fireball.cooldownMs)} cooldown`],
   },
   {
     gesture: "🙌",
-    how: "Raise both hands, palms facing the camera",
+    how: "Raise both palms to the camera",
     spell: "shield",
-    title: `${spells.shield.name} · Shield`,
-    effect: `Blocks for ${seconds(shieldGuardMs)} · ${seconds(spells.shield.cooldownMs)} cooldown`,
+    kind: "Shield",
+    effects: ["No damage", `Blocks for ${seconds(shieldGuardMs)}`, `${seconds(spells.shield.cooldownMs)} cooldown`],
   },
   {
     gesture: "✌️",
-    how: "Hold a peace sign for a moment",
+    how: "Hold up a peace sign",
     spell: "ice",
-    title: `${spells.ice.name} · Ice`,
-    effect: `${spells.ice.damage} damage + freezes ${seconds(freezeMs)} · ${seconds(spells.ice.cooldownMs)} cooldown`,
+    kind: "Ice",
+    effects: [`${spells.ice.damage} damage`, `Freezes for ${seconds(freezeMs)}`, `${seconds(spells.ice.cooldownMs)} cooldown`],
   },
   {
     gesture: "🤘",
-    how: "Hook 'em: index and pinky up, middle and ring fingers down",
+    how: "Raise your index and pinky fingers",
     spell: "taurus",
-    title: `${spells.taurus.name} · Longhorn charge`,
-    effect: `${spells.taurus.damage} damage · smashes through shields · ${seconds(spells.taurus.cooldownMs)} cooldown`,
+    kind: "Longhorn Charge",
+    effects: [`${spells.taurus.damage} damage`, "Breaks shields", `${seconds(spells.taurus.cooldownMs)} cooldown`],
   },
   {
-    gesture: "☝️ → 👇",
-    how: "Point one finger at the sky until the orb says \u201cDrop it to strike!\u201d, then lower it",
+    gesture: "☝️",
+    then: "👇",
+    how: "Point up, then drop your finger",
     spell: "ultimate",
-    title: `${spells.ultimate.name} · Ultimate`,
-    effect: `${spells.ultimate.damage} damage · needs a full meter`,
+    kind: "Ultimate",
+    effects: [`${spells.ultimate.damage} damage`, `${Math.round(ultimateShieldFactor * 100)}% through shields`, "Needs a full meter"],
   },
 ];
 
-/** Gesture cheat sheet shown under the practice arena. Numbers come from the engine config. */
+/** Gesture cheat sheet on the home page. Numbers come from the engine config. */
 export function Spellbook() {
   return (
     <section className="spellbook" aria-label="Spellbook">
       {ENTRIES.map((entry) => (
-        <article key={entry.title} className="spellbook-card">
-          <span className="spellbook-gesture">{entry.gesture}</span>
-          <b>{entry.title}</b>
+        <article key={entry.spell} className="spellbook-card">
+          <div className="gesture-medallion">
+            <i>{entry.gesture}</i>
+            {entry.then && <span className="spellbook-then">{entry.then}</span>}
+          </div>
+          <b>{spells[entry.spell].name}</b>
+          <span className="spellbook-kind">{entry.kind}</span>
           <p>{entry.how}</p>
-          <em>{entry.effect}</em>
-          <kbd>{keyFor("primary", entry.spell)}</kbd>
+          <ul className="spellbook-effects">
+            {entry.effects.map((effect) => <li key={effect}>{effect}</li>)}
+          </ul>
         </article>
       ))}
     </section>

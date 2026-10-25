@@ -17,7 +17,7 @@ export function ArenaView() {
           <h1>The arena is empty</h1>
           <p className="intro">Create or join a duel from the lobby, or warm up against the training dummy.</p>
           <div className="stack">
-            <Link className="primary-button" to="/">Back to the lobby <span>↗</span></Link>
+            <Link className="primary-button" to="/">Back to the lobby <span>→</span></Link>
             <Link className="text-button" to="/practice">Practice instead →</Link>
           </div>
         </section>
@@ -72,7 +72,7 @@ function OnlineArena({ session }: { session: Session }) {
             })}
           </div>
           <button className="primary-button" disabled={!rival} onClick={() => socket.emit("READY_STATUS", !me?.ready)}>
-            {me?.ready ? "Not ready yet" : rival ? "I'm ready" : "Waiting for a rival…"} <span>✦</span>
+            {me?.ready ? "Not ready yet" : rival ? "I'm ready" : "Waiting for a rival…"} <span>→</span>
           </button>
         </section>
       </main>
