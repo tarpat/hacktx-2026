@@ -257,7 +257,6 @@ export function GestureCamera({
         </div>
       </details> : <>
         {raceTarget && enabled && <button className="gesture-cam-toggle" onClick={() => controllerRef.current?.retryFaceTracking()}>Retry face tracking</button>}
-        <button className="gesture-cam-toggle" onClick={toggle}>{enabled ? "Turn camera off" : "Cast with your camera"}</button>
       </>}
     </aside>
     </>

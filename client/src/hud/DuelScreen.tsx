@@ -81,6 +81,8 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   const scene = useRef<ArenaScene | null>(null);
   // The arena fills the screen; the HUD floats over it, so tell the scene what is covered.
   const [insets, setInsets] = useState({ top: 0, bottom: 0 });
+  // The HUD's height changes as web fonts and frame art load; hold back inset-anchored panels until it settles.
+  const [settled, setSettled] = useState(false);
   const frame = useRef<ArenaFrame>({ state, now, leftSlot: source.localSlot, map, insets });
   frame.current = { state, now, leftSlot: source.localSlot, map, insets };
   const clock = useRef(source);
@@ -209,7 +211,18 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     const observer = new ResizeObserver(measure);
     if (top.current) observer.observe(top.current);
     if (bottom.current) observer.observe(bottom.current);
-    return () => observer.disconnect();
+    let cancelled = false;
+    void Promise.all([document.fonts.ready, new Promise((resolve) => (document.readyState === "complete" ? resolve(null) : window.addEventListener("load", resolve, { once: true })))]).then(() =>
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        measure();
+        setSettled(state !== null);
+      }),
+    );
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
   }, [state !== null]);
 
   useEffect(() => {
@@ -253,7 +266,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     : "";
 
   return (
-    <main className={`duel${shakeClass}`} data-arena={state?.stageId === undefined ? map : MAP_ORDER[state.stageId] ?? map} style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
+    <main className={`duel${shakeClass}${settled ? " settled" : ""}`} data-arena={state?.stageId === undefined ? map : MAP_ORDER[state.stageId] ?? map} style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
       <div className={`duel-stage phase-${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
         <RisingEmbers />

@@ -3053,3 +3053,26 @@ body {
   .clock { width: 112px; height: 104px; }
   .clock-time { font-size: 22px; }
 }
+
+/* Hold the camera panel back until the HUD above it has its final height. */
+.duel:not(.settled) .gesture-cam { visibility: hidden; }
+
+/* Larger sun-frame timer: the solid dial fits the round clock comfortably. */
+.clock { width: 236px; height: 216px; }
+.clock-label { font-size: 10px; margin-top: 2px; }
+.clock-time { font-size: 30px; }
+.clock-progress { width: 64px; }
+@media (max-width: 760px) {
+  .clock { width: 140px; height: 128px; }
+  .clock-time { font-size: 20px; }
+}
+
+/* Spell tiles: keep the status word inside the panel. */
+.spell-state {
+  font: 700 14px var(--font-rune);
+  letter-spacing: 0.04em;
+  max-width: 64%;
+  text-align: center;
+  line-height: 1.1;
+}
+@media (max-width: 760px) { .spell-state { font-size: 11px; } }
