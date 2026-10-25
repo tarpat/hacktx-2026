@@ -2,7 +2,9 @@ import Phaser from "phaser";
 import { opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile, type SpellId } from "@spellcaster/shared";
 import { arenaTextures, art, palette, spellColor, textureUrl } from "../theme";
 import { MAP_ORDER, MAPS, type MapId } from "./maps";
+import { StruggleBeams } from "./StruggleBeams";
 import { RELEASE_MS, WizardRig } from "./WizardRig";
+import { getFlair } from "../game/flair";
 
 const fxUrl = (name: string) => `${import.meta.env.BASE_URL}assets/fx/${name}.png`;
 
@@ -147,9 +149,11 @@ export class ArenaScene extends Phaser.Scene {
   private projectiles = new Map<string, ProjectileView>();
   private lastPositions = new Map<string, { x: number; y: number }>();
   private releases = new Map<string, Release>();
+  private posePausedAt: number | null = null;
   private storms = new Map<string, StormView>();
   private bulls = new Map<string, BullView>();
   private gloom!: Phaser.GameObjects.Rectangle;
+  private beams!: StruggleBeams;
   private unit = 1;
   private groundY = 0;
   private builtMap: MapId | null = null;
@@ -183,13 +187,27 @@ export class ArenaScene extends Phaser.Scene {
 
   update(time: number, delta: number) {
     const frame = this.getFrame();
-    const { state, now } = frame;
+    const { state } = frame;
     // Rebuild when the synced map arrives or the stage was resized since the last build.
     if (mapFor(frame) !== this.builtMap || this.sizeKey() !== this.builtSize) return this.scene.restart();
     if (!state) return;
+    const now = state.struggle?.kind === "pose" ? state.struggle.startedAt : frame.now;
+    if (state.struggle?.kind === "pose") this.posePausedAt ??= state.struggle.startedAt;
+    else if (this.posePausedAt !== null) {
+      const endedAt = this.queue.find((event) => event.type === "SPELL_CLASH")?.at ?? state.now;
+      for (const release of this.releases.values()) release.at += Math.max(0, endedAt - this.posePausedAt);
+      this.posePausedAt = null;
+    }
     for (const event of this.queue.splice(0)) this.react(event, time);
     for (const slot of ["A", "B"] as PlayerSlot[]) this.updateWizard(slot, state, now, time, delta);
     this.updateProjectiles(state.projectiles, now);
+    const flying = new Set(state.projectiles.map((p) => p.id));
+    this.beams.update(
+      time,
+      state.struggle,
+      { A: this.wizards.A.rig.handPoint(), B: this.wizards.B.rig.handPoint() },
+      (id) => (flying.has(id) ? this.lastPositions.get(id) : undefined),
+    );
   }
 
   // ---------- layout ----------
@@ -213,6 +231,9 @@ export class ArenaScene extends Phaser.Scene {
 
   private build() {
     const { width, height } = this.scale;
+    // Wizards are rebuilt, so their faces get reapplied on the next frame.
+    for (const face of Object.values(this.faces)) if (face && this.textures.exists(face.key)) this.textures.remove(face.key);
+    this.faces = {};
     const { top, bottom } = this.getFrame().insets;
     // Size wizards to the open band between the floating HUD and the spell cards.
     this.unit = Math.max(0.5, Math.min(1.3, (height - top - bottom) / 430));
@@ -225,6 +246,7 @@ export class ArenaScene extends Phaser.Scene {
     this.builtSize = this.sizeKey();
     this.drawBackdrop(width, height);
     this.wizards = { A: this.makeWizard("A"), B: this.makeWizard("B") };
+    this.beams = new StruggleBeams(this, this.unit, SPARK);
     // Darkens the arena while Fulmen gathers; the strike lights it back up.
     this.gloom = this.add.rectangle(0, 0, width, height, palette.night).setOrigin(0).setDepth(4).setAlpha(0);
   }
@@ -306,9 +328,35 @@ export class ArenaScene extends Phaser.Scene {
 
   // ---------- per-frame ----------
 
+  /** Face image currently on each wizard, and a counter for unique texture keys. */
+  private faces: Partial<Record<PlayerSlot, { url: string; key: string }>> = {};
+  private faceSeq = 0;
+
+  /** Swaps in the player's newest webcam face once its texture has decoded. */
+  private syncFace(slot: PlayerSlot) {
+    const url = getFlair(slot).face;
+    const current = this.faces[slot];
+    if (url === current?.url) return;
+    if (!url) {
+      this.wizards[slot].rig.setFace(null);
+      if (current) this.textures.remove(current.key);
+      delete this.faces[slot];
+      return;
+    }
+    const key = `face-${slot}-${++this.faceSeq}`;
+    this.faces[slot] = { url, key };
+    this.textures.once(`addtexture-${key}`, () => {
+      if (this.faces[slot]?.key !== key) return this.textures.remove(key);
+      this.wizards[slot]?.rig.setFace(key);
+      if (current && this.textures.exists(current.key)) this.textures.remove(current.key);
+    });
+    this.textures.addBase64(key, url);
+  }
+
   private updateWizard(slot: PlayerSlot, state: MatchState, now: number, time: number, delta: number) {
     const view = this.wizards[slot];
     const player = state.players[slot];
+    this.syncFace(slot);
     view.rig.setCheering(state.phase === "finished" && state.winner === slot);
     view.rig.update(time, delta, now < player.frozenUntil);
     const finishedLoser = state.phase === "finished" && state.winner && state.winner !== slot;
@@ -712,7 +760,9 @@ export class ArenaScene extends Phaser.Scene {
           releaseMs: RELEASE_MS[event.spell],
           onRelease: () => {
             const hand = rig.handPoint();
-            if (event.projectileId) this.releases.set(event.projectileId, { at: this.getFrame().now, from: hand });
+            const frame = this.getFrame();
+            const releaseAt = frame.state?.struggle?.kind === "pose" ? frame.state.struggle.startedAt : frame.now;
+            if (event.projectileId) this.releases.set(event.projectileId, { at: releaseAt, from: hand });
             if (event.spell === "ultimate") this.callLightning(hand);
             if (event.spell === "taurus") this.summonRune(event.slot);
             this.burst(hand.x, hand.y, color, 14, 0.9);
@@ -750,7 +800,9 @@ export class ArenaScene extends Phaser.Scene {
         break;
       }
       case "SPELL_CLASH": {
-        const point = event.fizzledIds.map((id) => this.lastPositions.get(id)).find(Boolean) ?? { x: this.scale.width / 2, y: this.groundY - 66 * this.unit };
+        const junction = event.challenge ? this.beams.point : null;
+        if (event.challenge) this.beams.resolve(time, event.winner, event.survivorId);
+        const point = junction ?? event.fizzledIds.map((id) => this.lastPositions.get(id)).find(Boolean) ?? { x: this.scale.width / 2, y: this.groundY - 66 * this.unit };
         this.flash("clash", point.x, point.y, 220, 700, true);
         this.burst(point.x, point.y, palette.goldSoft, 30, 1.6);
         this.cameras.main.flash(160, 255, 231, 168);

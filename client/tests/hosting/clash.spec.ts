@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("arena shows embers and announces both clash winners and draws", async ({ page }) => {
   await page.addInitScript(() => {
+    Math.random = () => 0.1; // Exercise the pump half of the collision coin flip.
     navigator.mediaDevices.getUserMedia = async () => { throw new Error("Camera disabled for test"); };
   });
   await page.goto("/practice?mode=hotseat");

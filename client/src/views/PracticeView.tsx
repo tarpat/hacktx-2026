@@ -32,12 +32,12 @@ export function PracticeView() {
       key={mode}
       source={source}
       hotseat={mode === "hotseat"}
-      map={map}
+      map={mode === "hotseat" ? map : undefined}
       onLeave={() => navigate("/")}
       header={
         <nav className="duel-nav">
           <span className="duel-mode">{mode === "training" ? "TRAINING · DUMMY WON'T FIGHT BACK" : "PRACTICE"}</span>
-          <MapPicker value={map} onChange={setMap} compact />
+          {mode === "hotseat" && <MapPicker value={map} onChange={setMap} compact />}
           {MODES.map(({ mode: m, label }) => (
             <button key={m} className={mode === m ? "active" : ""} onClick={() => setParams(m === "bot" ? {} : { mode: m })}>
               {label}

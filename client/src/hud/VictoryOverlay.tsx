@@ -1,4 +1,5 @@
 import { opponentOf, type MatchState, type PlayerSlot } from "@spellcaster/shared";
+import { getFlair } from "../game/flair";
 import { winnerTitle } from "../game/narration";
 import { art, playerName } from "../theme";
 
@@ -29,7 +30,18 @@ export function VictoryOverlay({ state, localSlot, onRematch, onLeave, rematchLa
         <p className="eyebrow">AND THEY DUELED HAPPILY EVER AFTER</p>
         {winner ? (
           <>
-            <img className="victory-critter" src={state.loserForm === "frog" ? art.frog : art.teapot} alt={form} />
+            <div className="victory-portraits">
+              {loser && getFlair(loser).ko && (
+                <figure className="victory-ko">
+                  <img src={getFlair(loser).ko} alt={`${playerName[loser]} at the moment of defeat`} />
+                  <figcaption>Before</figcaption>
+                </figure>
+              )}
+              <figure className="victory-ko after">
+                <img className="victory-critter" src={state.loserForm === "frog" ? art.frog : art.teapot} alt={form} />
+                {loser && getFlair(loser).ko && <figcaption>After</figcaption>}
+              </figure>
+            </div>
             <h2 className={`player-${winner}`}>{winner === localSlot ? "Victory!" : `${playerName[winner]} wins`}</h2>
             <p className="victory-title">{winnerTitle(state, winner)}</p>
             <p className="victory-detail">

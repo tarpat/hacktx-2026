@@ -31,7 +31,7 @@ export class DuelBot {
 
   /** Call every frame; true when the bot wants to push in the current spell struggle. */
   wantsPush(state: MatchState, now: number): boolean {
-    if (!state.struggle || now < this.nextPushAt) return false;
+    if (!state.struggle || state.struggle.kind !== "pump" || now < this.nextPushAt) return false;
     // ±30% jitter so the bot's rhythm looks human.
     this.nextPushAt = now + (1000 / this.options.pushesPerSec) * (0.7 + this.random() * 0.6);
     return true;
@@ -39,6 +39,7 @@ export class DuelBot {
 
   decide(state: MatchState, now: number): SpellId | null {
     if (state.phase !== "active" && state.phase !== "suddenDeath") return null;
+    if (state.struggle?.kind === "pose") return null;
     const me = state.players[this.slot];
 
     for (const projectile of state.projectiles) {

@@ -1,6 +1,6 @@
-import { DuelEngine, type MatchState, type PlayerSlot } from "@spellcaster/shared";
+import { type MatchState, type PlayerSlot } from "@spellcaster/shared";
 import { PUSH_KEYS } from "../game/input";
-import { playerName, spellGlyph } from "../theme";
+import { playerName } from "../theme";
 
 interface SpellStruggleProps {
   state: MatchState;
@@ -9,10 +9,6 @@ interface SpellStruggleProps {
   leftSlot: PlayerSlot;
   hotseat: boolean;
 }
-
-// Where the arena's cast points sit across the stage, so the clash orb lines up with the spells.
-const LANE_LEFT = 18;
-const LANE_RIGHT = 82;
 
 /**
  * Live tug-of-war for a same-spell clash: the locked spells sit where they're being
@@ -25,8 +21,6 @@ export function SpellStruggle({ state, now, leftSlot, hotseat }: SpellStrugglePr
 
   // Balance +1 means A is pushing toward B; flip it so positive always means the left wizard is winning.
   const lead = leftSlot === "A" ? struggle.balance : -struggle.balance;
-  const positionFromA = DuelEngine.strugglePosition(struggle);
-  const screen = leftSlot === "A" ? positionFromA : 1 - positionFromA;
   const secondsLeft = Math.max(0, (struggle.endsAt - now) / 1000);
   const timeShare = Math.max(0, Math.min(1, (struggle.endsAt - now) / (struggle.endsAt - struggle.startedAt)));
   const status = Math.abs(lead) < 0.1 ? "Dead even!" : lead > 0 ? hotseat ? `${playerName[leftSlot]} is leading!` : "You are leading!" : `${hotseat ? playerName[rightSlot] : "Rival"} is leading!`;
@@ -36,12 +30,6 @@ export function SpellStruggle({ state, now, leftSlot, hotseat }: SpellStrugglePr
 
   return (
     <>
-      <div className="struggle-orb" style={{ left: `${LANE_LEFT + (LANE_RIGHT - LANE_LEFT) * screen}%` }} aria-hidden>
-        <span className={`struggle-half player-${leftSlot}`} />
-        <span className={`struggle-half player-${rightSlot}`} />
-        <b>{spellGlyph[struggle.spell]}</b>
-      </div>
-
       <section className={`struggle${lead > 0.1 ? " winning" : lead < -0.1 ? " losing" : ""}`} aria-live="polite">
         <header>
           <span>⚔️ SPELL CLASH ⚔️</span>

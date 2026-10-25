@@ -4,18 +4,24 @@ import {
   DuelEngine,
   EASY_BOT,
   makeMatchConfig,
+  type FlairPatch,
+  randomStageId,
   type GameEvent,
   type MatchState,
   type PlayerSlot,
   type PowerUpId,
   type SpellId,
+  type PoseSample,
+  POSE_RACE,
 } from "@spellcaster/shared";
 import { socket } from "../socket";
+import { setFlair } from "./flair";
 
 export type DuelListener = (state: MatchState, events: GameEvent[]) => void;
 
 /** Where match state comes from: a local engine (practice) or the authoritative server. */
 export interface DuelSource {
+  readonly poseAssist: boolean;
   readonly localSlot: PlayerSlot;
   /** Current time on the clock the match state uses. */
   now(): number;
@@ -24,9 +30,12 @@ export interface DuelSource {
   powerUp(powerUp: PowerUpId, slot?: PlayerSlot): void;
   /** One push in a spell struggle. */
   push(slot?: PlayerSlot): void;
+  poseSample(sample: PoseSample, slot?: PlayerSlot): void;
   subscribe(listener: DuelListener): () => void;
   /** Starts a fresh match (practice) or asks the server for a rematch (online). */
   rematch(): void;
+  /** Sends your name or face to the rival (online only). */
+  shareFlair?(flair: FlairPatch): void;
   dispose(): void;
 }
 
@@ -47,8 +56,10 @@ const TRAINING_CONFIG = makeMatchConfig({
 });
 
 export class LocalDuel implements DuelSource {
+  readonly poseAssist = true;
   readonly localSlot: PlayerSlot = "A";
   private engine: DuelEngine;
+  private stageId: number | undefined;
   private bot: DuelBot | null;
   private latest: MatchState;
   private readonly listeners = new Set<DuelListener>();
@@ -57,7 +68,7 @@ export class LocalDuel implements DuelSource {
   constructor(private readonly mode: LocalMode) {
     this.engine = this.newEngine();
     this.bot = this.newBot();
-    this.latest = this.engine.snapshot(Date.now());
+    this.latest = this.snapshot(Date.now());
     this.timer = setInterval(() => this.step(), TICK_MS);
   }
 
@@ -81,6 +92,12 @@ export class LocalDuel implements DuelSource {
     this.step();
   }
 
+  poseSample(sample: PoseSample, slot: PlayerSlot = this.localSlot) {
+    if (slot === "B" && this.mode !== "hotseat") return;
+    this.engine.poseSample(slot, sample, Date.now());
+    this.step();
+  }
+
   powerUp(powerUp: PowerUpId, slot: PlayerSlot = this.localSlot) {
     this.engine.grantPowerUp(slot, powerUp, Date.now());
     this.step();
@@ -99,7 +116,12 @@ export class LocalDuel implements DuelSource {
   }
 
   private newEngine() {
+    this.stageId = this.mode === "hotseat" ? undefined : randomStageId();
     return new DuelEngine(Date.now(), this.mode === "training" ? TRAINING_CONFIG : DEFAULT_MATCH_CONFIG);
+  }
+
+  private snapshot(now: number): MatchState {
+    return { ...this.engine.snapshot(now), ...(this.stageId === undefined ? {} : { stageId: this.stageId }) };
   }
 
   private newBot() {
@@ -113,23 +135,32 @@ export class LocalDuel implements DuelSource {
 
   private step() {
     const now = Date.now();
-    const snapshot = this.engine.snapshot(now);
+    const snapshot = this.snapshot(now);
     const botSpell = this.bot?.decide(snapshot, now);
     if (botSpell) this.engine.cast("B", botSpell, now);
     if (this.bot?.wantsPush(snapshot, now)) this.engine.push("B", now);
-    this.latest = this.engine.snapshot(now);
+    if (this.bot && snapshot.struggle?.kind === "pose") {
+      const race = snapshot.struggle.poseRace;
+      const p = race.progress.B;
+      // A visible simulated opponent: neutral first, then about 1.6 seconds per pose.
+      const matched = now >= race.readyAt + p.step * 1_600 + POSE_RACE.releaseMs + 400;
+      this.engine.poseSample("B", { struggleId: race.id, step: p.step, matched }, now);
+    }
+    this.latest = this.snapshot(now);
     const events = this.engine.drainEvents();
     this.listeners.forEach((listener) => listener(this.latest, events));
   }
 }
 
 export class OnlineDuel implements DuelSource {
+  readonly poseAssist = false;
   private latest: MatchState | null = null;
   /** Estimated server clock minus local clock. */
   private offset = 0;
   private synced = false;
   private readonly listeners = new Set<DuelListener>();
   private readonly onState: DuelListener;
+  private readonly onFlair = (slot: PlayerSlot, patch: FlairPatch) => setFlair(slot, patch);
 
   constructor(readonly localSlot: PlayerSlot) {
     this.onState = (state, events) => {
@@ -143,6 +174,11 @@ export class OnlineDuel implements DuelSource {
       this.listeners.forEach((listener) => listener(state, events));
     };
     socket.on("MATCH_STATE", this.onState);
+    socket.on("FLAIR", this.onFlair);
+  }
+
+  shareFlair(flair: FlairPatch) {
+    socket.emit("FLAIR", flair);
   }
 
   now() {
@@ -166,6 +202,10 @@ export class OnlineDuel implements DuelSource {
     socket.emit("STRUGGLE_PUSH");
   }
 
+  poseSample(sample: PoseSample) {
+    socket.emit("POSE_SAMPLE", sample);
+  }
+
   subscribe(listener: DuelListener) {
     this.listeners.add(listener);
     if (this.latest) listener(this.latest, []);
@@ -178,6 +218,7 @@ export class OnlineDuel implements DuelSource {
 
   dispose() {
     socket.off("MATCH_STATE", this.onState);
+    socket.off("FLAIR", this.onFlair);
     this.listeners.clear();
   }
 }
