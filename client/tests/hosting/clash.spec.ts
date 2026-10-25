@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("arena shows embers and announces both clash winners and draws", async ({ page }) => {
   await page.addInitScript(() => {
-    Math.random = () => 0.1; // Exercise the pump half of the collision coin flip.
+    Math.random = () => 0.1; // Exercise the 6–7 half of the collision coin flip.
     navigator.mediaDevices.getUserMedia = async () => { throw new Error("Camera disabled for test"); };
   });
   await page.goto("/practice?mode=hotseat");
@@ -20,7 +20,7 @@ test("arena shows embers and announces both clash winners and draws", async ({ p
     await page.keyboard.press("Space");
     await page.waitForTimeout(140);
   }
-  await expect(page.locator(".clash-result")).toContainText("Green Wizard wins!");
+  await expect(page.locator(".clash-result")).toContainText("Green Wizard wins!", { timeout: 9000 });
   await expect(page.locator(".clash-result")).toHaveClass(/player-A/);
   await expect(page.locator(".clash-result")).toBeHidden({ timeout: 5_000 });
 
@@ -29,7 +29,7 @@ test("arena shows embers and announces both clash winners and draws", async ({ p
     await page.keyboard.press("Enter");
     await page.waitForTimeout(140);
   }
-  await expect(page.locator(".clash-result")).toContainText("Purple Wizard wins!");
+  await expect(page.locator(".clash-result")).toContainText("Purple Wizard wins!", { timeout: 9000 });
   await expect(page.locator(".clash-result")).toHaveClass(/player-B/);
   await expect(page.locator(".clash-result")).toBeHidden({ timeout: 5_000 });
 

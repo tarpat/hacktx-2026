@@ -1,6 +1,5 @@
 import { classifyPose, combinePoses, isShieldStance, PoseSmoother } from "./poseClassifier";
 import { filterHands, HandStabilizer } from "./handTracking";
-import { PumpCounter } from "./pumpCounter";
 import { DEFAULT_TIMINGS, resetGesture, stepGesture, type GestureState, type GestureTimings } from "./gestureStateMachine";
 import type { GestureAction, Handedness, HandPose, Landmark } from "./types";
 
@@ -21,8 +20,7 @@ export class GesturePipeline {
   /** 4-of-6 frame vote: a pose has to persist ~130 ms at 30 fps, which filters single-frame misreads. */
   private smoother = new PoseSmoother(6, 4);
   private stabilizer = new HandStabilizer();
-  private pumps = new PumpCounter();
-  /** During a spell struggle, hands pump to push instead of casting. */
+  /** During a collision challenge, the body tracker supplies beats and hand casting is suspended. */
   private struggling = false;
   private gestureState: GestureState = { kind: "IDLE" };
 
@@ -44,19 +42,18 @@ export class GesturePipeline {
 
     if (!casting) return { hands, pose, rawPose, hand, actions: [] };
     if (this.struggling) {
-      return { hands, pose, rawPose, hand, actions: this.pumps.update(rawPose) ? ["STRUGGLE_PUSH"] : [] };
+      return { hands, pose, rawPose, hand, actions: [] };
     }
     const { state, actions } = stepGesture(this.gestureState, pose, now, this.timings);
     this.gestureState = state;
     return { hands, pose, rawPose, hand, actions };
   }
 
-  /** Switch between casting and spell-struggle pumping. Returns actions that close out a half-made gesture. */
+  /** Switch between casting and the 6–7 collision challenge. Returns actions that close out a half-made gesture. */
   setStruggling(on: boolean): GestureAction[] {
     if (on === this.struggling) return [];
     this.struggling = on;
-    this.pumps.reset();
-    // Entering: drop any half-made gesture. Leaving: hands are mid-pump, so wait for them to relax before casting again.
+    // Entering: drop any half-made gesture. Leaving: hands are mid-motion, so wait for them to relax before casting again.
     const actions = this.reset();
     if (!on) this.gestureState = { kind: "REARM", blockedPoses: ["FIST", "BOTH_FISTS", "OPEN_PALM", "BOTH_PALMS", "POINT"] };
     return actions;

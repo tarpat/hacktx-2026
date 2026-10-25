@@ -34,7 +34,7 @@ export function CountdownOverlay({ state, now }: { state: MatchState; now: numbe
   if (state.phase !== "countdown") return null;
   const count = Math.max(1, Math.ceil((state.phaseEndsAt - now) / 1000));
   return (
-    <div className="countdown" key={count}>
+    <div className="match-countdown" key={count}>
       <span>{count}</span>
     </div>
   );

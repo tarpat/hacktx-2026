@@ -6,7 +6,8 @@ import { setFaceSource } from "../game/flair";
 import { spellInput } from "../game/input";
 import { art, spellGlyph } from "../theme";
 import { ChargeOrb, type ActiveCharge, type ChargeOutcome } from "./ChargeOrb";
-import { drawHands } from "./drawHand";
+import { drawForearms, drawHands } from "./drawHand";
+import type { SixSevenFeedback } from "./sixSevenCounter";
 import { GestureController } from "./GestureController";
 import type { ChargeKind } from "./gestureStateMachine";
 import type { GestureAction, HandPose, TrackingStatus } from "./types";
@@ -60,6 +61,7 @@ export function GestureCamera({
   canCast = () => true,
   raceTarget = null,
   onRaceFeedback,
+  onSixSevenFeedback,
   compact = false,
   extraControls,
 }: {
@@ -69,6 +71,7 @@ export function GestureCamera({
   canCast?: (spell: SpellId) => boolean;
   raceTarget?: RacePoseId | null;
   onRaceFeedback?: (feedback: PoseFeedback) => void;
+  onSixSevenFeedback?: (feedback: SixSevenFeedback) => void;
   compact?: boolean;
   extraControls?: ReactNode;
 }) {
@@ -87,6 +90,8 @@ export function GestureCamera({
   const [error, setError] = useState("");
   const raceCallback = useRef(onRaceFeedback);
   raceCallback.current = onRaceFeedback;
+  const sixSevenCallback = useRef(onSixSevenFeedback);
+  sixSevenCallback.current = onSixSevenFeedback;
 
   useEffect(() => {
     const controller = new GestureController();
@@ -99,6 +104,7 @@ export function GestureCamera({
     let blocked = false;
     const unsubscribers = [
       controller.onRaceFeedback((feedback) => raceCallback.current?.(feedback)),
+      controller.onSixSevenFeedback((feedback) => sixSevenCallback.current?.(feedback)),
       controller.onObservation((o) => {
         setStatus(o.status);
         setPose(o.pose);
@@ -141,7 +147,9 @@ export function GestureCamera({
         setLastCast({ id: ++castId, spell });
       }),
       controller.onDebugFrame((frame) => {
-        if (canvasRef.current) drawHands(canvasRef.current, frame.hands, handColor);
+        if (!canvasRef.current) return;
+        if (frame.body) drawForearms(canvasRef.current, frame.body, frame.hands);
+        else drawHands(canvasRef.current, frame.hands, handColor);
       }),
     ];
     return () => {
@@ -180,6 +188,15 @@ export function GestureCamera({
     controllerRef.current?.setStruggling(struggling);
   }, [struggling]);
 
+  useEffect(() => {
+    if (!struggling || raceTarget) return;
+    const hint = !enabled ? "Camera off · Use SPACE or tap to score."
+      : status === "ERROR" ? "Camera stopped · Use SPACE or tap to score."
+      : status === "STARTING" ? "Starting camera… Use SPACE or tap while you wait."
+      : "Keep both elbows and wrists in view. Each wrist lift scores.";
+    sixSevenCallback.current?.({ visible: false, left: null, right: null, hint });
+  }, [struggling, raceTarget, enabled, status]);
+
   useEffect(() => { controllerRef.current?.setRaceTarget(raceTarget); }, [raceTarget]);
 
   useEffect(() => {
@@ -209,12 +226,13 @@ export function GestureCamera({
 
   const live = status === "TRACKING" || status === "NO_HAND";
   const label =
-    status === "STARTING" ? "Starting camera…" : raceTarget ? "Match the reference · face + hands in view" : status === "NO_HAND" ? "Show your hand" : struggling ? "✊✋ PUMP! PUMP!" : charge?.kind === "ultimate" ? "Charging… drop to strike" : charging ? "Charging… open to cast" : POSE_LABELS[pose] ?? "";
+    status === "STARTING" ? "Starting camera…" : raceTarget ? "Match the reference · face + hands in view" : struggling ? status === "NO_HAND" ? "Step back · elbows + wrists in view" : "6–7! Rock your forearms" : status === "NO_HAND" ? "Show your hand" : charge?.kind === "ultimate" ? "Charging… drop to strike" : charging ? "Charging… open to cast" : POSE_LABELS[pose] ?? "";
 
   return (
     <>
     {!compact && <ChargeOrb charge={charge} outcome={chargeOutcome} ultimateReady={ultimateReady} />}
-    <aside className={`gesture-cam${compact || raceTarget ? " pose-camera" : ""}${enabled ? " on" : ""}${charge ? ` is-charging charge-${charge.kind}` : ""}`}>
+    <aside className={`gesture-cam${compact || raceTarget ? " pose-camera" : ""}${struggling && !raceTarget ? " six-seven-camera" : ""}${enabled ? " on" : ""}${charge ? ` is-charging charge-${charge.kind}` : ""}`}>
+      {struggling && !raceTarget && !compact && !enabled && <div className="six-seven-camera-placeholder"><span>6 ↕ 7</span><b>Camera off</b><small>Frame both elbows and wrists to play with gestures.</small></div>}
       {(compact || raceTarget) && !enabled && <div className="pose-camera-placeholder"><span>Camera off</span><button className="gesture-cam-toggle" onClick={toggle}>Enable camera</button></div>}
       <div className="gesture-cam-view" hidden={!enabled}>
         <video ref={videoRef} className="mirrored" autoPlay playsInline muted />
@@ -227,7 +245,9 @@ export function GestureCamera({
           </span>
         )}
       </div>
+
       {error && <p className="gesture-cam-error" role="alert">{error}</p>}
+      {struggling && !raceTarget && enabled && <button className="gesture-cam-toggle" onClick={() => controllerRef.current?.retryBodyTracking()}>Retry 6–7 tracking</button>}
       {compact ? <details className="pose-options">
         <summary>Options</summary>
         <div className="pose-options-panel">

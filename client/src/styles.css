@@ -901,6 +901,7 @@ kbd {
 
 /* ---------- overlays ---------- */
 
+.match-countdown,
 .countdown:not(.clock) {
   position: absolute;
   inset: 0;
@@ -910,6 +911,7 @@ kbd {
   background: radial-gradient(circle, #120d2b55, transparent 60%);
 }
 
+.match-countdown span,
 .countdown:not(.clock) span {
   font: 900 clamp(90px, 16vw, 180px) var(--font-title);
   color: var(--gold-soft);
@@ -2247,6 +2249,97 @@ img.spell-glyph {
 .struggle-leader { display: block; margin: 8px 0; font-size: clamp(1.2rem, 3vw, 1.65rem); }
 .struggle-versus { opacity: 0.6; }
 
+/* 6–7 collision: keep the live framing preview beside the motion guide. */
+.collision-inputs { display: contents; }
+.six-seven-event {
+  position: absolute;
+  z-index: 10;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  align-items: center;
+  gap: 18px;
+  width: min(790px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  overflow: auto;
+  padding: 18px;
+  box-sizing: border-box;
+  border: 1px solid #f6c45366;
+  border-radius: 22px;
+  background: #1b142df5;
+  box-shadow: 0 16px 80px #0009;
+}
+.duel .six-seven-event .struggle {
+  position: static;
+  transform: none;
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  box-sizing: border-box;
+  background: none;
+  box-shadow: none;
+}
+.duel .six-seven-event .gesture-cam {
+  position: static;
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  justify-items: stretch;
+}
+.six-seven-camera .gesture-cam-view video,
+.six-seven-camera .gesture-cam-view canvas { object-fit: contain; }
+.six-seven-camera .gesture-cam-label { font: 600 10px/1.4 system-ui; }
+.six-seven-camera .gesture-cam-toggle { font-size: 11px; padding: 8px; }
+.six-seven-camera-placeholder { display: grid; place-content: center; gap: 6px; aspect-ratio: 4 / 3; padding: 12px; border: 1px dashed #f6c45366; border-radius: 16px; color: var(--gold-soft); text-align: center; }
+.six-seven-camera-placeholder > span { font: 900 30px/1 var(--font-title); }
+.six-seven-camera-placeholder b { font-size: 12px; }
+.six-seven-camera-placeholder small { font: 11px/1.5 system-ui; color: var(--muted); }
+.six-seven h2 { margin: 8px 0 0; color: var(--gold-soft); font-size: clamp(22px, 3vw, 30px); }
+.six-seven header > span { font-size: 12px; }
+.six-seven-cue { display: flex; justify-content: center; align-items: center; gap: 32px; height: 88px; }
+.six-seven-arm { display: flex; align-items: center; gap: 8px; transform: translateY(9px); transition: transform 100ms; }
+.six-seven-arm.raised { transform: translateY(-9px); }
+.six-seven-arm b { color: var(--gold); font: 900 38px/1 var(--font-title); }
+.six-seven-arm i { font-size: 34px; font-style: normal; transform: rotate(80deg); }
+.six-seven-arm:last-child i { transform: rotate(-80deg) scaleX(-1); }
+.six-seven-rhythm { color: var(--gold-soft); letter-spacing: 4px; }
+.six-seven-cue.demo .six-seven-arm { animation: six-seven-rock 750ms ease-in-out infinite alternate; }
+.six-seven-cue.demo .six-seven-arm:last-child { animation-direction: alternate-reverse; }
+@keyframes six-seven-rock { from { transform: translateY(9px); } to { transform: translateY(-9px); } }
+.six-seven .six-seven-instruction { animation: none; margin: 0 0 8px; font: 500 13px/1.5 system-ui; }
+.six-seven-tracking { min-height: 36px; display: grid; place-items: center; padding: 4px 8px; border-radius: 8px; background: #ffffff08; color: var(--gold-soft); font: 12px/1.4 system-ui; }
+.six-seven-tracking.ready { color: #7dffb0; background: #7dffb010; }
+.six-seven .struggle-leader { font-size: 19px; }
+.six-seven .struggle-sides { gap: 8px; font-size: 12px; }
+.six-seven-controls { display: flex; gap: 8px; margin: 12px 0 8px; }
+.six-seven-controls button { flex: 1; min-height: 44px; border: 1px solid #f6c45388; border-radius: 10px; background: #f6c45318; color: #fff4d9; font: 700 13px/1.4 system-ui; cursor: pointer; touch-action: manipulation; }
+.six-seven-controls button:hover, .six-seven-controls button:active { background: #f6c45340; }
+.six-seven-controls button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.six-seven-controls kbd { display: inline-block; margin-left: 6px; font: 10px/1.4 system-ui; opacity: 0.7; }
+.six-seven small { display: block; font: 11px/1.4 system-ui; }
+.six-seven-test-toggle { display: block; margin: 12px 0; color: var(--gold-soft); }
+.six-seven-test-feedback { margin: 16px 0; padding: 16px; border: 1px solid #f6c45355; border-radius: 12px; }
+.six-seven-test-feedback > strong { font-size: 28px; color: var(--gold-soft); }
+@media (max-width: 640px) {
+  .six-seven-event { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px; }
+  .duel .six-seven-event .gesture-cam { grid-column: 1; grid-row: 2; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 8px; }
+  .six-seven-camera .gesture-cam-view { grid-row: 1 / 4; }
+  .six-seven-camera-placeholder { grid-row: 1 / 4; padding: 8px; }
+  .six-seven-camera-placeholder small { display: none; }
+  .six-seven-camera .gesture-cam-error { grid-column: 2; margin: 0; font-size: 10px; }
+  .six-seven-camera .gesture-cam-toggle { grid-column: 2; }
+  .six-seven .struggle-sides { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .six-seven-cue.demo .six-seven-arm { animation: none; }
+  .six-seven-cue.demo .six-seven-arm:last-child { transform: translateY(-9px); }
+  .six-seven .struggle-bar i, .six-seven .struggle-bar em { transition: none; }
+}
+
 /* One reference, one camera and one instruction keep the race readable at a glance. */
 .pose-race { position: absolute; z-index: 10; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(740px, calc(100% - 24px)); max-height: calc(100% - 24px); box-sizing: border-box; overflow: auto; overscroll-behavior: contain; padding: 20px; border: 1px solid #bfa56c66; border-radius: 18px; color: #fff4d9; background: #1b142dfc; box-shadow: 0 16px 80px #0008, 0 0 0 100vmax #100b2580; }
 .pose-race-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
@@ -2507,6 +2600,7 @@ body {
 /* Numbers and status words read better in the ornate display face than in gothic. */
 .health-value,
 .spell-state,
+.match-countdown span,
 .countdown:not(.clock) span { font-family: var(--font-display); }
 .spell-name { font-family: var(--font-label); }
 
