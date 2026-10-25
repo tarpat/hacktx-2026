@@ -27,7 +27,7 @@ MediaPipe reference: [Web Face Landmarker](https://developers.google.com/edge/me
 
 ## Timing and privacy
 
-Face detection runs at most every 100ms during a race; the face model preloads when the gesture camera starts. GPU initialization falls back to CPU. Camera permission failures, unavailable tracking and model failures show instructions and a retry control. Model files/WASM are fetched from Google's model hosting and jsDelivr, as with existing hand tracking. Inference, landmarks and mouth pixel checks stay in the browser.
+Face detection runs at most every 100ms during a race; the face model preloads when the gesture camera starts. GPU initialization falls back to CPU. Camera permission failures, unavailable tracking and model failures show instructions and a retry control. Face and hand tracking use the locally served MediaPipe WASM files. The hand model is self-hosted; the face model still loads from Google's model hosting and requires a connection on first load. Inference, landmarks and mouth pixel checks stay in the browser.
 
 Clients send only `{ struggleId, step, matched: boolean | null }`. The server assigns the player's slot from the socket session, rejects stale events, skipped steps and excessively frequent samples, requires at least 180ms of tracked neutral before each step, then at least 450ms of matching observations. A gap over 350ms or tracking loss resets the hold. Camera loss cannot award points. A new pose requires a fresh release. The winner, progress and spell resolution are authoritative server state. The server trusts the client's match observation; this is not an anti-cheat system and a modified client could fabricate it.
 

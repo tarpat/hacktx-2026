@@ -5,7 +5,8 @@ import type { Landmark } from "./types";
 let pending: Promise<FaceLandmarker> | null = null;
 export function loadRaceFaceTracker(): Promise<FaceLandmarker> {
   pending ??= (async () => {
-    const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm");
+    const wasm = new URL(`${import.meta.env.BASE_URL}mediapipe/wasm`, self.location.href).href;
+    const vision = await FilesetResolver.forVisionTasks(wasm);
     const create = (delegate: "GPU" | "CPU") => FaceLandmarker.createFromOptions(vision, {
       baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task", delegate },
       runningMode: "VIDEO", numFaces: 1, outputFaceBlendshapes: true,
