@@ -6,6 +6,7 @@ import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
 import { MAP_ORDER, type MapId } from "../arena/maps";
 import { playEvents, setMusic, sfx } from "../audio/sound";
 import { GestureCamera } from "../gesture/GestureCamera";
+import type { SixSevenFeedback } from "../gesture/sixSevenCounter";
 import { SpellStruggle } from "./SpellStruggle";
 import { PoseRace } from "./PoseRace";
 import type { DuelSource } from "../game/duelSource";
@@ -13,7 +14,7 @@ import { bindKeyboard, spellInput } from "../game/input";
 import { rejectionText } from "../game/narration";
 import { captureFace, getFlair, loadMyName, setFlair } from "../game/flair";
 import { HypeTracker } from "../game/hype";
-import { playerName } from "../theme";
+import { art, playerName } from "../theme";
 import { HealthBar } from "./HealthBar";
 import { CountdownOverlay, MatchClock } from "./MatchClock";
 import { SpellTray } from "./SpellTray";
@@ -52,6 +53,7 @@ function useMatchNow(source: DuelSource) {
 export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, footer, map = MAP_ORDER[0] }: DuelScreenProps) {
   const [state, setState] = useState<MatchState | null>(() => source.state());
   const [clashResult, setClashResult] = useState<ClashResult | null>(null);
+  const [sixSevenFeedback, setSixSevenFeedback] = useState<SixSevenFeedback>({ visible: false, left: null, right: null, hint: "Keep both elbows and wrists in view." });
   const [toast, setToast] = useState<Banner | null>(null);
   const [hype, setHype] = useState<Banner | null>(null);
   const hypeTracker = useRef(new HypeTracker());
@@ -79,6 +81,12 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   const scene = useRef<ArenaScene | null>(null);
   // The arena fills the screen; the HUD floats over it, so tell the scene what is covered.
   const [insets, setInsets] = useState({ top: 0, bottom: 0 });
+  // The HUD's height changes as web fonts and frame art load; hold back inset-anchored panels until it settles.
+  const [settled, setSettled] = useState(false);
+  // Until the arena's art is on screen, show its painted backdrop instead of a bare stage.
+  const [arenaReady, setArenaReady] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const ready = arenaReady && cameraReady;
   const frame = useRef<ArenaFrame>({ state, now, leftSlot: source.localSlot, map, insets });
   frame.current = { state, now, leftSlot: source.localSlot, map, insets };
   const clock = useRef(source);
@@ -146,7 +154,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
   useEffect(() => {
     if (!hype) return;
-    const timeout = setTimeout(() => setHype(null), 1_800);
+    const timeout = setTimeout(() => setHype(null), 2_300);
     return () => clearTimeout(timeout);
   }, [hype]);
 
@@ -179,7 +187,10 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   useEffect(() => {
     const element = host.current;
     if (!element) return;
-    const arena = new ArenaScene(() => ({ ...frame.current, now: clock.current.now() }));
+    const arena = new ArenaScene(
+      () => ({ ...frame.current, now: clock.current.now() }),
+      () => setArenaReady(true),
+    );
     scene.current = arena;
     const game = new Phaser.Game({
       type: Phaser.AUTO,
@@ -201,13 +212,39 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     };
   }, []);
 
+  // Practice: run the 3-2-1 only once the arena is drawn and the camera model has finished loading
+  // (that load freezes the page, which used to swallow the countdown). Online matches follow the server.
+  const begun = useRef(false);
+  useEffect(() => {
+    if (!ready || begun.current) return;
+    begun.current = true;
+    source.begin?.();
+  }, [ready, source]);
+
+  // Never hold the duel hostage to a camera that is slow to answer.
+  useEffect(() => {
+    const timeout = setTimeout(() => setCameraReady(true), 10_000);
+    return () => clearTimeout(timeout);
+  }, []);
+
   useEffect(() => {
     const measure = () => setInsets({ top: top.current?.offsetHeight ?? 0, bottom: bottom.current?.offsetHeight ?? 0 });
     measure();
     const observer = new ResizeObserver(measure);
     if (top.current) observer.observe(top.current);
     if (bottom.current) observer.observe(bottom.current);
-    return () => observer.disconnect();
+    let cancelled = false;
+    void Promise.all([document.fonts.ready, new Promise((resolve) => (document.readyState === "complete" ? resolve(null) : window.addEventListener("load", resolve, { once: true })))]).then(() =>
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        measure();
+        setSettled(state !== null);
+      }),
+    );
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
   }, [state !== null]);
 
   useEffect(() => {
@@ -245,19 +282,25 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
   const castAs = (slot: PlayerSlot) => (slot === left || hotseat ? (spell: SpellId) => spellInput.cast(spell, slot) : undefined);
 
-  const shakeClass = activeShake
+  // Keep the camera and tap targets stationary throughout the 6–7 challenge.
+  const shakeClass = activeShake && state?.struggle?.kind !== "pump"
     ? ` screen-shake-${activeShake.type}-${(activeShake.id % 2) + 1}`
-    : state?.struggle?.kind === "pump"
-    ? " screen-shake-clash"
     : "";
 
   return (
-    <main className={`duel${shakeClass}`} data-arena={state?.stageId === undefined ? map : MAP_ORDER[state.stageId] ?? map} style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
+    <main className={`duel${shakeClass}${settled ? " settled" : ""}`} data-arena={state?.stageId === undefined ? map : MAP_ORDER[state.stageId] ?? map} style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
       <div className={`duel-stage phase-${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
+        {!ready && (
+          <div className="arena-loading" style={{ backgroundImage: `url(${art.background})` }}>
+            <span>Preparing the arena…</span>
+          </div>
+        )}
         <RisingEmbers />
-        {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
-        {state?.struggle?.kind === "pump" && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} />}
+        <div className={state?.struggle?.kind === "pump" ? "six-seven-event" : "collision-inputs"}>
+          {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} onSixSevenFeedback={setSixSevenFeedback} onReady={() => setCameraReady(true)} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
+          {state?.struggle?.kind === "pump" && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} feedback={sixSevenFeedback} />}
+        </div>
         {state?.struggle?.kind === "pose" && <PoseRace key={state.struggle.poseRace.id} struggle={state.struggle} source={source} now={now} hotseat={hotseat} />}
         {clashResult && !state?.struggle && (
           <section className={`clash-result ${clashResult.winner ? `player-${clashResult.winner}` : "draw"}`} role="status" key={clashResult.id}>
@@ -268,7 +311,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
             <p>{clashResult.winner ? "Winning spell absorbs both attacks and flies on." : clashResult.challenge === "pose" ? "Neither player finished all five poses. Both spells cancel out." : "Both spells cancel out. No winner."}</p>
           </section>
         )}
-        {state && <CountdownOverlay state={state} now={now} />}
+        {state && ready && <CountdownOverlay state={state} now={source.now()} />}
         {hype && (
           <div className="hype" key={hype.id}>
             {hype.text}

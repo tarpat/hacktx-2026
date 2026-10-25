@@ -142,6 +142,9 @@ const mapFor = (frame: ArenaFrame): MapId => {
 };
 
 /** Renders match state; it owns no game rules and never decides outcomes. */
+const WIZARD_SCALE = 1.7;
+const CLOUD_PUFF = "cloud-puff";
+
 export class ArenaScene extends Phaser.Scene {
   private readonly getFrame: () => ArenaFrame;
   private readonly queue: GameEvent[] = [];
@@ -159,7 +162,12 @@ export class ArenaScene extends Phaser.Scene {
   private builtMap: MapId | null = null;
   private builtSize = "";
 
-  constructor(getFrame: () => ArenaFrame) {
+  /** Scale for the wizards and anything placed on them: they are the focus, so drawn larger than the stage. */
+  private get wiz() {
+    return this.unit * WIZARD_SCALE;
+  }
+
+  constructor(getFrame: () => ArenaFrame, private readonly onReady?: () => void) {
     super("arena");
     this.getFrame = getFrame;
   }
@@ -183,6 +191,8 @@ export class ArenaScene extends Phaser.Scene {
       if (!this.anims.exists(key)) this.anims.create({ key, frames: this.anims.generateFrameNumbers(sheet, { start, end }), frameRate, repeat });
     }
     this.build();
+    this.warmUpFx();
+    this.onReady?.();
   }
 
   update(time: number, delta: number) {
@@ -226,7 +236,7 @@ export class ArenaScene extends Phaser.Scene {
   /** Where spells strike a wizard (chest height, just in front of them). */
   private castPoint(slot: PlayerSlot) {
     const { x, y, facing } = this.anchor(slot);
-    return { x: x + facing * 18 * this.unit, y: y - 66 * this.unit };
+    return { x: x + facing * 18 * this.wiz, y: y - 66 * this.wiz };
   }
 
   private build() {
@@ -305,7 +315,7 @@ export class ArenaScene extends Phaser.Scene {
   private makeWizard(slot: PlayerSlot): WizardView {
     const { x, y, facing } = this.anchor(slot);
     // The rig is drawn facing right; mirroring the root turns the right-hand wizard around.
-    const root = this.add.container(x, y).setScale(this.unit * facing, this.unit).setDepth(3);
+    const root = this.add.container(x, y).setScale(this.wiz * facing, this.wiz).setDepth(3);
     const shadow = this.add.ellipse(0, 3, 72, 14, 0x000000, 0.3);
     const aura = this.sized("ultimate-aura", 0, -68, 165).setVisible(false);
     const haste = this.sized("haste", 0, -2, 90).setScale(0, 0).setVisible(false);
@@ -660,16 +670,15 @@ export class ArenaScene extends Phaser.Scene {
     const x = this.anchor(target).x;
     const y = this.stormY();
     const spread = { min: -90 * this.unit, max: 90 * this.unit };
-    const cloud = this.add.particles(x, y, "magic-3", {
+    const cloud = this.add.particles(x, y, CLOUD_PUFF, {
       x: spread,
-      y: { min: -24 * this.unit, max: 24 * this.unit },
-      speedX: { min: -14, max: 14 },
-      speedY: { min: -6, max: 6 },
-      lifespan: { min: 1200, max: 1800 },
-      scale: { start: 1.1 * this.unit, end: 1.6 * this.unit },
-      alpha: { start: 0.7, end: 0 },
-      rotate: { min: 0, max: 360 },
-      tint: [0x1c1236, 0x2e2850, 0x3a3560],
+      y: { min: -20 * this.unit, max: 20 * this.unit },
+      speedX: { min: -10, max: 10 },
+      speedY: { min: -4, max: 4 },
+      lifespan: { min: 1600, max: 2200 },
+      scale: { start: 0.9 * this.unit, end: 1.3 * this.unit },
+      alpha: { start: 0.9, end: 0 },
+      tint: [0x2a2540, 0x3b3656, 0x4b4668, 0x5a5578],
       frequency: 70,
     });
     cloud.setDepth(5);
@@ -696,23 +705,28 @@ export class ArenaScene extends Phaser.Scene {
     const { x, y } = this.anchor(storm.target);
     const top = this.stormY();
     const bolt = this.add.graphics().setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
-    const flickers = [0, 70, 150, 230];
-    flickers.forEach((delay) => this.time.delayedCall(delay, () => this.drawLightning(bolt, x, top, y)));
-    this.tweens.add({ targets: bolt, alpha: 0, delay: 300, duration: 260, onComplete: () => bolt.destroy() });
+    // The bolt visibly falls from the cloud to the ground, then crackles a few times before fading.
+    const reach = { p: 0 };
+    this.tweens.add({ targets: reach, p: 1, duration: 140, ease: "Quad.easeIn", onUpdate: () => this.drawLightning(bolt, x, top, y, reach.p) });
+    [220, 330, 450, 560].forEach((delay) => this.time.delayedCall(delay, () => this.drawLightning(bolt, x, top, y)));
+    this.tweens.add({ targets: bolt, alpha: 0, delay: 650, duration: 350, onComplete: () => bolt.destroy() });
 
-    this.playFx("lightning-strike", x, y - 42 * this.unit, 180);
-    this.playFx("lightning-burst", x, y - 66 * this.unit, 216);
+    this.playFx("lightning-strike", x, y - 42 * this.wiz, 180);
+    this.playFx("lightning-burst", x, y - 66 * this.wiz, 216);
     this.burst(x, y, LIGHTNING.glow, 26, 1.6);
-    this.cameras.main.flash(220, 220, 240, 255);
+    // A soft sky-flash, not a white-out: the bolt has to stay visible.
+    const flash = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0xdff0ff, 0.12).setOrigin(0).setDepth(7);
+    this.tweens.add({ targets: flash, alpha: 0, duration: 260, ease: "Quad.easeOut", onComplete: () => flash.destroy() });
     if (this.storms.size === 0) this.tweens.add({ targets: this.gloom, alpha: 0, delay: 120, duration: 500 });
   }
 
-  private drawLightning(g: Phaser.GameObjects.Graphics, x: number, top: number, bottom: number) {
+  private drawLightning(g: Phaser.GameObjects.Graphics, x: number, top: number, bottom: number, reach = 1) {
     g.clear();
-    const trunk = this.jagged(x, top, x + Phaser.Math.Between(-12, 12) * this.unit, bottom, 14, 34);
+    const end = top + (bottom - top) * reach;
+    const trunk = this.jagged(x, top, x + Phaser.Math.Between(-12, 12) * this.unit * reach, end, Math.max(2, Math.round(14 * reach)), 34);
     const branches = [0.3, 0.5, 0.7].map((at) => {
       const from = trunk[Math.floor(at * (trunk.length - 1))];
-      const reach = (bottom - top) * Phaser.Math.FloatBetween(0.12, 0.22);
+      const reach = (end - top) * Phaser.Math.FloatBetween(0.12, 0.22);
       return this.jagged(from.x, from.y, from.x + (Math.random() < 0.5 ? -reach : reach), from.y + reach, 5, 16);
     });
     // Wide soft glow, then a narrower bright glow, then the white-hot core.
@@ -775,7 +789,7 @@ export class ArenaScene extends Phaser.Scene {
         this.flash("shield-shatter", point.x, point.y, 220, 620, true);
         this.burst(point.x, point.y, palette.gold, 30, 1.4);
         this.burst(point.x, point.y, BULL.ember, 20, 1.2);
-        this.floatText(point.x, point.y - 50 * this.unit, "SHATTERED!", "#ffe7a8");
+        this.floatText(point.x, point.y - 50 * this.wiz, "SHATTERED!", "#ffe7a8");
         break;
       }
       case "DAMAGE_APPLIED":
@@ -785,12 +799,12 @@ export class ArenaScene extends Phaser.Scene {
         const point = this.castPoint(event.defender);
         this.flash("shield-shatter", point.x, point.y, 170, 520);
         this.burst(point.x, point.y, palette.gold, 18, 1.0);
-        this.floatText(point.x, point.y - 36 * this.unit, "BLOCKED!", "#ffe7a8");
+        this.floatText(point.x, point.y - 36 * this.wiz, "BLOCKED!", "#ffe7a8");
         break;
       }
       case "FROZEN": {
         const { x, y } = this.anchor(event.slot);
-        this.burst(x, y - 66 * this.unit, palette.frost, 24, 1.0);
+        this.burst(x, y - 66 * this.wiz, palette.frost, 24, 1.0);
         break;
       }
       case "STRUGGLE_START": {
@@ -816,14 +830,14 @@ export class ArenaScene extends Phaser.Scene {
   private onHit(target: PlayerSlot, amount: number, spell: SpellId) {
     const view = this.wizards[target];
     const { x, y, facing } = this.anchor(target);
-    const hitX = x + facing * 6 * this.unit;
-    const hitY = y - 68 * this.unit;
+    const hitX = x + facing * 6 * this.wiz;
+    const hitY = y - 68 * this.wiz;
     for (const fx of IMPACT_FX[spell as Bolt] ?? []) {
       this.playFx(fx.anim, hitX, hitY, fx.size);
       if (fx.still) this.flash(fx.still.key, hitX, hitY, fx.still.size, 560, true);
     }
-    this.burst(x, y - 66 * this.unit, spellColor[spell], 10 + amount / 2, 1.0);
-    this.floatText(x, y - 150 * this.unit, `-${amount}`, "#ff4f7b");
+    this.burst(x, y - 66 * this.wiz, spellColor[spell], 10 + amount / 2, 1.0);
+    this.floatText(x, y - 150 * this.wiz, `-${amount}`, "#ff4f7b");
     // The bull's horn toss throws far harder than its damage alone would.
     if (spell === "taurus") this.gore(target);
     view.rig.knockback(spell === "taurus" ? amount * 2.5 : amount, this.time.now);
@@ -832,9 +846,9 @@ export class ArenaScene extends Phaser.Scene {
   private transform(slot: PlayerSlot, form: MatchState["loserForm"]) {
     const view = this.wizards[slot];
     const { x, y } = this.anchor(slot);
-    this.flash("clash", x, y - 60 * this.unit, 180, 800, true);
-    this.burst(x, y - 55 * this.unit, palette.lavender, 40, 1.4);
-    this.time.delayedCall(120, () => this.burst(x, y - 55 * this.unit, palette.goldSoft, 30, 1.1));
+    this.flash("clash", x, y - 60 * this.wiz, 180, 800, true);
+    this.burst(x, y - 55 * this.wiz, palette.lavender, 40, 1.4);
+    this.time.delayedCall(120, () => this.burst(x, y - 55 * this.wiz, palette.goldSoft, 30, 1.1));
     // The body is already dust (see WizardRig.die); its pieces are still drifting away.
     const critter = this.sized(form, 0, 0, form === "frog" ? 115 : 120).setOrigin(0.5, 0.92);
     const node = this.add.container(0, 0, [critter]).setScale(0.2);
@@ -845,6 +859,13 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   // ---------- helpers ----------
+
+  /** Draws every effect sheet once, invisibly, so its first real use doesn't stall on the GPU upload. */
+  private warmUpFx() {
+    const keys = [...Object.keys(FX_SHEETS), ...FX_PARTICLES, CLOUD_PUFF];
+    const ghosts = keys.filter((key) => this.textures.exists(key)).map((key) => this.add.image(this.scale.width / 2, this.scale.height / 2, key).setAlpha(0.01).setDepth(-100));
+    this.time.delayedCall(200, () => ghosts.forEach((ghost) => ghost.destroy()));
+  }
 
   /** A one-shot animated effect, removed when its animation ends. */
   private playFx(anim: string, x: number, y: number, size: number) {
@@ -907,6 +928,20 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private makeTextures() {
+    if (!this.textures.exists(CLOUD_PUFF)) {
+      // A soft round puff: storm clouds are many of these, overlapping and tinted.
+      const canvas = this.textures.createCanvas(CLOUD_PUFF, 128, 128);
+      if (canvas) {
+        const ctx = canvas.getContext();
+        const glow = ctx.createRadialGradient(64, 64, 8, 64, 64, 62);
+        glow.addColorStop(0, "rgba(255,255,255,1)");
+        glow.addColorStop(0.55, "rgba(255,255,255,0.85)");
+        glow.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, 128, 128);
+        canvas.refresh();
+      }
+    }
     if (this.textures.exists(SPARK)) return;
     const g = this.make.graphics({ x: 0, y: 0 }, false);
     g.fillStyle(0xffffff, 1);

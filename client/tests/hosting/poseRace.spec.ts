@@ -9,7 +9,7 @@ for (const winner of ["A", "B"] as const) {
     if (winner === "B") await page.setViewportSize({ width: 390, height: 844 });
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.goto("/practice?mode=hotseat");
+    await page.goto("/practice?mode=training");
     await expect(page.locator(".clock.active")).toBeVisible();
     await page.keyboard.press("q"); await page.keyboard.press("u");
     const race = page.getByRole("region", { name: "Pose race" });
@@ -21,7 +21,7 @@ for (const winner of ["A", "B"] as const) {
     const frozenClock = await page.locator(".clock-time").innerText();
     await page.keyboard.press("e");
     await expect(page.locator(".toast")).toHaveCount(0); // Paused casts are discarded by the shared cast gate.
-    await expect(page.locator(".health-value")).toHaveText(["100", "100"]);
+    await expect(page.locator(".health-value")).toHaveText(["500", "500"]);
     await race.getByText("Options", { exact: true }).click();
     await race.getByRole("checkbox", { name: "Keyboard practice assist" }).check();
     await race.getByText("Options", { exact: true }).click();
@@ -44,14 +44,14 @@ for (const winner of ["A", "B"] as const) {
       if (step < 4) await page.waitForTimeout(400);
     }
     await expect(page.locator(".clash-result")).toContainText(winner === "A" ? "Green Wizard wins!" : "Purple Wizard wins!");
-    await expect(page.locator(".health-value").nth(winner === "A" ? 1 : 0)).toHaveText("60");
+    await expect(page.locator(".health-value").nth(winner === "A" ? 1 : 0)).toHaveText("460");
     expect(errors).toEqual([]);
   });
 }
 
 test("pose references load, camera-off guidance is usable, and no assist is enabled by default", async ({ page }) => {
   await page.addInitScript(() => { Math.random = () => .8; sessionStorage.setItem("spellcaster:gestures", "off"); });
-  await page.goto("/practice?mode=hotseat");
+  await page.goto("/practice?mode=training");
   await expect(page.locator(".clock.active")).toBeVisible();
   await page.keyboard.press("q"); await page.keyboard.press("u");
   await expect(page.locator(".pose-race")).toBeVisible();
@@ -75,7 +75,7 @@ test("camera preview keeps controls in Options and does not show spell decoratio
     Math.random = () => .8;
     navigator.mediaDevices.getUserMedia = () => new Promise(() => {}); // Exercise the starting preview without accessing a device.
   });
-  await page.goto("/practice?mode=hotseat");
+  await page.goto("/practice?mode=training");
   await expect(page.locator(".clock.active")).toBeVisible();
   await page.keyboard.press("q"); await page.keyboard.press("u");
   const race = page.getByRole("region", { name: "Pose race" });

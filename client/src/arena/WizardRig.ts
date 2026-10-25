@@ -261,7 +261,13 @@ export class WizardRig {
   }
 
   update(now: number, delta: number, frozen: boolean) {
-    if (frozen && !this.dying) return; // hold current pose while frozen
+    if (frozen && !this.dying) {
+      // Hold the current pose, but still lay it out: a rig rebuilt mid-freeze has never been drawn.
+      const lean = this.lean.value;
+      this.rig.setPosition(this.slide.value * this.px, this.lift.value * this.px);
+      this.bend(lean, lean - this.trail.value, this.head.value, this.widen.value, this.squash.value, now);
+      return;
+    }
     const dt = Math.min(delta, 50) / 1000;
     const pose = this.dying ? this.deathPose(now) : this.actionPose(now);
     if (!this.dying) this.addIdle(pose, now);

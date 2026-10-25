@@ -63,6 +63,7 @@ interface StruggleBase {
   lastPushAt: Record<PlayerSlot, number>;
 }
 
+/** `pump` is the wire identifier for the 6–7 forearm challenge. */
 export type Struggle = StruggleBase & ({ kind: "pump" } | { kind: "pose"; poseRace: PoseRace });
 
 export interface MatchState {

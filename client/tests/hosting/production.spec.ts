@@ -7,7 +7,7 @@ test("built routes refresh correctly and do not start audio transcription", asyn
   });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  for (const route of ["/", "/practice?mode=hotseat", "/gesture-test"]) {
+  for (const route of ["/", "/practice?mode=training", "/gesture-test"]) {
     await page.goto(route);
     await page.reload();
     await expect(page.locator("main")).toBeVisible();

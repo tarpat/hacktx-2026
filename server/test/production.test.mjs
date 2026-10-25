@@ -28,6 +28,9 @@ test("production server runs outside the repo cwd and accepts two WebSocket play
   assert.match(await page.text(), /<div id="root"><\/div>/);
   assert.equal((await fetch(`${base}/assets/missing.js`)).status, 404);
   assert.equal((await fetch(`${base}/models/hand_landmarker.task`, { method: "HEAD" })).status, 200);
+  const poseModel = await fetch(`${base}/models/pose_landmarker_lite.task`, { method: "HEAD" });
+  assert.equal(poseModel.status, 200);
+  assert.ok(Number(poseModel.headers.get("content-length")) > 5_000_000);
   const wasm = await fetch(`${base}/mediapipe/wasm/vision_wasm_internal.wasm`, { method: "HEAD" });
   assert.equal(wasm.status, 200);
   assert.match(wasm.headers.get("content-type"), /application\/wasm/);
