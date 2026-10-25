@@ -49,7 +49,7 @@ const WIZARD_CONFIGS: Record<PlayerSlot, WizardConfig> = {
     staffX: 56,
     staffY: -91,
     orbColor: 0xffe27a,
-    face: { x: 0.56, y: 0.35, size: 0.26 },
+    face: { x: 0.585, y: 0.39, size: 0.24 },
   },
   B: {
     texture: "wizard-purple",
