@@ -28,10 +28,10 @@ Online and bot matches select uniformly from three arenas, with a fresh independ
 
 | Spell | Gesture | Your keys | Training rival | Default effect |
 | --- | --- | --- | --- | --- |
-| Incendio | Make a fist, then open your hand | `Q` | `U` | 20 damage; 4.5 s cooldown |
-| Protego | Raise both palms toward the camera | `W` | `I` | Block for 1.2 s; 4 s cooldown |
-| Glacius | Hold a peace sign | `E` | `O` | 10 damage, freeze attacks for 1.2 s; 9 s cooldown |
-| Taurus | Raise index and pinky fingers | `T` | `[` | 15 damage, breaks shields; 7 s cooldown |
+| Incendio | Make a fist, then open your hand | `Q` | `U` | 20 damage; 2.5 s cooldown |
+| Protego | Raise both palms toward the camera | `W` | `I` | Block for 1.2 s; 3 s cooldown |
+| Glacius | Hold a peace sign | `E` | `O` | 10 damage, freeze attacks for 1.2 s; 5 s cooldown |
+| Taurus | Raise index and pinky fingers | `T` | `[` | 15 damage, breaks shields; 4 s cooldown |
 | Fulmen | Point upward, then lower your finger | `R` | `P` | 30 damage; requires a full ultimate meter; deals half damage through shields |
 
 Hits, blocks, and damage taken charge the ultimate meter. The engine also supports Empower (+50% on the next attack), Haste (cooldowns ×0.6 for 6 s), and Heal (+15 HP), with a shared 12 s power-up cooldown per player. These are available through the input bridge; number keys are not bound to power-ups.
@@ -44,6 +44,8 @@ Opposing fireballs and ice spells launched within 500 ms can collide; Taurus and
 
 - **Charge your magic:** point your index finger toward the screen and trace the golden circle. Your best completed trace during 15 s wins. Accuracy contributes 80% and speed 20%; rounded-score ties use accuracy, then completion time. This challenge requires the camera; keys and taps do not score. See [circle tracing rules](docs/MAGIC_CHARGE.md).
 - **Pose race:** after 3 s preparation, match five reference poses in order within 25 s. The first player to finish wins the combined spell damage; if neither finishes, both spells fizzle. Combat timers pause during the race. Online play requires camera tracking; local practice offers an explicit keyboard assist. See [pose race rules](docs/POSE_RACE.md).
+
+Each wizard rolls a trait at the start of bot and online matches, revealed on a reel and shown on the health bars (training has a 🎲 Roll traits button): Ironhide +10% max health, Pyromancer Incendio +25% damage, Frostbite Glacius freezes 2.5× as long, Stormcaller Fulmen charges 50% faster, Siphon heals 10% of damage dealt, Stampede Taurus +25% damage. Each wins about 56–63% of bot-vs-bot duels against no trait.
 
 Combat defaults live in [`shared/src/game/config.ts`](shared/src/game/config.ts).
 

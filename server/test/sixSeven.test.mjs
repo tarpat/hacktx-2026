@@ -58,10 +58,10 @@ test("online circle traces are scored by the server for the authenticated rival"
   assert.equal(latest.A.struggle.traceScores.A,null);
   assert.deepEqual(latest.A.struggle.traceScores,latest.B.struggle.traceScores);
   await until(() => !latest.A.struggle && !latest.B.struggle);
-  await until(()=>latest.A.players.A.hp===60);
+  await until(()=>latest.A.players.A.hp<latest.A.players.A.maxHp);
   const clash = seen.find((event) => event.type === "SPELL_CLASH");
   assert.equal(clash?.winner, "B");
   assert.equal(clash?.challenge, "pump");
-  assert.equal(latest.A.players.B.hp, 100);
+  assert.equal(latest.A.players.B.hp, latest.A.players.B.maxHp);
   assert.equal(latest.B.players.B.stats.clashesWon, 1);
 });

@@ -6,12 +6,14 @@ import {
   makeMatchConfig,
   type FlairPatch,
   randomStageId,
+  rollTraits,
   type GameEvent,
   type MatchState,
   type PlayerSlot,
   type PowerUpId,
   type SpellId,
   type Struggle,
+  type TraitId,
   type PoseSample,
   type CircleTrace,
   POSE_RACE,
@@ -65,6 +67,10 @@ export class LocalDuel implements DuelSource {
   readonly localSlot: PlayerSlot = "A";
   private engine: DuelEngine;
   private stageId: number | undefined;
+  /** Rolled once per match, so the engine restarts while the arena loads keep the same traits. */
+  private traits: Partial<Record<PlayerSlot, TraitId>> = {};
+  /** Bot matches always roll traits; training stays a plain sandbox until you ask for a roll. */
+  private withTraits: boolean;
   private bot: DuelBot | null;
   private latest: MatchState;
   private readonly listeners = new Set<DuelListener>();
@@ -73,6 +79,7 @@ export class LocalDuel implements DuelSource {
   private holdUntil = Date.now() + 12_000;
 
   constructor(private readonly mode: LocalMode) {
+    this.withTraits = mode === "bot";
     this.engine = this.newEngine();
     this.bot = this.newBot();
     this.latest = this.snapshot(Date.now());
@@ -116,6 +123,13 @@ export class LocalDuel implements DuelSource {
     this.step();
   }
 
+  /** Training only: restart with freshly rolled traits; later rematches keep rolling them. */
+  rollTraits() {
+    if (this.mode !== "training") return;
+    this.withTraits = true;
+    this.rematch();
+  }
+
   powerUp(powerUp: PowerUpId, slot: PlayerSlot = this.localSlot) {
     this.engine.grantPowerUp(slot, powerUp, Date.now());
     this.step();
@@ -129,7 +143,7 @@ export class LocalDuel implements DuelSource {
 
   begin() {
     this.holdUntil = 0;
-    this.engine = new DuelEngine(Date.now(), this.config());
+    this.engine = this.freshEngine(Date.now());
     this.step();
   }
 
@@ -142,7 +156,12 @@ export class LocalDuel implements DuelSource {
   private newEngine() {
     // Training uses the map picker; the bot gets a random stage.
     this.stageId = this.mode === "training" ? undefined : randomStageId();
-    return new DuelEngine(Date.now(), this.config());
+    this.traits = this.withTraits ? rollTraits() : {};
+    return this.freshEngine(Date.now());
+  }
+
+  private freshEngine(now: number) {
+    return new DuelEngine(now, this.config(), Math.random, this.traits);
   }
 
   private config() {
@@ -165,7 +184,7 @@ export class LocalDuel implements DuelSource {
   private step() {
     const now = Date.now();
     // Still loading: keep the match pinned to the very start of its countdown.
-    if (now < this.holdUntil) this.engine = new DuelEngine(now, this.config());
+    if (now < this.holdUntil) this.engine = this.freshEngine(now);
     const snapshot = this.snapshot(now);
     const botSpell = this.bot?.decide(snapshot, now);
     if (botSpell) this.engine.cast("B", botSpell, now);

@@ -1,4 +1,4 @@
-import type { PowerUpId, SpellId } from "./types.js";
+import type { PowerUpId, SpellId, TraitId } from "./types.js";
 
 export interface SpellConfig {
   id: SpellId;
@@ -20,6 +20,15 @@ export interface PowerUpConfig {
   name: string;
   /** How long the effect lasts. Zero for instant effects. */
   durationMs: number;
+}
+
+export interface TraitConfig {
+  id: TraitId;
+  name: string;
+  /** One line for the HUD. Keep it in step with `factor`. */
+  effect: string;
+  /** Strength: a multiplier on the one stat the trait changes, or for Siphon the share of damage healed (see `DuelEngine`). */
+  factor: number;
 }
 
 export interface StruggleConfig {
@@ -57,9 +66,11 @@ export interface MatchConfig {
   powerUpCooldownMs: number;
   spells: Record<SpellId, SpellConfig>;
   powerUps: Record<PowerUpId, PowerUpConfig>;
+  traits: Record<TraitId, TraitConfig>;
 }
 
 export const SPELL_ORDER: SpellId[] = ["fireball", "shield", "ice", "taurus", "ultimate"];
+export const TRAIT_ORDER: TraitId[] = ["ironhide", "pyromancer", "frostbite", "stormcaller", "siphon", "stampede"];
 
 export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   maxHp: 100,
@@ -78,16 +89,26 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   healAmount: 15,
   powerUpCooldownMs: 12_000,
   spells: {
-    fireball: { id: "fireball", name: "Incendio", incantation: "Incendio!", damage: 20, cooldownMs: 4_500, travelMs: 1_600, offensive: true },
-    shield: { id: "shield", name: "Protego", incantation: "Protego!", damage: 0, cooldownMs: 4_000, travelMs: 0, offensive: false },
-    ice: { id: "ice", name: "Glacius", incantation: "Glacius!", damage: 10, cooldownMs: 9_000, travelMs: 1_300, offensive: true },
+    // Short enough that Incendio is back by the time a gesture caster has thrown the other spells.
+    fireball: { id: "fireball", name: "Incendio", incantation: "Incendio!", damage: 20, cooldownMs: 2_500, travelMs: 1_600, offensive: true },
+    shield: { id: "shield", name: "Protego", incantation: "Protego!", damage: 0, cooldownMs: 3_000, travelMs: 0, offensive: false },
+    ice: { id: "ice", name: "Glacius", incantation: "Glacius!", damage: 10, cooldownMs: 5_000, travelMs: 1_300, offensive: true },
     ultimate: { id: "ultimate", name: "Fulmen", incantation: "Fulmen!", damage: 30, cooldownMs: 0, travelMs: 1_900, offensive: true },
-    taurus: { id: "taurus", name: "Taurus", incantation: "Hook 'em!", damage: 15, cooldownMs: 7_000, travelMs: 1_700, offensive: true },
+    taurus: { id: "taurus", name: "Taurus", incantation: "Hook 'em!", damage: 15, cooldownMs: 4_000, travelMs: 1_700, offensive: true },
   },
   powerUps: {
     empower: { id: "empower", name: "Empowered", durationMs: 8_000 },
     haste: { id: "haste", name: "Haste", durationMs: 6_000 },
     heal: { id: "heal", name: "Healing Draught", durationMs: 0 },
+  },
+  // Tuned so each wins about 56–63% of bot-vs-bot duels against no trait; shared/test/traits.test.ts keeps them in a band.
+  traits: {
+    ironhide: { id: "ironhide", name: "Ironhide", effect: "+10% max health", factor: 1.1 },
+    pyromancer: { id: "pyromancer", name: "Pyromancer", effect: "Incendio hits 25% harder", factor: 1.25 },
+    frostbite: { id: "frostbite", name: "Frostbite", effect: "Glacius freezes 2.5× as long", factor: 2.5 },
+    stormcaller: { id: "stormcaller", name: "Stormcaller", effect: "Fulmen charges 50% faster", factor: 1.5 },
+    siphon: { id: "siphon", name: "Siphon", effect: "Heal 10% of the damage you deal", factor: 0.1 },
+    stampede: { id: "stampede", name: "Stampede", effect: "Taurus hits 25% harder", factor: 1.25 },
   },
 };
 

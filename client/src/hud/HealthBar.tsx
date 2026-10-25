@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { PlayerSlot } from "@spellcaster/shared";
-import { art } from "../theme";
+import { DEFAULT_MATCH_CONFIG, type PlayerSlot, type TraitId } from "@spellcaster/shared";
+import { art, traitGlyph } from "../theme";
 
 interface HealthBarProps {
   slot: PlayerSlot;
@@ -9,10 +9,11 @@ interface HealthBarProps {
   maxHp: number;
   side: "left" | "right";
   isYou: boolean;
+  trait: TraitId | null;
 }
 
 /** HP bar with a lagging "ghost" segment that shows the chunk just lost. */
-export function HealthBar({ slot, name, hp, maxHp, side, isYou }: HealthBarProps) {
+export function HealthBar({ slot, name, hp, maxHp, side, isYou, trait }: HealthBarProps) {
   const [ghost, setGhost] = useState(hp);
   const [hitKey, setHitKey] = useState(0);
   const previous = useRef(hp);
@@ -35,6 +36,11 @@ export function HealthBar({ slot, name, hp, maxHp, side, isYou }: HealthBarProps
         <span className="health-name">
           {name}
           {isYou && <em>you</em>}
+          {trait && (
+            <span className="health-trait" title={DEFAULT_MATCH_CONFIG.traits[trait].effect}>
+              {traitGlyph[trait]} <span>{DEFAULT_MATCH_CONFIG.traits[trait].name}</span>
+            </span>
+          )}
         </span>
         <b className="health-value">{Math.ceil(hp)}</b>
       </div>

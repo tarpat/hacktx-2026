@@ -64,8 +64,8 @@ test("online pose race shares targets, validates samples, and assigns the winner
     }
     if (step < 4) await until((s) => s.struggle?.poseRace?.progress.B.step === step + 1);
   }
-  await until((s) => !s.struggle && s.players.A.hp === 60);
+  await until((s) => !s.struggle && s.players.A.hp < s.players.A.maxHp);
   assert.equal(seen.find((e) => e.type === "SPELL_CLASH").winner, "B");
   assert.equal(latest.players.B.stats.clashesWon, 1);
-  assert.equal(latest.players.B.hp, 100);
+  assert.equal(latest.players.B.hp, latest.players.B.maxHp);
 });

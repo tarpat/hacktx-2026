@@ -3276,6 +3276,131 @@ body {
   100% { opacity: 0; transform: translateX(-50%) scale(0.9) rotate(-2deg); }
 }
 
+/* ---------- traits ---------- */
+
+.health-trait {
+  margin: 0 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  background: #17241ccc;
+  color: var(--gold-soft);
+  font: 700 10px var(--font-body);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: middle;
+  text-shadow: none;
+  cursor: help;
+}
+
+/* Two reels side by side in the open band above the spell cards. */
+.trait-roll {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--bottom-inset) + 16px);
+  z-index: 5;
+  display: flex;
+  gap: clamp(12px, 4vw, 48px);
+  width: min(560px, calc(100% - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.trait-card {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #1f3226f2, #17241cf2);
+  box-shadow: 0 10px 30px #0008;
+  animation: trait-card-in 300ms ease-out both;
+}
+
+.trait-card.landed {
+  border-color: var(--gold);
+  box-shadow: 0 0 24px #f2b85e88, 0 10px 30px #0008;
+  animation: trait-land 450ms ease-out;
+}
+
+.trait-who {
+  font: 700 12px var(--font-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trait-card.player-A .trait-who { color: var(--player-a); }
+.trait-card.player-B .trait-who { color: var(--player-b); }
+
+.trait-window {
+  width: 100%;
+  height: 34px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+  mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+}
+
+/* Rests on the rolled trait (the last item); the spin animates in from the top of the strip. */
+.trait-strip {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transform: translateY(calc(var(--stops) * -34px));
+  animation: trait-spin var(--spin-ms) cubic-bezier(0.12, 0.8, 0.25, 1) both;
+}
+
+.trait-strip li {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: 800 22px var(--font-title);
+  color: var(--parchment);
+  white-space: nowrap;
+}
+
+.trait-card.landed .trait-strip li:last-child {
+  color: var(--gold-soft);
+}
+
+.trait-effect {
+  margin: 0;
+  min-height: 1.3em;
+  font: 600 12px var(--font-body);
+  color: var(--mist);
+  text-align: center;
+}
+
+@keyframes trait-spin {
+  from { transform: translateY(0); }
+}
+
+@keyframes trait-card-in {
+  from { opacity: 0; transform: translateY(12px); }
+}
+
+@keyframes trait-land {
+  40% { transform: scale(1.06); }
+}
+
+@media (max-width: 760px) {
+  /* Glyph only; the full name and effect are in the tooltip. */
+  .health-trait span { display: none; }
+  .health-trait { margin: 0 4px; padding: 1px 5px; }
+  .trait-strip li { font-size: 16px; }
+  .trait-effect { font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trait-strip,
+  .trait-card,
+  .trait-card.landed { animation: none; }
+
 .magic-trace-result { color: var(--gold-soft); font: 600 12px/1.5 system-ui; margin: 6px 0; }
 .magic-charge-camera .gesture-cam-view { min-width: 0; }
 /* Precision tracing needs a large target and a readable fingertip trail. */

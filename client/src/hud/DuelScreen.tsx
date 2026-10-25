@@ -18,6 +18,7 @@ import { art, playerName } from "../theme";
 import { HealthBar } from "./HealthBar";
 import { CountdownOverlay, MatchClock } from "./MatchClock";
 import { SpellTray } from "./SpellTray";
+import { TraitRoll } from "./TraitRoll";
 import { VictoryOverlay } from "./VictoryOverlay";
 
 interface DuelScreenProps {
@@ -55,6 +56,9 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   const [clashResult, setClashResult] = useState<ClashResult | null>(null);
   const [circleChargeFeedback, setCircleChargeFeedback] = useState<CircleChargeFeedback>({ visible: false, progress: 0, hint: "Show one hand and draw a circle." });
   const [toast, setToast] = useState<Banner | null>(null);
+  // Bumped whenever a new match starts its countdown, so each match reveals its traits once.
+  const [matchSeq, setMatchSeq] = useState(0);
+  const lastPhase = useRef(state?.phase);
   const [hype, setHype] = useState<Banner | null>(null);
   const hypeTracker = useRef(new HypeTracker());
   const [activeShake, setActiveShake] = useState<{ type: "hit" | "clash-impact"; id: number } | null>(null);
@@ -100,6 +104,8 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     () =>
       source.subscribe((next, events) => {
         setState(next);
+        if (next.phase === "countdown" && lastPhase.current !== undefined && lastPhase.current !== "countdown") setMatchSeq((seq) => seq + 1);
+        lastPhase.current = next.phase;
         scene.current?.pushEvents(events);
         playEvents(events, source.localSlot, hotseat);
         const callouts = hypeTracker.current.read(events);
@@ -310,6 +316,10 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
           </section>
         )}
         {state && ready && <CountdownOverlay state={state} now={source.now()} />}
+        {/* Not tied to the countdown: online, the server's 3-2-1 often ends while this screen is still loading. */}
+        {state && ready && state.phase !== "finished" && (
+          <TraitRoll key={`${matchSeq}:${state.players.A.trait}:${state.players.B.trait}`} state={state} leftSlot={left} hotseat={hotseat} />
+        )}
         {hype && (
           <div className="hype" key={hype.id}>
             {hype.text}
@@ -330,9 +340,9 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
         </header>
         {state && (
           <section className="duel-hud">
-            <HealthBar slot={left} name={playerName[left]} hp={state.players[left].hp} maxHp={state.players[left].maxHp} side="left" isYou={!hotseat} />
+            <HealthBar slot={left} name={playerName[left]} hp={state.players[left].hp} maxHp={state.players[left].maxHp} side="left" isYou={!hotseat} trait={state.players[left].trait} />
             <MatchClock state={state} now={now} />
-            <HealthBar slot={right} name={playerName[right]} hp={state.players[right].hp} maxHp={state.players[right].maxHp} side="right" isYou={false} />
+            <HealthBar slot={right} name={playerName[right]} hp={state.players[right].hp} maxHp={state.players[right].maxHp} side="right" isYou={false} trait={state.players[right].trait} />
           </section>
         )}
       </div>

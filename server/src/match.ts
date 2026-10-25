@@ -1,4 +1,4 @@
-import { DuelEngine, type CastAck, type GameEvent, type MatchState, type PlayerSlot, type PowerUpId, type SpellId, type PoseSample, type CircleTrace } from "@spellcaster/shared";
+import { DEFAULT_MATCH_CONFIG, DuelEngine, rollTraits, type CastAck, type GameEvent, type MatchState, type PlayerSlot, type PowerUpId, type SpellId, type PoseSample, type CircleTrace } from "@spellcaster/shared";
 
 const TICK_MS = 33;
 const HEARTBEAT_MS = 500;
@@ -6,7 +6,7 @@ const MAX_REMEMBERED_ACTIONS = 512;
 
 /** Runs one authoritative duel for a room and reports state whenever something happens. */
 export class MatchRunner {
-  private readonly engine = new DuelEngine(Date.now());
+  private readonly engine = new DuelEngine(Date.now(), DEFAULT_MATCH_CONFIG, Math.random, rollTraits());
   private readonly seenActions = new Set<string>();
   private readonly timer: ReturnType<typeof setInterval>;
   private lastBroadcastAt = 0;

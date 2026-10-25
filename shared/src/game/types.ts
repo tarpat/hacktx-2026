@@ -4,6 +4,8 @@ export type PlayerSlot = "A" | "B";
 
 export type SpellId = "fireball" | "shield" | "ice" | "ultimate" | "taurus";
 export type PowerUpId = "empower" | "haste" | "heal";
+/** A perk each wizard rolls at the start of a match. */
+export type TraitId = "ironhide" | "pyromancer" | "frostbite" | "stormcaller" | "siphon" | "stampede";
 
 export type MatchPhase = "countdown" | "active" | "suddenDeath" | "finished";
 export type EndReason = "knockout" | "time" | "suddenDeath" | "draw";
@@ -23,6 +25,8 @@ export interface PlayerState {
   slot: PlayerSlot;
   hp: number;
   maxHp: number;
+  /** Rolled perk for this match, or null when traits are off (training). */
+  trait: TraitId | null;
   ultimate: number;
   /** Server timestamp at which each spell is castable again. */
   readyAt: Record<SpellId, number>;
