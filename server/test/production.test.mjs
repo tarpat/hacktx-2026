@@ -46,9 +46,11 @@ test("production server runs outside the repo cwd and accepts two WebSocket play
   a.emit("READY_STATUS", true); b.emit("READY_STATUS", true);
   await active;
   const damage = new Promise((resolve) => b.on("MATCH_STATE", (state, events) => {
-    if (events.some((event) => event.type === "DAMAGE_APPLIED")) resolve(state.players.B.hp);
+    if (events.some((event) => event.type === "DAMAGE_APPLIED")) resolve(state.players);
   }));
   assert.equal((await a.timeout(3_000).emitWithAck("CAST_REQUEST", { spell: "fireball", clientActionId: "production-test" })).ok, true);
-  assert.equal(await damage, DEFAULT_MATCH_CONFIG.maxHp - DEFAULT_MATCH_CONFIG.spells.fireball.damage);
+  const { A, B } = await damage;
+  const fireball = DEFAULT_MATCH_CONFIG.spells.fireball.damage * (A.trait === "pyromancer" ? DEFAULT_MATCH_CONFIG.traits.pyromancer.factor : 1);
+  assert.equal(B.hp, B.maxHp - Math.round(fireball));
   assert.equal(a.io.engine.transport.name, "websocket");
 });

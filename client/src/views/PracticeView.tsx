@@ -54,6 +54,7 @@ export function PracticeView() {
               {label}
             </button>
           ))}
+          {mode === "training" && <button onClick={() => source.rollTraits()}>🎲 Roll traits</button>}
           {MODES.map(({ mode: m, label }) => (
             <button key={m} className={mode === m ? "active" : ""} onClick={() => setParams(m === "bot" ? {} : { mode: m })}>
               {label}

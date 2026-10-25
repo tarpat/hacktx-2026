@@ -1,4 +1,4 @@
-import type { PlayerSlot, PowerUpId, SpellId } from "@spellcaster/shared";
+import type { PlayerSlot, PowerUpId, SpellId, TraitId } from "@spellcaster/shared";
 import type { WizardStyle } from "./arena/WizardRig";
 
 /** Phaser needs numeric colors; keep these in sync with src/theme.css. */
@@ -67,3 +67,4 @@ export const textureUrl = asset;
 
 /** Emoji stand-ins for spells without illustrated art. */
 export const spellGlyph: Record<SpellId, string> = { fireball: "🔥", shield: "🛡️", ice: "❄️", ultimate: "⚡", taurus: "🤘" };
+export const traitGlyph: Record<TraitId, string> = { ironhide: "🛡️", pyromancer: "🔥", frostbite: "🥶", stormcaller: "🌩️", siphon: "🩸", stampede: "🐂" };

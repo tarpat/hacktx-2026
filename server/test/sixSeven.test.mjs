@@ -52,10 +52,10 @@ test("online 6–7 beats synchronize both clients and score the authenticated ri
     b.emit("STRUGGLE_PUSH", { slot: "A" }); // Payload cannot impersonate the other socket's wizard.
     await delay(130);
   }
-  await until(() => !latest.A.struggle && !latest.B.struggle && latest.A.players.A.hp === 60 && latest.B.players.A.hp === 60);
+  await until(() => !latest.A.struggle && !latest.B.struggle && latest.A.players.A.hp < latest.A.players.A.maxHp && latest.B.players.A.hp === latest.A.players.A.hp);
   const clash = seen.find((event) => event.type === "SPELL_CLASH");
   assert.equal(clash?.winner, "B");
   assert.equal(clash?.challenge, "pump");
-  assert.equal(latest.A.players.B.hp, 100);
+  assert.equal(latest.A.players.B.hp, latest.A.players.B.maxHp);
   assert.equal(latest.B.players.B.stats.clashesWon, 1);
 });

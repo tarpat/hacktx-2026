@@ -18,6 +18,7 @@ import { art, playerName } from "../theme";
 import { HealthBar } from "./HealthBar";
 import { CountdownOverlay, MatchClock } from "./MatchClock";
 import { SpellTray } from "./SpellTray";
+import { TraitRoll } from "./TraitRoll";
 import { VictoryOverlay } from "./VictoryOverlay";
 
 interface DuelScreenProps {
@@ -312,6 +313,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
           </section>
         )}
         {state && ready && <CountdownOverlay state={state} now={source.now()} />}
+        {state && ready && <TraitRoll state={state} leftSlot={left} hotseat={hotseat} />}
         {hype && (
           <div className="hype" key={hype.id}>
             {hype.text}
@@ -332,9 +334,9 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
         </header>
         {state && (
           <section className="duel-hud">
-            <HealthBar slot={left} name={playerName[left]} hp={state.players[left].hp} maxHp={state.players[left].maxHp} side="left" isYou={!hotseat} />
+            <HealthBar slot={left} name={playerName[left]} hp={state.players[left].hp} maxHp={state.players[left].maxHp} side="left" isYou={!hotseat} trait={state.players[left].trait} />
             <MatchClock state={state} now={now} />
-            <HealthBar slot={right} name={playerName[right]} hp={state.players[right].hp} maxHp={state.players[right].maxHp} side="right" isYou={false} />
+            <HealthBar slot={right} name={playerName[right]} hp={state.players[right].hp} maxHp={state.players[right].maxHp} side="right" isYou={false} trait={state.players[right].trait} />
           </section>
         )}
       </div>

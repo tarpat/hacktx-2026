@@ -1,6 +1,6 @@
-import { DEFAULT_MATCH_CONFIG, type MatchConfig } from "./config.js";
+import { DEFAULT_MATCH_CONFIG, TRAIT_ORDER, type MatchConfig } from "./config.js";
 import { POSE_RACE, POSE_SEQUENCE, type PoseProgress, type PoseSample } from "./poses.js";
-import type { CastRejectReason, CastResult, EndReason, GameEvent, MatchState, PlayerSlot, PlayerState, PowerUpId, Projectile, SpellId, Struggle } from "./types.js";
+import type { CastRejectReason, CastResult, EndReason, GameEvent, MatchState, PlayerSlot, PlayerState, PowerUpId, Projectile, SpellId, Struggle, TraitId } from "./types.js";
 
 type EventPayload = GameEvent extends infer E ? (E extends GameEvent ? Omit<E, "id" | "at"> : never) : never;
 
@@ -25,11 +25,27 @@ export function castBlocker(state: MatchState, slot: PlayerSlot, spell: SpellId,
   return now < player.readyAt[spell] ? "cooldown" : null;
 }
 
-function createPlayer(slot: PlayerSlot, config: MatchConfig): PlayerState {
+/** The trait's multiplier if `player` rolled it, otherwise 1. */
+function traitFactor(player: PlayerState, trait: TraitId | undefined, config: MatchConfig): number {
+  return trait && player.trait === trait ? config.traits[trait].factor : 1;
+}
+
+/** Traits that make one spell hit harder. */
+const DAMAGE_TRAITS: Partial<Record<SpellId, TraitId>> = { fireball: "pyromancer", taurus: "stampede" };
+
+/** An independent, equally likely trait for each wizard. */
+export function rollTraits(random: () => number = Math.random): Record<PlayerSlot, TraitId> {
+  const roll = () => TRAIT_ORDER[Math.min(TRAIT_ORDER.length - 1, Math.floor(random() * TRAIT_ORDER.length))];
+  return { A: roll(), B: roll() };
+}
+
+function createPlayer(slot: PlayerSlot, config: MatchConfig, trait: TraitId | null): PlayerState {
+  const maxHp = trait === "ironhide" ? Math.round(config.maxHp * config.traits.ironhide.factor) : config.maxHp;
   return {
     slot,
-    hp: config.maxHp,
-    maxHp: config.maxHp,
+    hp: maxHp,
+    maxHp,
+    trait,
     ultimate: 0,
     readyAt: { fireball: 0, shield: 0, ice: 0, ultimate: 0, taurus: 0 },
     shieldUntil: 0,
@@ -58,14 +74,20 @@ export class DuelEngine {
   /** Set by rehearseClash so the next struggle is the one asked for instead of a coin flip. */
   private forcedStruggle: Struggle["kind"] | null = null;
 
-  constructor(now: number, config: MatchConfig = DEFAULT_MATCH_CONFIG, private readonly random: () => number = Math.random) {
+  /** `traits` are rolled by the caller (see `rollTraits`) so a match keeps them across engine restarts; omit them for none. */
+  constructor(
+    now: number,
+    config: MatchConfig = DEFAULT_MATCH_CONFIG,
+    private readonly random: () => number = Math.random,
+    traits: Partial<Record<PlayerSlot, TraitId>> = {},
+  ) {
     this.config = config;
     this.state = {
       phase: "countdown",
       now,
       phaseEndsAt: now + config.countdownMs,
       roundMs: config.roundMs,
-      players: { A: createPlayer("A", config), B: createPlayer("B", config) },
+      players: { A: createPlayer("A", config, traits.A ?? null), B: createPlayer("B", config, traits.B ?? null) },
       projectiles: [],
       struggle: null,
       winner: null,
@@ -120,7 +142,10 @@ export class DuelEngine {
       owner: slot,
       spell,
       damage: Math.round(
-        spellConfig.damage * (empowered ? this.config.empowerMultiplier : 1) * (spellConfig.charged ? Math.min(1, Math.max(0.25, power)) : 1),
+        spellConfig.damage *
+          (empowered ? this.config.empowerMultiplier : 1) *
+          (spellConfig.charged ? Math.min(1, Math.max(0.25, power)) : 1) *
+          traitFactor(player, DAMAGE_TRAITS[spell], this.config),
       ),
       empowered,
       launchedAt: now,
@@ -383,7 +408,7 @@ export class DuelEngine {
 
     this.applyDamage(projectile, defender, damage, at);
     if (projectile.spell === "ice" && this.state.phase !== "finished") {
-      defender.frozenUntil = at + this.config.freezeMs;
+      defender.frozenUntil = at + this.config.freezeMs * traitFactor(this.state.players[projectile.owner], "frostbite", this.config);
       this.emit(at, { type: "FROZEN", slot: defender.slot, until: defender.frozenUntil });
     }
   }
@@ -391,6 +416,7 @@ export class DuelEngine {
   private applyDamage(projectile: Projectile, defender: PlayerState, damage: number, at: number): void {
     const attacker = this.state.players[projectile.owner];
     defender.hp = Math.max(0, defender.hp - damage);
+    if (attacker.trait === "siphon") attacker.hp = Math.min(attacker.maxHp, attacker.hp + Math.round(damage * this.config.traits.siphon.factor));
     attacker.stats.hits += 1;
     attacker.stats.damageDealt += damage;
     this.emit(at, { type: "DAMAGE_APPLIED", target: defender.slot, spell: projectile.spell, amount: damage, hp: defender.hp });
@@ -403,7 +429,7 @@ export class DuelEngine {
   private chargeUltimate(player: PlayerState, amount: number, at: number): void {
     const max = this.config.ultimateMax;
     if (player.ultimate >= max) return;
-    player.ultimate = Math.min(max, player.ultimate + amount);
+    player.ultimate = Math.min(max, player.ultimate + amount * traitFactor(player, "stormcaller", this.config));
     if (player.ultimate >= max) this.emit(at, { type: "ULTIMATE_READY", slot: player.slot });
   }
 

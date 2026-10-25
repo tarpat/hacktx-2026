@@ -44,7 +44,8 @@ and does not automatically request a microphone.
 ## Rules (defaults in `shared/src/game/config.ts`)
 
 - 100 HP each, 3 s countdown, 60 s round. Higher HP wins on time; a tie goes to 15 s sudden death where the next hit wins, then a draw.
-- Incendio 20 dmg, 3 s cooldown. Glacius 10 dmg and freezes attacks for 1.2 s, 7 s cooldown. Protego blocks one spell arriving within its 0.9 s window, 5 s cooldown.
+- Incendio 20 dmg, 2.5 s cooldown. Glacius 10 dmg and freezes attacks for 1.2 s, 5 s cooldown. Taurus 15 dmg and smashes through shields, 4 s cooldown. Protego blocks one spell arriving within its 1.2 s window, 3 s cooldown.
+- Each wizard rolls a trait during the countdown (bot and online matches; training has a 🎲 Roll traits button): Ironhide +10% max health, Pyromancer Incendio +25% damage, Frostbite Glacius freezes 2.5× as long, Stormcaller Fulmen charges 50% faster, Siphon heals 10% of damage dealt, Stampede Taurus +25% damage. Each wins about 56–63% of bot-vs-bot duels against no trait.
 - Hits, blocks and damage taken charge the Fulmen meter; Fulmen deals 30 and breaks through shields at half damage.
 - Opposing attacks launched within 350 ms clash mid-arena: the stronger spell continues with the difference, equal spells fizzle.
 - Power-ups: one per 12 s. Empower (+50% on the next attack), Haste (cooldowns x0.6 for 6 s), Heal (+15 HP).
