@@ -229,7 +229,7 @@ export class ArenaScene extends Phaser.Scene {
     const { minMs, maxMs } = DEFAULT_TIMINGS.charge[charge.kind];
     const elapsed = now - charge.startedAt;
     // The ring closes when the charge is ready to release.
-    if (!circle.isOpen) circle.open(spellColor[charge.kind], charge.startedAt, minMs);
+    if (!circle.isOpen) circle.open(charge.kind, charge.startedAt, minMs);
     circle.charge(elapsed / maxMs, maxMs - elapsed < 600, now);
   }
 
@@ -680,8 +680,13 @@ export class ArenaScene extends Phaser.Scene {
     return this.getFrame().insets.top + 40 * this.unit;
   }
 
+  /** The storm gathers over the target but leans toward the middle, clear of the HUD and the camera panel in the corners. */
+  private stormX(target: PlayerSlot) {
+    return Phaser.Math.Linear(this.anchor(target).x, this.scale.width / 2, 0.38);
+  }
+
   private makeStorm(target: PlayerSlot): StormView {
-    const x = this.anchor(target).x;
+    const x = this.stormX(target);
     const y = this.stormY();
     const spread = { min: -90 * this.unit, max: 90 * this.unit };
     const cloud = this.add.particles(x, y, "magic-3", {
@@ -717,26 +722,31 @@ export class ArenaScene extends Phaser.Scene {
     storm.cloud.stop();
     this.time.delayedCall(1800, () => storm.cloud.destroy());
 
-    const { x, y } = this.anchor(storm.target);
-    const top = this.stormY();
+    const { x, y } = this.castPoint(storm.target);
+    const top = { x: this.stormX(storm.target), y: this.stormY() };
     const bolt = this.add.graphics().setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
-    const flickers = [0, 70, 150, 230];
-    flickers.forEach((delay) => this.time.delayedCall(delay, () => this.drawLightning(bolt, x, top, y)));
-    this.tweens.add({ targets: bolt, alpha: 0, delay: 300, duration: 260, onComplete: () => bolt.destroy() });
+    // Strike, go dark, restrike: real lightning flickers rather than fading.
+    const flickers: [number, number][] = [[0, 1], [60, 0.25], [110, 1], [200, 0.35], [260, 1], [380, 0.7]];
+    flickers.forEach(([delay, alpha]) => this.time.delayedCall(delay, () => this.drawLightning(bolt.setAlpha(alpha), top.x, top.y, x, y)));
+    this.tweens.add({ targets: bolt, alpha: 0, delay: 440, duration: 260, onComplete: () => bolt.destroy() });
 
     this.playFx("lightning-strike", x, y - 42 * this.unit, 180);
     this.playFx("lightning-burst", x, y - 66 * this.unit, 216);
     this.burst(x, y, LIGHTNING.glow, 26, 1.6);
-    this.cameras.main.flash(220, 220, 240, 255);
+    // A soft blue-white wash instead of a full white-out, so the bolt stays visible.
+    const { width, height } = this.scale;
+    const wash = this.add.rectangle(width / 2, height / 2, width, height, LIGHTNING.glow, 0.32).setDepth(8).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: wash, alpha: 0, duration: 320, ease: "Quad.easeOut", onComplete: () => wash.destroy() });
+    this.cameras.main.shake(220, 0.006);
     if (this.storms.size === 0) this.tweens.add({ targets: this.gloom, alpha: 0, delay: 120, duration: 500 });
   }
 
-  private drawLightning(g: Phaser.GameObjects.Graphics, x: number, top: number, bottom: number) {
+  private drawLightning(g: Phaser.GameObjects.Graphics, x1: number, y1: number, x2: number, y2: number) {
     g.clear();
-    const trunk = this.jagged(x, top, x + Phaser.Math.Between(-12, 12) * this.unit, bottom, 14, 34);
+    const trunk = this.jagged(x1, y1, x2, y2, 14, 30);
     const branches = [0.3, 0.5, 0.7].map((at) => {
       const from = trunk[Math.floor(at * (trunk.length - 1))];
-      const reach = (bottom - top) * Phaser.Math.FloatBetween(0.12, 0.22);
+      const reach = (y2 - y1) * Phaser.Math.FloatBetween(0.12, 0.22);
       return this.jagged(from.x, from.y, from.x + (Math.random() < 0.5 ? -reach : reach), from.y + reach, 5, 16);
     });
     // Wide soft glow, then a narrower bright glow, then the white-hot core.
@@ -760,12 +770,22 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   /** The caster's raised hand sends a spark up into the clouds. */
-  private callLightning(hand: { x: number; y: number }) {
+  /** The caster's circle throws a bolt up into the sky where the storm will gather over the target. */
+  private callLightning(from: { x: number; y: number }, target: PlayerSlot) {
     const zap = this.add.graphics().setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
-    const points = this.jagged(hand.x, hand.y, hand.x + Phaser.Math.Between(-30, 30) * this.unit, this.stormY(), 9, 14);
-    zap.lineStyle(8 * this.unit, LIGHTNING.glow, 0.4).strokePoints(points);
-    zap.lineStyle(2.5 * this.unit, LIGHTNING.core, 1).strokePoints(points);
-    this.tweens.add({ targets: zap, alpha: 0, duration: 280, onComplete: () => zap.destroy() });
+    const to = { x: this.stormX(target), y: this.stormY() };
+    const draw = () => {
+      // Arcs up and over rather than cutting straight across the arena.
+      const peak = { x: Phaser.Math.Linear(from.x, to.x, 0.35), y: Math.min(from.y, to.y) - 30 * this.unit };
+      const points = [...this.jagged(from.x, from.y, peak.x, peak.y, 7, 16), ...this.jagged(peak.x, peak.y, to.x, to.y, 12, 26).slice(1)];
+      zap.clear();
+      for (const [width, color, alpha] of [[16, LIGHTNING.glow, 0.2], [6, LIGHTNING.glow, 0.55], [2.4, LIGHTNING.core, 1]] as const) {
+        zap.lineStyle(width * this.unit, color, alpha).strokePoints(points);
+      }
+    };
+    [0, 70, 150].forEach((delay) => this.time.delayedCall(delay, draw));
+    this.tweens.add({ targets: zap, alpha: 0, delay: 200, duration: 220, onComplete: () => zap.destroy() });
+    this.burst(to.x, to.y, LIGHTNING.glow, 16, 1.1);
   }
 
   // ---------- events ----------
@@ -782,7 +802,7 @@ export class ArenaScene extends Phaser.Scene {
         // A charged cast already has its circle open; keyboard, bot and remote casts draw one through the windup.
         const circle = this.circles[event.slot];
         if (event.slot === this.getFrame().leftSlot) clearLocalCharge();
-        circle.open(color, performance.now(), RELEASE_MS[event.spell]);
+        circle.open(event.spell, performance.now(), RELEASE_MS[event.spell]);
         rig.play(event.spell === "ultimate" ? "ultimate" : "throw", time, {
           releaseMs: RELEASE_MS[event.spell],
           onRelease: () => {
@@ -792,7 +812,7 @@ export class ArenaScene extends Phaser.Scene {
             const frame = this.getFrame();
             const releaseAt = frame.state?.struggle?.kind === "pose" ? frame.state.struggle.startedAt : frame.now;
             if (event.projectileId) this.releases.set(event.projectileId, { at: releaseAt, from: hand });
-            if (event.spell === "ultimate") this.callLightning(hand);
+            if (event.spell === "ultimate") this.callLightning(hand, opponentOf(event.slot));
             if (event.spell === "taurus") this.summonRune(event.slot);
             this.burst(hand.x, hand.y, color, 14, 0.9);
           },
