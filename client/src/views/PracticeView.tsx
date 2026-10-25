@@ -1,23 +1,34 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { MapPicker, useMapChoice } from "../arena/MapPicker";
+import type { Struggle } from "@spellcaster/shared";
 import { LocalDuel, type LocalMode } from "../game/duelSource";
 import { DuelScreen } from "../hud/DuelScreen";
 
 const MODES: { mode: LocalMode; label: string }[] = [
-  { mode: "training", label: "🎯 Training dummy" },
+  { mode: "training", label: "🎯 Training" },
   { mode: "bot", label: "Vs easy bot" },
-  { mode: "hotseat", label: "Hotseat" },
+];
+
+/** Buttons that start each collision challenge on demand in training. */
+const CLASHES: { kind: Struggle["kind"]; label: string }[] = [
+  { kind: "pump", label: "⚡ 6–7 clash" },
+  { kind: "pose", label: "🐒 Pose race" },
 ];
 
 const isMode = (value: string | null): value is LocalMode => MODES.some((m) => m.mode === value);
+/** Old links to the removed hotseat mode land in training, which now has the same controls. */
+const modeFrom = (value: string | null): LocalMode => (value === "hotseat" ? "training" : isMode(value) ? value : "bot");
 
-/** Offline duel: a passive training dummy, an easy bot, or two players on one keyboard. Also the demo fallback. */
+/**
+ * Offline duel against an easy bot, or training: a sturdy rival you can drive yourself from the
+ * second key set, with buttons that start each collision challenge. Also the demo fallback.
+ */
 export function PracticeView() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const requested = params.get("mode");
-  const mode: LocalMode = isMode(requested) ? requested : "bot";
+  const mode = modeFrom(requested);
   const [source, setSource] = useState<LocalDuel | null>(null);
   const [map, setMap] = useMapChoice();
   useEffect(() => {
@@ -31,13 +42,18 @@ export function PracticeView() {
     <DuelScreen
       key={mode}
       source={source}
-      hotseat={mode === "hotseat"}
-      map={mode === "hotseat" ? map : undefined}
+      hotseat={mode === "training"}
+      map={mode === "training" ? map : undefined}
       onLeave={() => navigate("/")}
       header={
         <nav className="duel-nav">
-          <span className="duel-mode">{mode === "training" ? "TRAINING · DUMMY WON'T FIGHT BACK" : "PRACTICE"}</span>
-          {mode === "hotseat" && <MapPicker value={map} onChange={setMap} compact />}
+          <span className="duel-mode">{mode === "training" ? "TRAINING · YOU CONTROL BOTH WIZARDS" : "PRACTICE"}</span>
+          {mode === "training" && <MapPicker value={map} onChange={setMap} compact />}
+          {mode === "training" && CLASHES.map(({ kind, label }) => (
+            <button key={kind} onClick={() => source.rehearseClash(kind)}>
+              {label}
+            </button>
+          ))}
           {MODES.map(({ mode: m, label }) => (
             <button key={m} className={mode === m ? "active" : ""} onClick={() => setParams(m === "bot" ? {} : { mode: m })}>
               {label}

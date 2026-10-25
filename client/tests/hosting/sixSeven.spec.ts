@@ -9,7 +9,7 @@ for (const mobile of [false, true]) {
     });
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.goto("/practice?mode=hotseat");
+    await page.goto("/practice?mode=training");
     await expect(page.locator(".clock.active")).toBeVisible();
     await page.keyboard.press("q"); await page.keyboard.press("u");
     const panel = page.getByRole("region", { name: "6–7 collision challenge" });
@@ -36,7 +36,7 @@ for (const mobile of [false, true]) {
     expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
     expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height);
     await expect(page.locator(".clash-result")).toContainText("Green Wizard wins!", { timeout: 9000 });
-    await expect(page.locator(".health-value").nth(1)).toHaveText("60");
+    await expect(page.locator(".health-value").nth(1)).toHaveText("460");
     expect(errors).toEqual([]);
   });
 }
@@ -53,7 +53,7 @@ test("self-hosted pose model runs on a synthetic camera and reports missing elbo
     };
   });
   const model = page.waitForResponse((r) => r.url().endsWith("/models/pose_landmarker_lite.task"));
-  await page.goto("/practice?mode=hotseat");
+  await page.goto("/practice?mode=training");
   expect((await model).status()).toBe(200);
   await expect(page.locator(".clock.active")).toBeVisible();
   await page.keyboard.press("q"); await page.keyboard.press("u");

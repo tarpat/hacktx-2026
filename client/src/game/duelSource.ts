@@ -11,6 +11,7 @@ import {
   type PlayerSlot,
   type PowerUpId,
   type SpellId,
+  type Struggle,
   type PoseSample,
   POSE_RACE,
 } from "@spellcaster/shared";
@@ -45,8 +46,8 @@ const TICK_MS = 33;
 let actionSeq = 0;
 const actionId = () => `${Date.now().toString(36)}-${(++actionSeq).toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
-/** `bot`: easy AI opponent · `training`: dummy that never acts · `hotseat`: two players, one keyboard. */
-export type LocalMode = "bot" | "training" | "hotseat";
+/** `bot`: easy AI opponent · `training`: a sturdy rival that only acts when you drive it from the second key set. */
+export type LocalMode = "bot" | "training";
 
 /** Long round, sturdy dummy, and a fast ultimate meter so every spell can be tried. */
 const TRAINING_CONFIG = makeMatchConfig({
@@ -81,20 +82,27 @@ export class LocalDuel implements DuelSource {
   }
 
   cast(spell: SpellId, slot: PlayerSlot = this.localSlot, power?: number) {
-    if (slot === "B" && this.mode !== "hotseat") return;
+    if (slot === "B" && this.mode !== "training") return;
     this.engine.cast(slot, spell, Date.now(), power);
     this.step();
   }
 
   push(slot: PlayerSlot = this.localSlot) {
-    if (slot === "B" && this.mode !== "hotseat") return;
+    if (slot === "B" && this.mode !== "training") return;
     this.engine.push(slot, Date.now());
     this.step();
   }
 
   poseSample(sample: PoseSample, slot: PlayerSlot = this.localSlot) {
-    if (slot === "B" && this.mode !== "hotseat") return;
+    if (slot === "B" && this.mode !== "training") return;
     this.engine.poseSample(slot, sample, Date.now());
+    this.step();
+  }
+
+  /** Training only: both wizards fire at once and the clash opens the chosen struggle. */
+  rehearseClash(kind: Struggle["kind"]) {
+    if (this.mode !== "training") return;
+    this.engine.rehearseClash(kind, Date.now());
     this.step();
   }
 
@@ -116,7 +124,8 @@ export class LocalDuel implements DuelSource {
   }
 
   private newEngine() {
-    this.stageId = this.mode === "hotseat" ? undefined : randomStageId();
+    // Training uses the map picker; the bot gets a random stage.
+    this.stageId = this.mode === "training" ? undefined : randomStageId();
     return new DuelEngine(Date.now(), this.mode === "training" ? TRAINING_CONFIG : DEFAULT_MATCH_CONFIG);
   }
 

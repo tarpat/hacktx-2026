@@ -108,3 +108,22 @@ describe("spell struggle", () => {
     expect(engine.push("A", LIVE + 100)).toBe(false);
   });
 });
+
+describe("rehearsed clash (training)", () => {
+  it.each(["pump", "pose"] as const)("opens a %s struggle on demand, even with fireball on cooldown", (kind) => {
+    // The engine's coin flip would pick pump (0.1); asking for a kind overrides it.
+    const engine = liveEngine();
+    engine.cast("A", "fireball", LIVE);
+    expect(engine.rehearseClash(kind, LIVE + 200)).toBe(true);
+    let now = LIVE + 200;
+    while (!engine.snapshot(now).struggle) now += 10;
+    expect(engine.snapshot(now).struggle?.kind).toBe(kind);
+  });
+
+  it("refuses while a struggle is already on or before the match starts", () => {
+    const early = new DuelEngine(START, C, () => 0.1);
+    expect(early.rehearseClash("pose", START + 10)).toBe(false);
+    const { engine, lockedAt } = lockedEngine();
+    expect(engine.rehearseClash("pose", lockedAt + 10)).toBe(false);
+  });
+});

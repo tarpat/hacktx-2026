@@ -49,7 +49,7 @@ branch to `main` so future team work is deployed from the main branch.
 2. Open the public URL on two devices, preferably on separate networks. Create/join a
    room, ready both players and complete a fireball/block/hit exchange.
 3. Check the browser connects to the hosted `/socket.io/` endpoint rather than localhost.
-4. Refresh `/practice?mode=hotseat` and `/gesture-test` directly; they should load normally.
+4. Refresh `/practice?mode=training` and `/gesture-test` directly; they should load normally.
 5. Enable the camera explicitly for real gesture validation over HTTPS. There should
    be no speech panel or automatic microphone request.
 

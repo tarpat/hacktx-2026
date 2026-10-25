@@ -5,7 +5,7 @@ test("arena shows embers and announces both clash winners and draws", async ({ p
     Math.random = () => 0.1; // Exercise the 6–7 half of the collision coin flip.
     navigator.mediaDevices.getUserMedia = async () => { throw new Error("Camera disabled for test"); };
   });
-  await page.goto("/practice?mode=hotseat");
+  await page.goto("/practice?mode=training");
   await expect(page.locator(".duel-stage .rising-embers i")).toHaveCount(24);
   await expect(page.locator(".clock.active")).toBeVisible();
 
