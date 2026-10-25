@@ -20,6 +20,11 @@ export function PoseRace({ struggle, source, now, hotseat }: { struggle: Extract
   const fresh = now - local.lastSampleAt <= POSE_RACE.sampleGapMs;
   const hold = fresh && local.holdSince !== null ? Math.min(1, (now - local.holdSince) / POSE_RACE.holdMs) : 0;
   const other = opponentOf(source.localSlot);
+  // A raw camera match cannot count until the server sees a release. Do not tell
+  // players to keep holding a pose that they first need to relax out of.
+  const hint = !assist && !countdown && !local.released && feedback.matched === true
+    ? target?.id === "grin" ? "Lower your hand briefly, then raise one finger and smile again." : "Relax out of the pose briefly, then copy the reference again."
+    : feedback.hint;
 
   useEffect(() => {
     setFeedback({ matched: null, hint: "Turn on the camera, then relax briefly before matching the image" });
@@ -76,7 +81,7 @@ export function PoseRace({ struggle, source, now, hotseat }: { struggle: Extract
           <GestureCamera struggling raceTarget={assist ? null : target?.id ?? null} onRaceFeedback={observe} />
           <div className={`pose-feedback${hold > 0 ? " matching" : ""}`} role="status">
             <strong>{countdown ? "Get ready — relax first" : assist ? "Practice assist: hold, release, repeat" : feedback.matched === null ? "Camera needed" : !local.released ? "Relax briefly before matching" : feedback.matched ? "Hold that pose!" : "Match the reference"}</strong>
-            <p>{assist ? "Release for a moment before each new hold." : feedback.hint}</p>
+            <p>{assist ? "Release for a moment before each new hold." : hint}</p>
             <div className="pose-hold" role="progressbar" aria-label="Pose hold" aria-valuenow={Math.round(hold * 100)} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${hold * 100}%` }} /></div>
           </div>
         </div>

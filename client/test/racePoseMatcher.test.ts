@@ -45,11 +45,57 @@ describe("reference pose geometry", () => {
     expect(matchRacePose("gasp", { ...f, jawOpen: 0 }).matched).toBe(false);
     expect(matchRacePose("gasp", { ...f, hands: [hand(.1, .8), hand(.9, .8)] }).matched).toBe(false);
   });
-  it("requires the middle finger alone, raised beside the face, and a grin", () => {
-    const f = frame(); f.hands = [hand(.78, .4, [12])]; f.smile = .7;
+  it.each([8, 12])("accepts a raised finger at landmark %i with a small smile, using either hand", (tip) => {
+    const f = frame(); f.hands = [hand(.78, .4, [tip])]; f.smile = .2;
     expect(matchRacePose("grin", f).matched).toBe(true);
-    expect(matchRacePose("grin", { ...f, smile: 0 }).matched).toBe(false);
-    expect(matchRacePose("grin", { ...f, hands: [hand(.78, .4, [8])] }).matched).toBe(false);
+    expect(matchRacePose("grin", { ...f, hands: f.hands.map((h) => h.map((p) => ({ ...p, x: 1 - p.x }))) }).matched).toBe(true);
+  });
+  it("accepts a slightly bent raised finger and naturally loose neighboring fingers", () => {
+    const f = frame(); const h = hand(.78, .4, [12]); f.smile = .2;
+    // Check a gently bent raised finger and loosely curled neighbors separately:
+    // a single finger must still stand out from its neighbors.
+    h[12].y = .55 - .15 * 1.13;
+    expect(matchRacePose("grin", { ...f, hands: [h] }).matched).toBe(true);
+    h[12].y = .28;
+    for (const tip of [8, 16, 20]) h[tip].y = .55 - .15 * 1.14;
+    expect(matchRacePose("grin", { ...f, hands: [h] }).matched).toBe(true);
+  });
+  it("uses depth when the raised finger is foreshortened toward the camera", () => {
+    const f = frame(); const h = hand(.78, .4, [12]); f.smile = .2;
+    h[12] = { x: .78, y: .44, z: -.22 };
+    expect(matchRacePose("grin", { ...f, hands: [h] }).matched).toBe(true);
+  });
+  it("accepts a tilted hand and a fingertip below mouth level", () => {
+    const f = frame(); f.smile = .2;
+    expect(matchRacePose("grin", { ...f, hands: [hand(.78, .64, [12])] }).matched).toBe(true);
+    const h = hand(.65, .4, [12]); const wrist = h[0]; const angle = Math.PI / 5;
+    const tilted = h.map((p) => point(wrist.x + (p.x - wrist.x) * Math.cos(angle) - (p.y - wrist.y) * Math.sin(angle), wrist.y + (p.x - wrist.x) * Math.sin(angle) + (p.y - wrist.y) * Math.cos(angle)));
+    expect(matchRacePose("grin", { ...f, hands: [tilted] }).matched).toBe(true);
+  });
+  it("stays matched through small landmark changes during a hold", () => {
+    const f = frame(); f.smile = .2;
+    for (const jitter of [-.006, .004, -.003, .006, 0, -.005]) {
+      const h = hand(.78, .4, [12]);
+      for (const tip of [8, 16, 20]) h[tip].y = .55 - .15 * 1.14 + jitter;
+      h[12].y += jitter;
+      expect(matchRacePose("grin", { ...f, hands: [h] }).matched).toBe(true);
+    }
+  });
+  it.each([
+    { name: "fist", raised: [] }, { name: "victory sign", raised: [8, 12] },
+    { name: "open palm", raised: [8, 12, 16, 20] }, { name: "ring finger", raised: [16] }, { name: "pinky", raised: [20] },
+  ])("rejects $name", ({ raised }) => {
+    const f = frame(); f.smile = .7;
+    expect(matchRacePose("grin", { ...f, hands: [hand(.78, .4, raised)] }).matched).toBe(false);
+  });
+  it("asks for a smile only once the hand matches", () => {
+    const f = frame(); f.hands = [hand(.78, .4, [12])];
+    expect(matchRacePose("grin", f)).toEqual({ matched: false, hint: "Hand matched — add a small smile" });
+    expect(matchRacePose("grin", { ...f, smile: .1 }).matched).toBe(false);
+    expect(matchRacePose("grin", { ...f, hands: [] }).hint).toBe("Show one hand beside your face");
+    const downward = hand(.78, .4, [12]).map((p) => ({ ...p, y: 1.1 - p.y }));
+    expect(matchRacePose("grin", { ...f, hands: [downward] }).hint).toContain("upward");
+    expect(matchRacePose("grin", { ...f, hands: [hand(.78, .95, [12])] }).hint).toContain("beside your face");
   });
   it("keeps matching when face and hand geometry are scaled or translated together", () => {
     const f = frame(); f.hands = [hand(.51, .6, [8])];

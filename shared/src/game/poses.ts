@@ -4,7 +4,7 @@ export const POSE_SEQUENCE = [
   { id: "tongue", name: "Tongue out", cue: "Open your mouth and stick your tongue out toward the camera. Keep hands away.", image: "/poses/tongue.png" },
   { id: "think-again", name: "Think again", cue: "Index finger at your mouth again, lips closed. Either hand works.", image: "/poses/think-again.png" },
   { id: "gasp", name: "The gasp", cue: "Open your mouth wide and bring both hands together just below your chin.", image: "/poses/gasp.png" },
-  { id: "grin", name: "Cheeky grin", cue: "Smile and raise just your middle finger beside your face. Either hand works.", image: "/poses/grin.png" },
+  { id: "grin", name: "Cheeky grin", cue: "Raise one index or middle finger beside your face and give a small smile. Either hand works; keep the other fingers relaxed and curled.", image: "/poses/grin.png" },
 ] as const;
 
 export type RacePoseId = typeof POSE_SEQUENCE[number]["id"];

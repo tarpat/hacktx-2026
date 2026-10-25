@@ -23,7 +23,6 @@ export function matchRacePose(target: RacePoseId, frame: RaceFrame): PoseFeedbac
   const gap = distance(face[13], face[14]) / Math.max(0.001, distance(face[61], face[291]));
   const open = jawOpen > 0.32 && gap > 0.23;
   const validHands = hands.filter((h) => h.length === 21);
-  const extended = (h: Landmark[], pip: number, tip: number) => distance(h[0], h[tip]) > distance(h[0], h[pip]) * 1.15;
   const curled = (h: Landmark[], pip: number, tip: number) => distance(h[0], h[tip]) < distance(h[0], h[pip]) * 1.07;
   if (target === "think" || target === "think-again") {
     const pointing = validHands.some((h) => distance(h[8], mouth) / width < 0.24 &&
@@ -41,9 +40,24 @@ export function matchRacePose(target: RacePoseId, frame: RaceFrame): PoseFeedbac
     const below = (h: Landmark[]) => h[9].y > mouth.y + width * 0.1 && h[9].y < face[152].y + width * 1.2 && Math.abs(h[9].x - mouth.x) * aspect < width * 0.85;
     return result(open && below(a) && below(b) && distance(a[9], b[9]) < width * 0.75, !open ? "Open your mouth wide in surprise" : "Bring both hands together just below your chin");
   }
-  const raised = validHands.some((h) => extended(h, 10, 12) && curled(h, 6, 8) && curled(h, 14, 16) && curled(h, 18, 20) &&
-    h[12].y < h[10].y && Math.abs(h[12].x - mouth.x) * aspect < width * 1.6 && h[12].y < mouth.y);
-  return result(raised && smile > 0.35, raised ? "Give the camera a big grin" : "Raise only your middle finger beside your face, then smile");
+  // The reference reads as a single raised finger. Accept index OR middle so the
+  // player does not need to reproduce the monkey's exact finger anatomy. Hand z
+  // is wrist-relative and scaled like x; include it to tolerate angled palms.
+  const handDistance = (a: Landmark, b: Landmark) => Math.hypot((a.x - b.x) * aspect, a.y - b.y, (a.z - b.z) * aspect);
+  const fingers = [[6, 8], [10, 12], [14, 16], [18, 20]] as const;
+  const singleFingers = validHands.flatMap((hand) => {
+    const ratios = fingers.map(([pip, tip]) => handDistance(hand[0], hand[tip]) / Math.max(0.001, handDistance(hand[0], hand[pip])));
+    return [0, 1].filter((finger) => ratios[finger] >= 1.12 && ratios.every((ratio, other) =>
+      other === finger || (ratio < 1.25 && ratios[finger] - ratio >= 0.12),
+    )).map((finger) => ({ hand, tip: hand[fingers[finger][1]], palm: handDistance(hand[0], hand[9]) }));
+  });
+  if (!validHands.length) return result(false, "Show one hand beside your face");
+  if (!singleFingers.length) return result(false, "Raise just your index or middle finger; let the other fingers curl naturally");
+  const upright = singleFingers.filter(({ hand, tip, palm }) => palm > 0.01 && hand[0].y - tip.y > palm * 0.35);
+  if (!upright.length) return result(false, "Point your raised index or middle finger upward");
+  const nearFace = upright.some(({ tip }) => Math.abs(tip.x - mouth.x) * aspect < width * 1.8 &&
+    tip.y > face[10].y - width * 0.65 && tip.y < face[152].y + width * 0.2);
+  return result(nearFace && smile >= 0.18, nearFace ? "Hand matched — add a small smile" : "Bring your raised finger beside your face");
 }
 
 /** A local color heuristic, not a learned tongue classifier. Samples the center of the open mouth. */

@@ -27,6 +27,11 @@ for (const winner of ["A", "B"] as const) {
     const key = winner === "A" ? "Space" : "Enter";
     const progress = race.locator(`.pose-score.player-${winner} b span`);
     for (let step = 0; step < 5; step++) {
+      if (step === 4 && winner === "A") {
+        await expect(race.locator(".pose-reference h3")).toHaveText("Cheeky grin");
+        await expect(race.locator(".pose-reference p")).toContainText("one index or middle finger");
+        await expect(race.locator(".pose-reference p")).toContainText("small smile");
+      }
       await page.keyboard.down(key);
       if (step < 4) await expect(progress).toHaveText(`${step + 1}/5`);
       else await expect(race).toBeHidden();
