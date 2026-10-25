@@ -43,7 +43,7 @@ const asset = (name: string) => `${import.meta.env.BASE_URL}assets/${name}.png`;
 /** Illustrated art used by the HUD and the arena. */
 export const art = {
   background: `${import.meta.env.BASE_URL}assets/background.jpg`,
-  spell: { fireball: asset("fireball"), shield: asset("shield"), ice: asset("ice"), ultimate: asset("fulmen"), taurus: asset("taurus") } as Partial<Record<SpellId, string>>,
+  spell: { fireball: asset("fireball"), shield: asset("shield"), ice: asset("ice"), ultimate: asset("fulmen-storm"), taurus: asset("taurus") } as Partial<Record<SpellId, string>>,
   powerUp: { empower: asset("empower"), haste: asset("haste"), heal: null } as Record<PowerUpId, string | null>,
   portrait: { A: asset("portrait-green"), B: asset("portrait-purple") } as Record<PlayerSlot, string>,
   wizard: { A: asset("wizard-green"), B: asset("wizard-purple") } as Record<PlayerSlot, string>,

@@ -35,6 +35,8 @@ export interface DuelSource {
   subscribe(listener: DuelListener): () => void;
   /** Starts a fresh match (practice) or asks the server for a rematch (online). */
   rematch(): void;
+  /** Practice only: restart the countdown once the arena has loaded, so players see all of it. */
+  begin?(): void;
   /** Sends your name or face to the rival (online only). */
   shareFlair?(flair: FlairPatch): void;
   dispose(): void;
@@ -65,6 +67,8 @@ export class LocalDuel implements DuelSource {
   private latest: MatchState;
   private readonly listeners = new Set<DuelListener>();
   private readonly timer: ReturnType<typeof setInterval>;
+  /** The countdown waits at its start until the arena calls begin() (or this fallback passes). */
+  private holdUntil = Date.now() + 12_000;
 
   constructor(private readonly mode: LocalMode) {
     this.engine = this.newEngine();
@@ -117,6 +121,12 @@ export class LocalDuel implements DuelSource {
     return () => this.listeners.delete(listener);
   }
 
+  begin() {
+    this.holdUntil = 0;
+    this.engine = new DuelEngine(Date.now(), this.config());
+    this.step();
+  }
+
   rematch() {
     this.engine = this.newEngine();
     this.bot = this.newBot();
@@ -126,7 +136,11 @@ export class LocalDuel implements DuelSource {
   private newEngine() {
     // Training uses the map picker; the bot gets a random stage.
     this.stageId = this.mode === "training" ? undefined : randomStageId();
-    return new DuelEngine(Date.now(), this.mode === "training" ? TRAINING_CONFIG : DEFAULT_MATCH_CONFIG);
+    return new DuelEngine(Date.now(), this.config());
+  }
+
+  private config() {
+    return this.mode === "training" ? TRAINING_CONFIG : DEFAULT_MATCH_CONFIG;
   }
 
   private snapshot(now: number): MatchState {
@@ -144,6 +158,8 @@ export class LocalDuel implements DuelSource {
 
   private step() {
     const now = Date.now();
+    // Still loading: keep the match pinned to the very start of its countdown.
+    if (now < this.holdUntil) this.engine = new DuelEngine(now, this.config());
     const snapshot = this.snapshot(now);
     const botSpell = this.bot?.decide(snapshot, now);
     if (botSpell) this.engine.cast("B", botSpell, now);

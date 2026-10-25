@@ -14,7 +14,7 @@ import { bindKeyboard, spellInput } from "../game/input";
 import { rejectionText } from "../game/narration";
 import { captureFace, getFlair, loadMyName, setFlair } from "../game/flair";
 import { HypeTracker } from "../game/hype";
-import { playerName } from "../theme";
+import { art, playerName } from "../theme";
 import { HealthBar } from "./HealthBar";
 import { CountdownOverlay, MatchClock } from "./MatchClock";
 import { SpellTray } from "./SpellTray";
@@ -83,6 +83,10 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   const [insets, setInsets] = useState({ top: 0, bottom: 0 });
   // The HUD's height changes as web fonts and frame art load; hold back inset-anchored panels until it settles.
   const [settled, setSettled] = useState(false);
+  // Until the arena's art is on screen, show its painted backdrop instead of a bare stage.
+  const [arenaReady, setArenaReady] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const ready = arenaReady && cameraReady;
   const frame = useRef<ArenaFrame>({ state, now, leftSlot: source.localSlot, map, insets });
   frame.current = { state, now, leftSlot: source.localSlot, map, insets };
   const clock = useRef(source);
@@ -150,7 +154,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
   useEffect(() => {
     if (!hype) return;
-    const timeout = setTimeout(() => setHype(null), 1_800);
+    const timeout = setTimeout(() => setHype(null), 2_300);
     return () => clearTimeout(timeout);
   }, [hype]);
 
@@ -183,7 +187,10 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   useEffect(() => {
     const element = host.current;
     if (!element) return;
-    const arena = new ArenaScene(() => ({ ...frame.current, now: clock.current.now() }));
+    const arena = new ArenaScene(
+      () => ({ ...frame.current, now: clock.current.now() }),
+      () => setArenaReady(true),
+    );
     scene.current = arena;
     const game = new Phaser.Game({
       type: Phaser.AUTO,
@@ -203,6 +210,21 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       scene.current = null;
       game.destroy(true);
     };
+  }, []);
+
+  // Practice: run the 3-2-1 only once the arena is drawn and the camera model has finished loading
+  // (that load freezes the page, which used to swallow the countdown). Online matches follow the server.
+  const begun = useRef(false);
+  useEffect(() => {
+    if (!ready || begun.current) return;
+    begun.current = true;
+    source.begin?.();
+  }, [ready, source]);
+
+  // Never hold the duel hostage to a camera that is slow to answer.
+  useEffect(() => {
+    const timeout = setTimeout(() => setCameraReady(true), 10_000);
+    return () => clearTimeout(timeout);
   }, []);
 
   useEffect(() => {
@@ -269,9 +291,14 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     <main className={`duel${shakeClass}${settled ? " settled" : ""}`} data-arena={state?.stageId === undefined ? map : MAP_ORDER[state.stageId] ?? map} style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
       <div className={`duel-stage phase-${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
+        {!ready && (
+          <div className="arena-loading" style={{ backgroundImage: `url(${art.background})` }}>
+            <span>Preparing the arena…</span>
+          </div>
+        )}
         <RisingEmbers />
         <div className={state?.struggle?.kind === "pump" ? "six-seven-event" : "collision-inputs"}>
-          {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} onSixSevenFeedback={setSixSevenFeedback} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
+          {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} onSixSevenFeedback={setSixSevenFeedback} onReady={() => setCameraReady(true)} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
           {state?.struggle?.kind === "pump" && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} feedback={sixSevenFeedback} />}
         </div>
         {state?.struggle?.kind === "pose" && <PoseRace key={state.struggle.poseRace.id} struggle={state.struggle} source={source} now={now} hotseat={hotseat} />}
@@ -284,7 +311,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
             <p>{clashResult.winner ? "Winning spell absorbs both attacks and flies on." : clashResult.challenge === "pose" ? "Neither player finished all five poses. Both spells cancel out." : "Both spells cancel out. No winner."}</p>
           </section>
         )}
-        {state && <CountdownOverlay state={state} now={now} />}
+        {state && ready && <CountdownOverlay state={state} now={source.now()} />}
         {hype && (
           <div className="hype" key={hype.id}>
             {hype.text}
