@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { MapPicker, useMapChoice } from "../arena/MapPicker";
 import type { Struggle } from "@spellcaster/shared";
 import { LocalDuel, type LocalMode } from "../game/duelSource";
 import { DuelScreen } from "../hud/DuelScreen";
@@ -31,7 +30,6 @@ export function PracticeView() {
   const requested = params.get("mode");
   const mode = modeFrom(requested);
   const [source, setSource] = useState<LocalDuel | null>(null);
-  const [map, setMap] = useMapChoice();
   const [showIntro, setShowIntro] = useState(() => !introSeen());
   const endIntro = useCallback(() => setShowIntro(false), []);
   useEffect(() => {
@@ -49,12 +47,10 @@ export function PracticeView() {
       key={mode}
       source={source}
       hotseat={mode === "training"}
-      map={mode === "training" ? map : undefined}
       onLeave={() => navigate("/")}
       header={
         <nav className="duel-nav">
           <span className="duel-mode">{mode === "training" ? "TRAINING · YOU CONTROL BOTH WIZARDS" : "PRACTICE"}</span>
-          {mode === "training" && <MapPicker value={map} onChange={setMap} compact />}
           {mode === "training" && CLASHES.map(({ kind, label }) => (
             <button key={kind} onClick={() => source.rehearseClash(kind)}>
               {label}
