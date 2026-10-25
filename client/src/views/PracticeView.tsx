@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { MapPicker, useMapChoice } from "../arena/MapPicker";
 import { LocalDuel, type LocalMode } from "../game/duelSource";
 import { DuelScreen } from "../hud/DuelScreen";
+import { IntroCutscene, introSeen } from "./IntroCutscene";
 
 const MODES: { mode: LocalMode; label: string }[] = [
   { mode: "training", label: "🎯 Training dummy" },
@@ -20,12 +21,17 @@ export function PracticeView() {
   const mode: LocalMode = isMode(requested) ? requested : "bot";
   const [source, setSource] = useState<LocalDuel | null>(null);
   const [map, setMap] = useMapChoice();
+  const [showIntro, setShowIntro] = useState(() => !introSeen());
+  const endIntro = useCallback(() => setShowIntro(false), []);
   useEffect(() => {
+    // The match clock starts when the duel is created, so wait until the story is over.
+    if (showIntro) return;
     const duel = new LocalDuel(mode);
     setSource(duel);
     return () => duel.dispose();
-  }, [mode]);
+  }, [mode, showIntro]);
 
+  if (showIntro) return <IntroCutscene onDone={endIntro} />;
   if (!source) return null;
   return (
     <DuelScreen
