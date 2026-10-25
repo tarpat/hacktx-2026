@@ -2246,6 +2246,63 @@ img.spell-glyph {
 .clash-result p { margin: 0; font-size: 0.9rem; }
 .struggle-leader { display: block; margin: 8px 0; font-size: clamp(1.2rem, 3vw, 1.65rem); }
 .struggle-versus { opacity: 0.6; }
+
+/* One reference, one camera and one instruction keep the race readable at a glance. */
+.pose-race { position: absolute; z-index: 10; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(740px, calc(100% - 24px)); max-height: calc(100% - 24px); box-sizing: border-box; overflow: auto; overscroll-behavior: contain; padding: 20px; border: 1px solid #bfa56c66; border-radius: 18px; color: #fff4d9; background: #1b142dfc; box-shadow: 0 16px 80px #0008, 0 0 0 100vmax #100b2580; }
+.pose-race-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.pose-race h2 { margin: 0; font-size: 24px; }
+.pose-clock { color: #f3ce7e; font: 700 19px/1.2 system-ui; font-variant-numeric: tabular-nums; }
+.pose-scoreboard { display: flex; gap: 24px; margin-bottom: 16px; }
+.pose-score { flex: 1; min-width: 0; }
+.pose-score b { display: flex; justify-content: space-between; gap: 8px; font: 600 12px/1.5 system-ui; }
+.pose-score.player-A { color: #8ef2bd; }
+.pose-score.player-B { color: #d4a6ff; }
+.pose-progress { height: 3px; margin-top: 5px; background: #ffffff12; border-radius: 4px; overflow: hidden; }
+.pose-progress i { display: block; height: 100%; background: currentColor; }
+.pose-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.pose-reference { margin: 0; min-width: 0; }
+.pose-reference > img { width: 100%; height: clamp(160px, 30vh, 260px); object-fit: contain; display: block; border-radius: 10px; background: #0a0811; }
+.pose-reference figcaption, .pose-camera-caption { display: flex; align-items: baseline; justify-content: center; gap: 8px; padding: 9px 0 0; font: 500 12px/1.4 system-ui; color: #c6bcd2; }
+.pose-reference figcaption > span { color: #94899e; }
+.pose-reference h3 { margin: 0; font: inherit; color: #eee5f6; }
+.pose-live { display: flex; flex-direction: column; min-width: 0; }
+.duel .pose-race .gesture-cam { position: relative; inset: auto; width: 100%; margin: 0; transform: none; box-sizing: border-box; z-index: 1; gap: 0; }
+.pose-race .gesture-cam-view, .pose-camera-placeholder { width: 100%; height: clamp(160px, 30vh, 260px); aspect-ratio: auto; box-sizing: border-box; border: 0; border-radius: 10px; background: #0a0811; box-shadow: none; }
+.pose-race .gesture-cam-view::after { display: none; }
+.pose-race .gesture-cam-view video, .pose-race .gesture-cam-view canvas { object-fit: contain; }
+.pose-camera-placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; color: #b8adc8; font: 13px/1.4 system-ui; }
+.pose-race .gesture-cam-toggle { font: 600 12px/1.4 system-ui; letter-spacing: 0; box-shadow: none; padding: 7px 12px; }
+.pose-options { position: absolute; top: 8px; right: 8px; font: 12px/1.5 system-ui; }
+.pose-options > summary { cursor: pointer; list-style: none; padding: 4px 9px; border-radius: 6px; background: #231934e6; color: #d0c5dd; }
+.pose-options > summary::-webkit-details-marker { display: none; }
+.pose-options > summary:focus-visible { outline: 2px solid #f3ce7e; outline-offset: 2px; }
+.pose-options-panel { position: absolute; top: calc(100% + 6px); right: 0; display: grid; gap: 12px; width: min(260px, calc(100vw - 64px)); max-height: 55vh; overflow: auto; padding: 14px; box-sizing: border-box; border: 1px solid #736080; border-radius: 10px; background: #231934; box-shadow: 0 8px 24px #0009; }
+.pose-options-panel button { padding: 7px 10px; font: inherit; }
+.pose-options-panel p { margin: 0; color: #b8adc8; font: 11px/1.5 system-ui; }
+.pose-camera-picker { display: grid; gap: 5px; }
+.pose-camera-picker select { width: 100%; color: #fff; background: #302341; border: 1px solid #736080; border-radius: 5px; padding: 5px; }
+.pose-assist { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.pose-feedback { margin-top: 18px; text-align: center; font: 13px/1.5 system-ui; color: #d9cfe7; }
+.pose-feedback p { margin: 0 auto 12px; max-width: 600px; min-height: 3em; display: grid; align-content: center; }
+.pose-feedback.matching { color: #8ef2bd; }
+.pose-hold { height: 5px; border-radius: 5px; overflow: hidden; background: #ffffff12; }
+.pose-hold i { display: block; height: 100%; background: #8ef2bd; transition: width 80ms linear; }
+.pose-assist-buttons { display: flex; gap: 8px; margin-top: 12px; }
+.pose-assist-buttons button { flex: 1; touch-action: none; font: 11px/1.4 system-ui; padding: 7px; }
+.pose-race-footer { margin: 12px 0 0; color: #94899e; text-align: center; font: 11px/1.4 system-ui; }
+@media (max-width: 600px) {
+  .pose-race { padding: 14px; }
+  .pose-race h2 { font-size: 21px; }
+  .pose-race-header { margin-bottom: 12px; }
+  .pose-clock { font-size: 16px; }
+  .pose-scoreboard { gap: 16px; margin-bottom: 12px; }
+  .pose-comparison { gap: 10px; }
+  .pose-reference > img, .pose-race .gesture-cam-view, .pose-camera-placeholder { height: clamp(140px, 26vh, 210px); }
+  .pose-reference figcaption, .pose-camera-caption { font-size: 11px; gap: 5px; }
+  .pose-feedback { font-size: 12px; margin-top: 12px; }
+  .pose-options > summary { font-size: 11px; padding: 3px 7px; }
+}
+@media (prefers-reduced-motion: reduce) { .pose-hold i { transition: none; } }
 @media (prefers-reduced-motion: reduce) {
   .rising-embers { display: none; }
 }

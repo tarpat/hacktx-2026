@@ -1,4 +1,6 @@
-export type MapId = "twin-ledges" | "high-plateau" | "staggered-rise";
+import { ARENA_IDS, type ArenaId } from "@spellcaster/shared";
+
+export type MapId = ArenaId;
 
 /** A floating vine ledge: center x and y as a fraction of the arena, width as a fraction of its width. */
 export interface Ledge {
@@ -54,7 +56,7 @@ export const MAPS: Record<MapId, ArenaMap> = {
   },
 };
 
-export const MAP_ORDER: MapId[] = ["twin-ledges", "high-plateau", "staggered-rise"];
+export const MAP_ORDER: readonly MapId[] = ARENA_IDS;
 
 const STORAGE_KEY = "spellcaster.map";
 
