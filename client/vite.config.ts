@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,8 +25,37 @@ function mediapipeWasm(): Plugin {
   };
 }
 
+/** Dev only: the gesture test page POSTs recordings here and they're saved to test/fixtures/gestures for replay. */
+function gestureRecordings(): Plugin {
+  const dir = fileURLToPath(new URL("./test/fixtures/gestures", import.meta.url));
+  return {
+    name: "gesture-recordings",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use("/__gesture-recordings", (req, res) => {
+        if (req.method !== "POST") return void (res.statusCode = 405, res.end());
+        let body = "";
+        req.on("data", (chunk) => (body += chunk));
+        req.on("end", () => {
+          try {
+            const recording = JSON.parse(body) as { label: string; recordedAt: string };
+            const name = `${recording.label.replace(/[^a-z]/g, "")}-${recording.recordedAt.replace(/[^0-9]/g, "").slice(0, 14)}.json`;
+            mkdirSync(dir, { recursive: true });
+            writeFileSync(join(dir, name), body);
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ file: `client/test/fixtures/gestures/${name}` }));
+          } catch (error) {
+            res.statusCode = 400;
+            res.end(String(error));
+          }
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), mediapipeWasm()],
+  plugins: [react(), mediapipeWasm(), gestureRecordings()],
   // Keep the same-origin Socket.IO URL in development and production.
   server: { proxy: { "/socket.io": { target: process.env.DEV_SERVER_URL || "http://127.0.0.1:3001", ws: true } } },
   // Use the shared source directly so engine edits hot-reload without rebuilding the package.
