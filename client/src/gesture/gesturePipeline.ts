@@ -32,7 +32,8 @@ export class GesturePipeline {
     return this.struggling ? "STRUGGLE" : this.gestureState.kind;
   }
 
-  step(raw: Landmark[][], handedness: (Handedness | undefined)[], now: number): PipelineFrame {
+  /** With `casting` off (a pose race), hands are still tracked and classified but the gesture state is left alone. */
+  step(raw: Landmark[][], handedness: (Handedness | undefined)[], now: number, casting = true): PipelineFrame {
     const hands = this.stabilizer.update(filterHands(raw), now);
     // Handedness is only meaningful for one-hand gestures.
     const hand = hands.length === 1 && raw.length === 1 ? handedness[0] : undefined;
@@ -41,6 +42,7 @@ export class GesturePipeline {
     const rawPose = combined === "BOTH_PALMS" && !isShieldStance(hands) ? "OPEN_PALM" : combined;
     const pose = this.smoother.push(rawPose);
 
+    if (!casting) return { hands, pose, rawPose, hand, actions: [] };
     if (this.struggling) {
       return { hands, pose, rawPose, hand, actions: this.pumps.update(rawPose) ? ["STRUGGLE_PUSH"] : [] };
     }

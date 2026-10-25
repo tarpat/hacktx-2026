@@ -202,6 +202,10 @@ const CLIPS = {
   voiceSike: ["voice-sike"],
   voiceScuba: ["voice-scuba"],
   voiceBull: ["voice-bull"],
+  // Meme reactions for big moments. Missing files are skipped silently.
+  memeBruh: ["meme-bruh"],
+  memeEmotionalDamage: ["meme-emotional-damage"],
+  memeSadTrombone: ["meme-sad-trombone"],
 } as const;
 
 /** The voice line each spell shouts when it's cast. */
@@ -265,7 +269,13 @@ function play(clip: Clip, o: { volume?: number; delay?: number; rate?: number; e
 
 // ---------- effects ----------
 
+const MEME_CLIPS = { bruh: "memeBruh", emotionalDamage: "memeEmotionalDamage", sadTrombone: "memeSadTrombone" } as const;
+
 export const sfx = {
+  /** A meme reaction: "bruh" on a block, "emotional damage" on a huge hit, a sad trombone on KO. */
+  meme(name: keyof typeof MEME_CLIPS) {
+    play(MEME_CLIPS[name], { volume: 1.1, exactPitch: true });
+  },
   click() {
     play("click", { volume: 0.6 });
   },

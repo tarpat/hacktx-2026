@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { MAP_ORDER, MAPS, loadMapChoice, saveMapChoice, type MapId } from "./maps";
 
-/** The chosen arena map, remembered between visits. */
+/** Hotseat's testing arena, remembered between visits. Other modes use random stages. */
 export function useMapChoice(): [MapId, (id: MapId) => void] {
   const [map, setMap] = useState<MapId>(loadMapChoice);
   return [

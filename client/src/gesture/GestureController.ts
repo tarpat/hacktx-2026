@@ -1,3 +1,7 @@
+import type { FaceLandmarker } from "@mediapipe/tasks-vision";
+import { POSE_RACE, type RacePoseId } from "@spellcaster/shared";
+import { loadRaceFaceTracker, RaceFaceReader } from "./raceFaceTracking";
+import { matchRacePose, type PoseFeedback } from "./racePoseMatcher";
 import { getDetector, type HandDetector } from "./handDetector";
 import { GesturePipeline, type PipelineFrame } from "./gesturePipeline";
 import { DEFAULT_TIMINGS, type GestureState, type GestureTimings } from "./gestureStateMachine";
@@ -36,6 +40,13 @@ export class GestureController {
   private generation = 0;
   private lastVideoTime = -1;
   private pipeline: GesturePipeline;
+  private raceTarget: RacePoseId | null = null;
+  private faceTracker: FaceLandmarker | null = null;
+  private faceReader: RaceFaceReader | null = null;
+  private faceLoading = false;
+  private faceError = false;
+  private lastRaceFrame = 0;
+  private raceListeners = new Set<(feedback: PoseFeedback) => void>();
   private hand: Handedness | undefined;
   private status: TrackingStatus = "CAMERA_OFF";
   private frameTimes: number[] = [];
@@ -86,6 +97,9 @@ export class GestureController {
       }
       if (generation !== this.generation) return;
 
+      // Preload alongside normal play so a collision does not wait for the face model.
+      this.prepareFaceTracker();
+
       this.setStatus("NO_HAND");
       this.loop(detector, generation);
     } catch (error) {
@@ -99,6 +113,28 @@ export class GestureController {
   /** Switch between casting and spell-struggle pumping. */
   setStruggling(on: boolean): void {
     this.emitActions(this.pipeline.setStruggling(on), performance.now());
+  }
+
+  setRaceTarget(target: RacePoseId | null): void {
+    this.raceTarget = target;
+    this.lastRaceFrame = 0;
+    if (target) this.prepareFaceTracker();
+  }
+
+  retryFaceTracking(): void {
+    this.faceError = false;
+    this.prepareFaceTracker();
+  }
+
+  onRaceFeedback(callback: (feedback: PoseFeedback) => void): () => void {
+    this.raceListeners.add(callback);
+    return () => this.raceListeners.delete(callback);
+  }
+
+  private prepareFaceTracker(): void {
+    if (this.faceTracker || this.faceLoading || this.faceError) return;
+    this.faceLoading = true;
+    loadRaceFaceTracker().then((tracker) => { this.faceTracker = tracker; }).catch(() => { this.faceError = true; }).finally(() => { this.faceLoading = false; });
   }
 
   stop(): void {
@@ -145,7 +181,7 @@ export class GestureController {
           busy = false;
           if (generation !== this.generation) return;
           for (const listener of this.detectionListeners) listener({ timestampMs: now, landmarks: raw, handedness });
-          this.processFrame(this.pipeline.step(raw, handedness, now), now);
+          this.processFrame(this.pipeline.step(raw, handedness, now, !this.raceTarget), now);
         },
         () => {
           busy = false;
@@ -158,6 +194,24 @@ export class GestureController {
   private processFrame({ hands, pose, rawPose, hand, actions }: PipelineFrame, now: number) {
     this.hand = hand;
     this.setStatus(hands.length > 0 ? "TRACKING" : "NO_HAND");
+
+    if (this.raceTarget) {
+      if (now - this.lastRaceFrame >= POSE_RACE.sampleIntervalMs) {
+        this.lastRaceFrame = now;
+        let feedback: PoseFeedback = { matched: null, hint: this.faceError ? "Face tracking failed to load. Open Options to retry." : "Loading face tracking…" };
+        if (this.faceTracker && this.video && !document.hidden) {
+          try {
+            this.faceReader ??= new RaceFaceReader();
+            feedback = matchRacePose(this.raceTarget, this.faceReader.read(this.faceTracker, this.video, hands, now));
+          } catch {
+            feedback = { matched: null, hint: "Face tracking interrupted. Keep your face in view or retry in Options." };
+          }
+        }
+        for (const listener of this.raceListeners) listener(feedback);
+      }
+      this.notify(pose, rawPose, hands, now);
+      return;
+    }
     this.emitActions(actions, now);
     this.notify(pose, rawPose, hands, now);
   }

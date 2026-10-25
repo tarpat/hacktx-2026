@@ -9,9 +9,9 @@ const format = (ms: number) => {
 
 /** Round timer: calm, then urgent in the last ten seconds, then sudden death. */
 export function MatchClock({ state, now }: { state: MatchState; now: number }) {
-  const remaining = state.phaseEndsAt - now;
+  const remaining = state.phaseEndsAt - (state.struggle?.kind === "pose" ? state.struggle.endsAt : now);
   const label =
-    state.phase === "countdown" ? "GET READY" : state.phase === "suddenDeath" ? "SUDDEN DEATH" : state.phase === "finished" ? "THE END" : "ROUND";
+    state.struggle?.kind === "pose" ? "PAUSED" : state.phase === "countdown" ? "GET READY" : state.phase === "suddenDeath" ? "SUDDEN DEATH" : state.phase === "finished" ? "THE END" : "ROUND";
   const shown = state.phase === "countdown" ? state.roundMs : remaining;
   const urgent = (state.phase === "active" && remaining <= 10_000) || state.phase === "suddenDeath";
   const progress = state.phase === "active" ? Math.max(0, remaining / state.roundMs) : state.phase === "countdown" ? 1 : 0;
