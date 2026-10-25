@@ -75,7 +75,7 @@ export function PoseRace({ struggle, source, now, hotseat }: { struggle: Extract
           <figcaption><span>{local.step + 1} / {POSE_SEQUENCE.length}</span><h3>{target?.name}</h3></figcaption>
         </figure>
         <div className="pose-live">
-          <GestureCamera compact struggling raceTarget={assist ? null : target?.id ?? null} onRaceFeedback={observe} extraControls={<>
+          <GestureCamera compact struggling canCast={() => false} raceTarget={assist ? null : target?.id ?? null} onRaceFeedback={observe} extraControls={<>
             {hotseat && !assist && <label className="pose-camera-picker">Camera scores <select value={cameraSlot} onChange={(e) => setCameraSlot(e.target.value as PlayerSlot)}><option value="A">{playerName.A}</option><option value="B">{playerName.B}</option></select></label>}
             {source.poseAssist && <label className="pose-assist"><input type="checkbox" checked={assist} onChange={(e) => setAssist(e.target.checked)} /> Keyboard practice assist</label>}
             <p>Hold each pose briefly, then relax before the next one. Video stays on your device.</p>

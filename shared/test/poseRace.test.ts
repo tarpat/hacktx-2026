@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MATCH_CONFIG as C, DuelEngine, POSE_RACE, POSE_SEQUENCE, type PlayerSlot } from "../src/index.js";
+import { castBlocker, DEFAULT_MATCH_CONFIG as C, DuelEngine, POSE_RACE, POSE_SEQUENCE, SPELL_ORDER, type PlayerSlot } from "../src/index.js";
 
 const LIVE = 13_000;
 function race(random = 0.8, extraProjectile = false) {
@@ -14,6 +14,18 @@ function race(random = 0.8, extraProjectile = false) {
 }
 
 describe("collision pose race", () => {
+  it("shares the pose pause with the client cast gate for every spell and player", () => {
+    const { engine, ready } = race();
+    const state = engine.snapshot(ready);
+    for (const slot of ["A", "B"] as const) for (const spell of SPELL_ORDER) {
+      expect(castBlocker(state, slot, spell, ready)).toBe("clash");
+      expect(engine.cast(slot, spell, ready)).toEqual({ ok: false, reason: "clash" });
+    }
+    const pump = race(.1);
+    const pumpState = pump.engine.snapshot(LIVE + 900);
+    expect(castBlocker(pumpState, "A", "shield", LIVE + 900)).toBeNull();
+    expect(castBlocker(pumpState, "A", "fireball", LIVE + 900)).toBe("cooldown");
+  });
   it("uses the injected coin flip at the 50/50 boundary", () => {
     expect(race(0.49999).struggle.kind).toBe("pump");
     expect(race(0.5).struggle.kind).toBe("pose");

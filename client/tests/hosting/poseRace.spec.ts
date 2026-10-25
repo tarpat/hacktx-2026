@@ -20,7 +20,8 @@ for (const winner of ["A", "B"] as const) {
     await expect(page.locator(".clock-label")).toHaveText("PAUSED");
     const frozenClock = await page.locator(".clock-time").innerText();
     await page.keyboard.press("e");
-    await expect(page.locator(".toast")).toContainText("Combat paused");
+    await expect(page.locator(".toast")).toHaveCount(0); // Paused casts are discarded by the shared cast gate.
+    await expect(page.locator(".health-value")).toHaveText(["100", "100"]);
     await race.getByText("Options", { exact: true }).click();
     await race.getByRole("checkbox", { name: "Keyboard practice assist" }).check();
     await race.getByText("Options", { exact: true }).click();
