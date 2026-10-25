@@ -43,7 +43,7 @@ describe("magic charge controller input routing", () => {
     controller.setStruggling(true);
     for(let i=0;i<=96;i++) await frame(i);
     expect(actions).toEqual([]);
-    expect(feedback.mock.calls.filter(([f])=>f.trace)).toHaveLength(2);
+    expect(feedback.mock.calls.filter(([f])=>f.trace)).toHaveLength(1);
     expect(debug.mock.lastCall?.[0].hands).toHaveLength(1);
     expect(feedback.mock.lastCall?.[0].visible).toBe(true);
     controller.setStruggling(false);

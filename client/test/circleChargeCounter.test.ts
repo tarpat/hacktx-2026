@@ -6,7 +6,7 @@ describe("pointed fingertip circle tracing",()=>{
   it.each([1,-1])("accepts a precise circle in direction %s",direction=>{
     const counter=new CircleChargeCounter(); const scores:number[]=[];
     for(let i=0;i<=96;i++){const f=counter.update([traceHand(i,direction)],i*30);if(f.result&&f.trace) scores.push(f.result.score);}
-    expect(scores.length).toBe(2); expect(scores[0]).toBeGreaterThan(95);
+    expect(scores.length).toBe(1); expect(scores[0]).toBeGreaterThan(95);
   });
   it("requires a pointed index finger, not a waving open palm",()=>{
     const counter=new CircleChargeCounter();
@@ -76,6 +76,26 @@ describe("pointed fingertip circle tracing",()=>{
       if(feedback.trace) result=feedback.result;
     }
     expect(result).toBeDefined(); expect(result!.accuracy).toBeLessThan(70);
+  });
+
+  it("freezes the completed stroke and submits once until an explicit retry",()=>{
+    const counter=new CircleChargeCounter(); let captured;
+    for(let i=0;i<=48;i++) { const f=counter.update([traceHand(i)],i*40); if(f.trace) captured=f; }
+    expect(captured?.completed).toBe(true);
+    expect(captured!.trail!.length).toBeGreaterThan(30);
+    for(const [hands,at] of [[[],3000],[[traceHand(12)],4000],[[],20000]] as const) {
+      const frozen=counter.update(hands as Parameters<CircleChargeCounter["update"]>[0],at);
+      expect(frozen.trail).toEqual(captured!.trail);
+      expect(frozen.result).toEqual(captured!.result);
+      expect(frozen.progress).toBe(1);
+      expect(frozen.trace).toBeUndefined();
+      expect(frozen.hint).toContain("captured");
+    }
+    counter.reset();
+    expect(counter.update([traceHand(0)],21000).completed).toBe(false);
+    let submitted=0;
+    for(let i=1;i<=48;i++) submitted+=Number(!!counter.update([traceHand(i)],21000+i*40).trace);
+    expect(submitted).toBe(1);
   });
 
 });

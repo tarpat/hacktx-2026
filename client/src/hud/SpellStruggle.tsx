@@ -54,7 +54,7 @@ export function SpellStruggle({ state, now, leftSlot, hotseat, feedback }: Spell
           <span className="struggle-versus">VS</span>
           <span className={`player-${rightSlot}`}>{struggle.traceScores?.[rightSlot]?.score ?? 0}/100 · {hotseat ? playerName[rightSlot] : "RIVAL"}</span>
         </div>
-        <small>{hotseat ? `Camera scores ${playerName[leftSlot]}. ` : ""}You can retry before time runs out. Your best score counts. Winner's spell absorbs both attacks.</small>
+        <small>{hotseat ? `Camera scores ${playerName[leftSlot]}. ` : ""}Completed circles freeze on screen. Choose Try another circle to retry before time runs out. Your best score counts. Winner's spell absorbs both attacks.</small>
       </section>
   );
 }

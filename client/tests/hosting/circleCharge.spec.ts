@@ -114,6 +114,11 @@ test(`interrupted fingertip traces resume and score on ${mobile ? "mobile" : "de
   await page.evaluate(()=>{(window as unknown as {resumeTestTrace:()=>void}).resumeTestTrace();});
   await expect(panel.locator(".struggle-sides .player-A")).not.toHaveText("Green Wizard · 0/100",{timeout:5000});
   await expect(panel.locator(".magic-trace-result")).toContainText("100% accuracy");
+  await expect(page.getByRole("button",{name:"Try another circle"})).toBeVisible();
+  const captured=await panel.locator(".magic-trace-result").innerText();
+  await expect(panel.getByRole("status")).toContainText("Circle captured");
+  await expect(panel.locator(".magic-charge-orbit")).toHaveAttribute("style", /360deg/);
+  await expect(panel.locator(".magic-trace-result")).toHaveText(captured);
   await page.screenshot({path:`/tmp/spellcaster-pointed-circle-${mobile ? "mobile" : "desktop"}.png`});
 });
 

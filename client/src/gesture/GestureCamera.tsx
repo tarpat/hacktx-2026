@@ -91,6 +91,7 @@ export function GestureCamera({
   const [lastCast, setLastCast] = useState<{ id: number; spell: SpellId } | null>(null);
   const charging = charge !== null;
   const [error, setError] = useState("");
+  const [circleComplete, setCircleComplete] = useState(false);
   const raceCallback = useRef(onRaceFeedback);
   raceCallback.current = onRaceFeedback;
   const circleChargeCallback = useRef(onCircleChargeFeedback);
@@ -122,7 +123,7 @@ export function GestureCamera({
     let blocked = false;
     const unsubscribers = [
       controller.onRaceFeedback((feedback) => raceCallback.current?.(feedback)),
-      controller.onCircleChargeFeedback((feedback) => { circleFeedback = feedback; circleChargeCallback.current?.(feedback); }),
+      controller.onCircleChargeFeedback((feedback) => { circleFeedback = feedback; setCircleComplete(!!feedback.completed); circleChargeCallback.current?.(feedback); }),
       controller.onObservation((o) => {
         setStatus(o.status);
         setPose(o.pose);
@@ -204,6 +205,7 @@ export function GestureCamera({
 
   useEffect(() => {
     controllerRef.current?.setStruggling(struggling);
+    setCircleComplete(false);
   }, [struggling]);
 
   useEffect(() => {
@@ -268,7 +270,7 @@ export function GestureCamera({
 
       {struggling && !raceTarget && !enabled && <button className="gesture-cam-toggle" onClick={toggle}>Enable camera</button>}
       {error && <p className="gesture-cam-error" role="alert">{error}</p>}
-      {struggling && !raceTarget && enabled && <button className="gesture-cam-toggle" onClick={() => controllerRef.current?.resetCircleTracking()}>Reset circle tracking</button>}
+      {struggling && !raceTarget && enabled && <button className="gesture-cam-toggle" onClick={() => { controllerRef.current?.resetCircleTracking(); setCircleComplete(false); }}>{circleComplete ? "Try another circle" : "Reset circle tracking"}</button>}
       {compact ? <details className="pose-options">
         <summary>Options</summary>
         <div className="pose-options-panel">

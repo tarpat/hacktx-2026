@@ -3,6 +3,7 @@ import type { Landmark } from "./types";
 
 export interface CircleChargeFeedback {
   visible: boolean;
+  completed?: boolean;
   progress: number;
   hint: string;
   trail?: TracePoint[];
@@ -44,7 +45,10 @@ export class CircleChargeCounter {
   }
 
   update(hands: Landmark[][], now: number): CircleChargeFeedback & { push: boolean } {
-    const feedback=(visible:boolean,hint:string,trace?:TracePoint[])=>({visible,hint,progress:trace ? 1 : this.progress(),push:!!trace,trail:[...this.path],result:this.result,trace});
+    const feedback=(visible:boolean,hint:string,trace?:TracePoint[])=>({visible,hint,completed:!!this.result,progress:this.result ? 1 : this.progress(),push:!!trace,trail:[...this.path],result:this.result,trace});
+    // Submit once, then keep the accepted stroke and score on screen until an
+    // explicit retry or the next challenge. Tracking loss must not clear it.
+    if(this.result) return feedback(true,"Circle captured! Your score is saved. Try another circle to improve it.");
     if(now<=this.lastFrame) return feedback(false,"Point your index finger toward the screen.");
     this.lastFrame=now;
     if(this.path.length && (now-this.lastPointAt>TRACKING_GRACE_MS || now-this.path[0].at>TRACE_MAX_DURATION_MS)) {
@@ -67,7 +71,7 @@ export class CircleChargeCounter {
     if(this.path.length>180) this.path=this.path.filter((_,i)=>i%2===0 || i===this.path.length-1);
     const result=scoreCircleTrace(this.path);
     if(result) {
-      const trace=[...this.path]; this.result=result; this.path=[tip];
+      const trace=[...this.path]; this.result=result;
       return feedback(true,`${result.accuracy}% accuracy · ${(result.durationMs/1000).toFixed(2)}s · ${result.score}/100`,trace);
     }
     return feedback(true,"Trace the golden circle smoothly · imperfect circles still score.");
