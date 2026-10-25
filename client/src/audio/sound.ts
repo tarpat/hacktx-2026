@@ -196,7 +196,22 @@ const CLIPS = {
   taurusStomp: ["taurus-stomp"],
   taurusBellow: ["taurus-bellow"],
   taurusGallop: ["taurus-gallop"],
+  // Meme voice lines shouted on each cast.
+  voiceFireball: ["voice-fireball"],
+  voiceFahh: ["voice-fahh"],
+  voiceSike: ["voice-sike"],
+  voiceScuba: ["voice-scuba"],
+  voiceBull: ["voice-bull"],
 } as const;
+
+/** The voice line each spell shouts when it's cast. */
+const CAST_VOICE: Record<SpellId, Clip> = {
+  fireball: "voiceFireball",
+  ice: "voiceFahh",
+  shield: "voiceSike",
+  ultimate: "voiceScuba",
+  taurus: "voiceBull",
+};
 
 type Clip = keyof typeof CLIPS;
 
@@ -227,7 +242,7 @@ function preloadClips() {
 }
 
 /** Plays one take of a clip, slightly detuned each time. */
-function play(clip: Clip, o: { volume?: number; delay?: number; rate?: number } = {}) {
+function play(clip: Clip, o: { volume?: number; delay?: number; rate?: number; exactPitch?: boolean } = {}) {
   const ac = audio();
   if (!ac) return;
   const takes = CLIPS[clip];
@@ -239,7 +254,8 @@ function play(clip: Clip, o: { volume?: number; delay?: number; rate?: number } 
     const at = Math.max(ac.currentTime, requestedAt + (o.delay ?? 0));
     const src = ac.createBufferSource();
     src.buffer = buffer;
-    src.playbackRate.value = (o.rate ?? 1) * (0.96 + Math.random() * 0.08);
+    // Voices keep their real pitch; effects get a small random detune.
+    src.playbackRate.value = (o.rate ?? 1) * (o.exactPitch ? 1 : 0.96 + Math.random() * 0.08);
     const gain = ac.createGain();
     gain.gain.value = o.volume ?? 1;
     src.connect(gain).connect(sfxBus);
@@ -263,6 +279,7 @@ export const sfx = {
     rumble(0, 1.2, 0.3);
   },
   cast(spell: SpellId) {
+    play(CAST_VOICE[spell], { volume: 1.1, exactPitch: true });
     if (spell === "fireball") {
       // Flame roaring out of the hand.
       play("fireCast", { volume: 0.9 });
