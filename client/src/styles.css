@@ -901,7 +901,8 @@ kbd {
 
 /* ---------- overlays ---------- */
 
-.match-countdown {
+.match-countdown,
+.countdown:not(.clock) {
   position: absolute;
   inset: 0;
   display: grid;
@@ -910,7 +911,8 @@ kbd {
   background: radial-gradient(circle, #120d2b55, transparent 60%);
 }
 
-.match-countdown span {
+.match-countdown span,
+.countdown:not(.clock) span {
   font: 900 clamp(90px, 16vw, 180px) var(--font-title);
   color: var(--gold-soft);
   text-shadow: 0 0 50px var(--gold), 0 6px 0 var(--plum);
@@ -2598,12 +2600,12 @@ body {
 /* Numbers and status words read better in the ornate display face than in gothic. */
 .health-value,
 .spell-state,
-.match-countdown span { font-family: var(--font-display); }
+.match-countdown span,
+.countdown:not(.clock) span { font-family: var(--font-display); }
 .spell-name { font-family: var(--font-label); }
 
 /* Brand lockup: keep the lozenge on the text's centre line everywhere. */
-.topbar .brand-link,
-.duel-header {
+.topbar .brand-link {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -3038,3 +3040,16 @@ body {
 /* Wizard-name field in the forest style. */
 .name-field span { font: 400 12px var(--font-label); letter-spacing: 0.22em; text-transform: none; color: var(--gold-soft); }
 .name-field input { background: var(--night); border: 1px solid var(--line); font: 600 15px var(--font-book); }
+
+/* Bigger sun-frame timer so the round clock reads at a glance. */
+.clock {
+  width: 176px;
+  height: 162px;
+}
+.clock-label { font-size: 9px; margin-top: -4px; }
+.clock-time { font-size: 34px; }
+.clock-progress { width: 68px; }
+@media (max-width: 760px) {
+  .clock { width: 112px; height: 104px; }
+  .clock-time { font-size: 22px; }
+}

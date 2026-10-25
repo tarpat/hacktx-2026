@@ -29,8 +29,8 @@ for (const viewport of [
         textX: text.x, textY: text.y, textRight: text.right, textBottom: text.bottom,
       };
     });
-    expect(layout.width).toBeLessThanOrEqual(132);
-    expect(layout.height).toBeLessThanOrEqual(122);
+    expect(layout.width).toBeLessThanOrEqual(180);
+    expect(layout.height).toBeLessThanOrEqual(170);
     expect(layout.x).toBeGreaterThanOrEqual(0);
     expect(layout.y).toBeGreaterThanOrEqual(0);
     expect(layout.right).toBeLessThanOrEqual(viewport.width);
