@@ -212,7 +212,9 @@ export function GestureCamera({
       : status === "ERROR" ? "Camera stopped · restart it to trace."
       : status === "STARTING" ? "Starting camera…"
       : "Point at the screen and trace the golden circle.";
-    circleChargeCallback.current?.({ visible: false, progress: 0, hint });
+    // During normal tracking the controller owns progress, including brief dropouts.
+    // Do not replace its saved trace with an empty status-change frame.
+    if(!enabled || status === "ERROR" || status === "STARTING") circleChargeCallback.current?.({ visible: false, progress: 0, hint });
   }, [struggling, raceTarget, enabled, status]);
 
   useEffect(() => { controllerRef.current?.setRaceTarget(raceTarget); }, [raceTarget]);

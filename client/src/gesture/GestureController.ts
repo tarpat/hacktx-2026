@@ -222,9 +222,9 @@ export class GestureController {
           busy = false;
           if (generation !== this.generation || epoch !== this.inputEpoch || document.hidden) return;
           if (this.struggling && !this.raceTarget) {
-            this.circleCharge.reset();
             this.setStatus("NO_HAND");
-            for (const listener of this.circleChargeListeners) listener({ visible: false, progress: 0, hint: "Hand tracking interrupted. Show your hand again or restart the camera." });
+            const feedback=this.circleCharge.update([],now);
+            for (const listener of this.circleChargeListeners) listener(feedback);
             this.notify("NONE", "NONE", [], now);
           }
         },

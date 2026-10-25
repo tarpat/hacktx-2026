@@ -7,6 +7,12 @@ describe("circle accuracy and speed scoring",()=>{
   expect(scoreCircleTrace(circle(2500))!.score).toBe(91);
   expect(scoreCircleTrace(circle(900,.25,.17))!.score).toBeLessThan(90);
  });
+ it("scores slow circles and circles spanning a short camera dropout",()=>{
+  expect(scoreCircleTrace(circle(8000))?.accuracy).toBe(100);
+  expect(scoreCircleTrace(circle(8000))?.score).toBe(80);
+  const dropped=circle().filter((_,i)=>i<22 || i>26);
+  expect(scoreCircleTrace(dropped)?.accuracy).toBe(100);
+ });
  it("rejects partial circles, backtracking, impossible timing, and invalid coordinates",()=>{
   expect(scoreCircleTrace(circle().slice(0,25))).toBeNull();
   expect(scoreCircleTrace(circle(100))).toBeNull();

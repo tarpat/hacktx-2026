@@ -63,14 +63,15 @@ test("hand tracker runs on a synthetic camera and asks for a hand", async ({ pag
 });
 
 for (const mobile of [false,true]) {
-test(`pointed fingertip traces score through camera input on ${mobile ? "mobile" : "desktop"}`, async ({ page }) => {
+test(`interrupted fingertip traces resume and score on ${mobile ? "mobile" : "desktop"}`, async ({ page }) => {
   if(mobile) await page.setViewportSize({width:390,height:844});
   await page.route("https://**/*", route=>route.abort());
   await page.addInitScript(()=>{
     Math.random=()=>.1;
     sessionStorage.setItem("spellcaster:intro-seen","1");
-    let tracing=false, step=0;
+    let tracing=false, step=0, resume=false;
     Object.defineProperty(window,"startTestTrace",{value:()=>{tracing=true;step=0;}});
+    Object.defineProperty(window,"resumeTestTrace",{value:()=>{resume=true;}});
     const OriginalWorker=window.Worker;
     window.Worker=class {
       onmessage: ((event: {data:unknown})=>void) | null=null;
@@ -81,7 +82,8 @@ test(`pointed fingertip traces score through camera input on ${mobile ? "mobile"
       postMessage(request: {frame:ImageBitmap}) {
         request.frame.close();
         let landmarks: {x:number;y:number;z:number}[][]=[];
-        if(tracing) {
+        // Pause at half a circle until the test observes the saved progress.
+        if(tracing && (step!==24 || resume)) {
           const angle=(step++%49)*Math.PI/24;
           const x=1-(.5+.22*Math.cos(angle)), y=(.375+.22*Math.sin(angle))/.75;
           const hand=Array.from({length:21},()=>({x,y:y+.08,z:0}));
@@ -106,6 +108,10 @@ test(`pointed fingertip traces score through camera input on ${mobile ? "mobile"
   const panel=page.getByRole("region",{name:"Charge your magic challenge"});
   await expect(panel).toBeVisible();
   await page.evaluate(()=>{(window as unknown as {startTestTrace:()=>void}).startTestTrace();});
+  await expect(panel.getByRole("status")).toContainText("Your circle is saved");
+  const progress=await panel.locator(".magic-charge-orbit").evaluate(el=>parseFloat((el as HTMLElement).style.getPropertyValue("--charge")));
+  expect(progress).toBeGreaterThan(150);
+  await page.evaluate(()=>{(window as unknown as {resumeTestTrace:()=>void}).resumeTestTrace();});
   await expect(panel.locator(".struggle-sides .player-A")).not.toHaveText("Green Wizard · 0/100",{timeout:5000});
   await expect(panel.locator(".magic-trace-result")).toContainText("100% accuracy");
   await page.screenshot({path:`/tmp/spellcaster-pointed-circle-${mobile ? "mobile" : "desktop"}.png`});

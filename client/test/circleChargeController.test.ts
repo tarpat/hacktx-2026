@@ -60,15 +60,16 @@ describe("magic charge controller input routing", () => {
     for(let i=49;i<=96;i++) await frame(i);
     expect(push).toHaveBeenCalledOnce();
   });
-  it("clears progress and reports interrupted hand detection", async () => {
+  it("preserves progress through interrupted hand detection", async () => {
     const feedback=vi.fn(), actions=vi.fn(); controller.onCircleChargeFeedback(feedback); controller.onAction(actions);
     await controller.start(video); controller.setStruggling(true);
     for(let i=0;i<=24;i++) await frame(i);
     mocks.detect.mockRejectedValueOnce(new Error("Lost frame"));
     now+=40; video.currentTime+=.04; tick(now); await Promise.resolve();
-    expect(feedback.mock.lastCall?.[0]).toMatchObject({visible:false, progress:0});
-    expect(feedback.mock.lastCall?.[0].hint).toContain("interrupted");
+    expect(feedback.mock.lastCall?.[0]).toMatchObject({visible:false, progress:.5});
+    expect(feedback.mock.lastCall?.[0].hint).toContain("saved");
     for(let i=25;i<=48;i++) await frame(i);
+    expect(feedback.mock.calls.some(([f])=>f.trace)).toBe(true);
     expect(actions).not.toHaveBeenCalled();
   });
   it("discards a detection that resolves after leaving the challenge", async () => {
