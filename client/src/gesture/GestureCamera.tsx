@@ -59,10 +59,21 @@ function writeEnabled(on: boolean) {
  * Floating webcam panel that casts spells for the local wizard through `spellInput`,
  * the same entry point the keyboard fallback uses. Frames never leave the browser.
  */
-export function GestureCamera({ ultimateReady = true, struggling = false }: { ultimateReady?: boolean; struggling?: boolean }) {
+export function GestureCamera({
+  ultimateReady = true,
+  struggling = false,
+  canCast = () => true,
+}: {
+  ultimateReady?: boolean;
+  struggling?: boolean;
+  /** False while the spell is on cooldown or the match isn't live; those gestures are ignored. */
+  canCast?: (spell: SpellId) => boolean;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const controllerRef = useRef<GestureController | null>(null);
+  const canCastRef = useRef(canCast);
+  canCastRef.current = canCast;
   const [enabled, setEnabled] = useState(readEnabled);
   const [status, setStatus] = useState<TrackingStatus>("CAMERA_OFF");
   const [pose, setPose] = useState<HandPose>("NONE");
@@ -79,6 +90,8 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
     // Mirrors `charge` so the action handler can read the current kind without a stale closure.
     let current: ActiveCharge | null = null;
     let handColor = HAND_COLOR.idle;
+    // A charge started while its spell was unavailable: ignore it until it ends.
+    let blocked = false;
     const unsubscribers = [
       controller.onObservation((o) => {
         setStatus(o.status);
@@ -88,6 +101,14 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
       controller.onAction(({ action, localTimestampMs }) => {
         if (action === "FIREBALL_CHARGE_START" || action === "ULTIMATE_CHARGE_START") {
           const kind: ChargeKind = action === "ULTIMATE_CHARGE_START" ? "ultimate" : "fireball";
+          blocked = !canCastRef.current(kind);
+          if (blocked) {
+            if (current) stopCharge(0.06);
+            current = null;
+            handColor = HAND_COLOR.idle;
+            setCharge(null);
+            return;
+          }
           // An upgrade keeps the original start time, matching the state machine.
           current = { kind, startedAt: current?.startedAt ?? localTimestampMs };
           setChargeOutcome(null);
@@ -96,6 +117,10 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
           startCharge(kind);
         }
         if (action === "FIREBALL_CAST" || action === "ULTIMATE_CAST" || action === "CHARGE_CANCEL") {
+          if (blocked) {
+            blocked = false;
+            return;
+          }
           const kind: ChargeKind = action === "ULTIMATE_CAST" ? "ultimate" : action === "FIREBALL_CAST" ? "fireball" : current?.kind ?? "fireball";
           current = null;
           handColor = HAND_COLOR.idle;
@@ -105,7 +130,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
         }
         if (action === "STRUGGLE_PUSH") return spellInput.push();
         const spell = ACTION_SPELLS[action];
-        if (!spell) return;
+        if (!spell || !canCastRef.current(spell)) return;
         spellInput.cast(spell);
         setLastCast({ id: ++castId, spell });
       }),
@@ -184,7 +209,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
         <ul className="gesture-cam-legend">
           {LEGEND.map(({ spell, pose: hint, poses }) => (
             // Light up the spell the moment its pose is recognized, before the hold completes.
-            <li key={spell} className={spell === "ultimate" && !ultimateReady ? "locked" : live && poses.includes(pose) ? "armed" : ""}>
+            <li key={spell} className={(spell === "ultimate" && !ultimateReady) || !canCast(spell) ? "locked" : live && poses.includes(pose) ? "armed" : ""}>
               <SpellIcon spell={spell} />
               <span>{hint}</span>
             </li>
