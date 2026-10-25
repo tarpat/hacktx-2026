@@ -3400,6 +3400,7 @@ body {
   .trait-strip,
   .trait-card,
   .trait-card.landed { animation: none; }
+}
 
 .magic-trace-result { color: var(--gold-soft); font: 600 12px/1.5 system-ui; margin: 6px 0; }
 .magic-charge-camera .gesture-cam-view { min-width: 0; }
