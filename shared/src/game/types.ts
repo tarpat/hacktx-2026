@@ -59,6 +59,7 @@ interface StruggleBase {
   meetAt: number;
   /** Tug-of-war balance: +1 means A has shoved it all the way to B, -1 the reverse. */
   balance: number;
+  traceScores?: Record<PlayerSlot, import("./circleTrace.js").TraceResult | null>;
   pushes: Record<PlayerSlot, number>;
   lastPushAt: Record<PlayerSlot, number>;
 }

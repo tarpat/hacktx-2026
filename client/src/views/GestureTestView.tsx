@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { GestureController, type DebugFrame } from "../gesture/GestureController";
 import { SpellPreview } from "./SpellPreview";
-import { drawHands } from "../gesture/drawHand";
+import { drawHands, drawTraceGuide } from "../gesture/drawHand";
 import type { CircleChargeFeedback } from "../gesture/circleChargeCounter";
 import type { GestureActionEvent, GestureObservation } from "../gesture/types";
 import { compactDetection, RECORDING_ENDPOINT, RECORDING_TARGETS, type GestureRecording, type RecordingLabel } from "../gesture/recording";
@@ -59,9 +59,10 @@ export function GestureTestView() {
     const controller = new GestureController();
     controllerRef.current = controller;
     let nextId = 0;
+    let traceFeedback: CircleChargeFeedback | null = null;
     let shieldTimer: ReturnType<typeof setTimeout> | undefined;
     const unsubscribers = [
-      controller.onCircleChargeFeedback(setCircleChargeFeedback),
+      controller.onCircleChargeFeedback(feedback => { traceFeedback=feedback; setCircleChargeFeedback(feedback); if(feedback.trace) setBeats(count=>count+1); }),
       controller.onObservation((o) => {
         setObservation(o);
         if (o.status === "ERROR") setError((e) => e || "The camera stopped. Reconnect it and press Start.");
@@ -70,7 +71,6 @@ export function GestureTestView() {
         recordingRef.current?.frames.push(compactDetection(detection));
       }),
       controller.onAction((event) => {
-        if (event.action === "STRUGGLE_PUSH") setBeats((count) => count + 1);
         recordingRef.current?.actions.push({ timestampMs: event.localTimestampMs, action: event.action });
         setLog((entries) => [{ ...event, id: nextId++ }, ...entries].slice(0, 10));
         if (event.action === "SHIELD_CAST") {
@@ -85,6 +85,7 @@ export function GestureTestView() {
       controller.onDebugFrame((frame) => {
         if (canvasRef.current) {
           drawHands(canvasRef.current, frame.hands);
+          if(frame.state === "STRUGGLE") drawTraceGuide(canvasRef.current,traceFeedback);
         }
         setDebug((d) => (d.fps === frame.fps && d.state === frame.state && d.handCount === frame.hands.length
           ? d : { fps: frame.fps, state: frame.state, handCount: frame.hands.length }));
@@ -180,8 +181,9 @@ export function GestureTestView() {
         {saved && <p className="gesture-hint">{saved}</p>}
       </div>
       {circleChargeMode ? <div className="magic-charge-test-feedback">
-        <strong>{beats} {beats === 1 ? "charge" : "charges"}</strong>
-        <p role="status">{circleChargeFeedback?.hint ?? "Start the camera and circle one hand."}</p>
+        <strong>{beats} {beats === 1 ? "circle" : "circles"}</strong>
+        {circleChargeFeedback?.result && <p>{circleChargeFeedback.result.accuracy}% accuracy · {(circleChargeFeedback.result.durationMs/1000).toFixed(2)}s · {circleChargeFeedback.result.score}/100</p>}
+        <p role="status">{circleChargeFeedback?.hint ?? "Point one index finger at the screen."}</p>
         <button className="secondary-button" onClick={() => { controllerRef.current?.resetCircleTracking(); setBeats(0); }}>Reset circle tracking</button>
       </div> : <SpellPreview lastAction={log[0] ?? null} />}
       <dl className="gesture-stats">
@@ -193,7 +195,7 @@ export function GestureTestView() {
         <div><dt>HANDS TRACKED</dt><dd>{live ? debug.handCount : 0} / 2</dd></div>
         <div><dt>FPS</dt><dd>{live ? debug.fps : "—"}</dd></div>
       </dl>
-      <p className="gesture-hint">{circleChargeMode ? "Draw big circles with one hand. Either direction; each full circle adds a charge." : "✊ hold → ✋ open: fireball · 🙌 both palms: shield · ✌️ peace: ice · 🤘 hook 'em: taurus · ☝️ point up, then drop: ultimate"}</p>
+      <p className="gesture-hint">{circleChargeMode ? "Point your index finger at the screen and trace a precise circle quickly." : "✊ hold → ✋ open: fireball · 🙌 both palms: shield · ✌️ peace: ice · 🤘 hook 'em: taurus · ☝️ point up, then drop: ultimate"}</p>
       <ol className="gesture-log">
         {log.length === 0 && <li className="empty">No actions yet</li>}
         {log.map((entry) => <li key={entry.id}><span>{(entry.localTimestampMs / 1000).toFixed(2)}s</span>{entry.action}</li>)}

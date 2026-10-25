@@ -1,3 +1,4 @@
+import { compareTraceResults, scoreCircleTrace, type CircleTrace } from "./circleTrace.js";
 import { DEFAULT_MATCH_CONFIG, type MatchConfig } from "./config.js";
 import { POSE_RACE, POSE_SEQUENCE, type PoseProgress, type PoseSample } from "./poses.js";
 import type { CastRejectReason, CastResult, EndReason, GameEvent, MatchState, PlayerSlot, PlayerState, PowerUpId, Projectile, SpellId, Struggle } from "./types.js";
@@ -182,6 +183,22 @@ export class DuelEngine {
     return true;
   }
 
+  /** Keep each player's best trace. Validate points and score on the authoritative clock. */
+  circleTrace(slot: PlayerSlot, trace: CircleTrace, now: number): boolean {
+    this.tick(now);
+    const struggle=this.state.struggle;
+    if(!struggle || struggle.kind!=="pump" || !isLive(this.state) || trace?.startedAt!==struggle.startedAt) return false;
+    const result=scoreCircleTrace(trace.points);
+    if(!result || result.durationMs>now-struggle.startedAt+150 || now-struggle.lastPushAt[slot]<400) return false;
+    struggle.traceScores ??= { A:null, B:null };
+    if(compareTraceResults(result,struggle.traceScores[slot])<=0) return false;
+    struggle.traceScores[slot]=result;
+    struggle.lastPushAt[slot]=now;
+    struggle.pushes[slot]++;
+    struggle.balance=((struggle.traceScores.A?.score ?? 0)-(struggle.traceScores.B?.score ?? 0))/100;
+    return true;
+  }
+
   /** Timed observations only: the server owns order, release, hold duration and winner. */
   poseSample(slot: PlayerSlot, sample: PoseSample, now: number): boolean {
     this.tick(now);
@@ -337,6 +354,10 @@ export class DuelEngine {
       }
       // Only a completed full sequence wins. At timeout, incomplete sequences draw.
       struggle.balance = completedBy === "A" ? 1 : completedBy === "B" ? -1 : 0;
+    }
+    if (struggle.kind === "pump" && struggle.traceScores) {
+      const difference=compareTraceResults(struggle.traceScores.A,struggle.traceScores.B);
+      struggle.balance=Math.sign(difference);
     }
     const { drawMargin, speedFactor } = this.config.struggle;
     const { A, B } = struggle.projectiles;

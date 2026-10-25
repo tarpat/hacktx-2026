@@ -1,72 +1,54 @@
+import { scoreCircleTrace, TRACE_TARGET, type TracePoint, type TraceResult } from "@spellcaster/shared";
+import { classifyPose } from "./poseClassifier";
 import type { Landmark } from "./types";
 
 export interface CircleChargeFeedback {
   visible: boolean;
   progress: number;
   hint: string;
+  trail?: TracePoint[];
+  result?: TraceResult;
+  trace?: TracePoint[];
 }
-interface Point { x: number; y: number; at: number }
-const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
-const valid = (p: Landmark | undefined): p is Landmark => !!p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1;
 
-/** Recognizes a broad closed loop, in either direction, rather than a particular hand pose.
- * Raw palm positions avoid the casting pipeline's smoothing lag. Missing frames, teleports,
- * and hand changes clear the path. A circle needs coverage in both axes and consistent winding;
- * waving along a line, camera jitter, and reversing along an arc cannot charge the spell.
- */
+/** Index fingertip traces a fixed camera-space circle while the other fingers are curled. */
 export class CircleChargeCounter {
-  private path: Point[] = [];
-  private lastFrame = -Infinity;
-  private lastPalm: Point | null = null;
-
-  reset() { this.path = []; this.lastPalm = null; this.lastFrame = -Infinity; }
+  private path: TracePoint[]=[];
+  private lastFrame=-Infinity;
+  private lastPointAt=-Infinity;
+  private result: TraceResult | undefined;
+  reset() { this.path=[]; this.lastFrame=-Infinity; this.lastPointAt=-Infinity; this.result=undefined; }
 
   update(hands: Landmark[][], now: number): CircleChargeFeedback & { push: boolean } {
-    const feedback = (visible: boolean, progress = 0, push = false) => ({ visible, progress, push,
-      hint: visible ? push ? "Charged! Keep circling!" : "Draw a big circle with one hand · either direction." : "Show one hand to the camera to charge your magic.",
-    });
-    if (now <= this.lastFrame) return feedback(false);
-    if (now - this.lastFrame > 300) this.reset();
-    this.lastFrame = now;
-    const palms = hands.filter(hand => [0, 5, 9, 13, 17].every(i => valid(hand[i]))).map(hand => {
-      const points = [0, 5, 9, 13, 17].map(i => hand[i]);
-      return { x: points.reduce((n, p) => n + p.x, 0) / 5, y: points.reduce((n, p) => n + p.y, 0) / 5 * 0.75, at: now };
-    });
-    if (!palms.length) { this.path = []; this.lastPalm = null; return feedback(false); }
-    // Keep following the same palm when MediaPipe reorders two hands.
-    const previous = this.lastPalm;
-    const palm = previous ? palms.reduce((a, b) => distance(a, previous) < distance(b, previous) ? a : b) : palms[0];
-    if (previous && distance(previous, palm) > 0.22) this.path = [];
-    this.lastPalm = palm;
-    this.path = this.path.filter(p => now - p.at <= 2800);
-    if (this.path.length && distance(this.path[this.path.length - 1], palm) < 0.012) return feedback(true, this.progress());
-    this.path.push(palm);
-    if (this.path.length > 100) this.path.shift();
-    const progress = this.progress();
-    if (progress >= 1) { this.path = [palm]; return feedback(true, 1, true); }
-    return feedback(true, progress);
-  }
-
-  private progress(): number {
-    const points = this.path;
-    if (points.length < 10 || points[points.length - 1].at - points[0].at < 350) return 0;
-    const xs = points.map(p => p.x), ys = points.map(p => p.y);
-    const width = Math.max(...xs) - Math.min(...xs), height = Math.max(...ys) - Math.min(...ys);
-    if (width < 0.10 || height < 0.075 || Math.min(width, height) / Math.max(width, height) < 0.4) return 0;
-    const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
-    let turn = 0, travel = 0;
-    for (let i = 1; i < points.length; i++) {
-      const a = Math.atan2(points[i - 1].y - cy, points[i - 1].x - cx);
-      const b = Math.atan2(points[i].y - cy, points[i].x - cx);
-      const delta = Math.atan2(Math.sin(b - a), Math.cos(b - a));
-      // A jump across the middle is not a circular stroke.
-      if (Math.abs(delta) > Math.PI / 2) return 0;
-      turn += delta; travel += Math.abs(delta);
+    const feedback=(visible:boolean,hint:string,progress=0,trace?:TracePoint[])=>({visible,hint,progress,push:!!trace,trail:[...this.path],result:this.result,trace});
+    if(now<=this.lastFrame) return feedback(false,"Point your index finger toward the screen.");
+    if(now-this.lastFrame>300) this.path=[];
+    this.lastFrame=now;
+    const tips=hands.filter(h=>h.length>=21 && h.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.z)) && classifyPose(h)==="POINT")
+      .map(h=>({x:1-h[8].x,y:h[8].y*.75,at:now}));
+    const last=this.path[this.path.length-1];
+    const tip=last ? tips.sort((a,b)=>Math.hypot(a.x-last.x,a.y-last.y)-Math.hypot(b.x-last.x,b.y-last.y))[0] : tips[0];
+    if(!tip || tip.x<0 || tip.x>1 || tip.y<0 || tip.y>.75) {
+      if(now-this.lastPointAt>150) this.path=[];
+      return feedback(false,"Point one index finger at the screen; curl your other fingers.");
     }
-    const winding = Math.abs(turn);
-    if (!travel || winding / travel < 0.8) return 0;
-    const progress = Math.min(0.99, winding / (Math.PI * 2));
-    const closed = distance(points[0], points[points.length - 1]) < Math.min(width, height) * 0.45;
-    return winding >= Math.PI * 1.8 && closed ? 1 : progress;
+    this.lastPointAt=now;
+    const radial=Math.hypot(tip.x-TRACE_TARGET.x,tip.y-TRACE_TARGET.y);
+    if(Math.abs(radial-TRACE_TARGET.radius)>.12 || (last && Math.hypot(tip.x-last.x,tip.y-last.y)>.18)) this.path=[];
+    if(!this.path.length && Math.abs(radial-TRACE_TARGET.radius)>.07) return feedback(true,"Move your fingertip onto the golden circle to begin.");
+    if(this.path.length && now-this.path[0].at>5000) this.path=[];
+    if(!this.path.length || Math.hypot(tip.x-this.path[this.path.length-1].x,tip.y-this.path[this.path.length-1].y)>.009) this.path.push(tip);
+    if(this.path.length>180) this.path.shift();
+    let turn=0;
+    for(let i=1;i<this.path.length;i++) {
+      const a=Math.atan2(this.path[i-1].y-TRACE_TARGET.y,this.path[i-1].x-TRACE_TARGET.x), b=Math.atan2(this.path[i].y-TRACE_TARGET.y,this.path[i].x-TRACE_TARGET.x);
+      turn+=Math.atan2(Math.sin(b-a),Math.cos(b-a));
+    }
+    const result=scoreCircleTrace(this.path);
+    if(result) {
+      const trace=[...this.path]; this.result=result; this.path=[tip];
+      return feedback(true,`${result.accuracy}% accuracy · ${(result.durationMs/1000).toFixed(2)}s · ${result.score}/100`,1,trace);
+    }
+    return feedback(true,"Trace the golden circle smoothly and quickly · either direction.",Math.min(.99,Math.abs(turn)/(Math.PI*2)));
   }
 }

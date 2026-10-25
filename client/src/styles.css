@@ -3275,3 +3275,17 @@ body {
   82% { opacity: 1; transform: translateX(-50%) scale(1.04) rotate(-2deg); }
   100% { opacity: 0; transform: translateX(-50%) scale(0.9) rotate(-2deg); }
 }
+
+.magic-trace-result { color: var(--gold-soft); font: 600 12px/1.5 system-ui; margin: 6px 0; }
+.magic-charge-camera .gesture-cam-view { min-width: 0; }
+/* Precision tracing needs a large target and a readable fingertip trail. */
+.magic-charge-event { width: min(900px, calc(100% - 32px)); grid-template-columns: minmax(0, 1fr) 320px; }
+@media (max-width: 760px) {
+  .magic-charge-event { grid-template-columns: minmax(0, 1fr); }
+  .duel .magic-charge-event .gesture-cam { grid-template-columns: 1fr; grid-row: 1; max-width: 280px; justify-self: center; }
+  .duel .magic-charge-event .struggle { grid-row: 2; }
+  .magic-charge-camera .gesture-cam-view, .magic-charge-camera-placeholder { grid-row: auto; }
+  .magic-charge-camera .gesture-cam-toggle, .magic-charge-camera .gesture-cam-error { grid-column: 1; }
+  .magic-charge-camera-placeholder { display: none; }
+  .magic-charge-orbit { display: none; }
+}

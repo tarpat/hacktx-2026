@@ -118,10 +118,13 @@ io.on("connection", (socket) => {
     if (Object.keys(patch).length) socket.to(roomCode).emit("FLAIR", slot, patch);
   });
 
-  socket.on("STRUGGLE_PUSH", () => {
-    const runner = roomCode ? matches.get(roomCode) : undefined;
-    const slot = roomCode ? rooms.slotOf(roomCode, socket.id) : null;
-    if (runner && slot) runner.push(slot);
+  // Legacy tap inputs do not score the camera tracing challenge.
+  socket.on("STRUGGLE_PUSH", () => {});
+
+  socket.on("CIRCLE_TRACE", (trace) => {
+    const runner=roomCode ? matches.get(roomCode) : undefined;
+    const slot=roomCode ? rooms.slotOf(roomCode,socket.id) : null;
+    if(runner && slot && Array.isArray(trace?.points) && trace.points.length<=180) runner.circleTrace(slot,trace);
   });
 
   socket.on("POSE_SAMPLE", (sample) => {

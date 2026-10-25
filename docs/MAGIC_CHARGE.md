@@ -1,17 +1,13 @@
-# Charge your magic
+# Charge your magic: precision circle tracing
 
-Matching fireballs or ice spells randomly start either magic charge or the five-pose race. Draw a big circle with one hand, clockwise or counterclockwise. Each completed circle adds one charge to the existing server-authoritative tug of war. The leading wizard wins after 6.7 seconds; a lead within the draw margin fizzles both spells. The winner's spell absorbs both attacks.
+Point your index finger toward the screen with the other fingers curled. A golden circle appears on the mirrored camera preview. Trace it in either direction; a green trail shows your fingertip's path. Each completed attempt shows accuracy, completion time, and a score out of 100. The best attempt during the 6.7-second event counts.
 
-The event shows a circular progress ring, a live camera preview with golden hand skeletons, tracking hints, charge counts, and the advantage bar. Training has a **Magic charge** button to start it directly. `/gesture-test` has **Test magic charge circles** for practicing detection without a match.
+Accuracy is 80% of the score: radial error against the target is measured in image-width coordinates, so the target stays circular in the 4:3 preview. Speed is 20%, scaled from 400 ms to 5 seconds. Higher scores win. Rounded-score ties use accuracy, then completion time; exact ties draw. A perfect first attempt does not end the event early, so both players can finish.
 
-## Tracking and controls
+The tracker requires an extended index finger and curled middle, ring, and little fingers. It follows landmark 8 (the index tip), not the palm. A valid trace needs nearly a full revolution, closure, coverage of at least 22 of 24 angular sectors, and consistent direction. Tiny circles, waves, shortcuts, invalid frames, and open palms cannot score. Brief pose flicker is tolerated for 150 ms; longer loss, frame gaps over 300 ms, leaving the target, camera restart, and mode changes reset the partial path.
 
-The existing hand tracker supplies palm positions; no elbow tracking, body framing, or extra body model is needed. Closed loops must cover both axes, wind consistently, and take at least 350 ms. Small jitter, straight waves, reversed arcs, missing landmarks, duplicate frames, and jumps cannot complete a circle. Motion is tracked over a rolling 2.8-second window. Tracking loss, gaps over 300 ms, camera restart, hidden tabs, and mode changes reset the path. Either direction works and two detected hands are matched by proximity to avoid switching paths when detections reorder.
+The camera is required. Space, Enter, and taps do not score this event. Enable camera and Reset circle tracking controls are available in the event. Training has a Magic charge button. `/gesture-test` has a tracing detector test; the match camera includes the target/trail.
 
-Camera input charges the local wizard. SPACE/tap remains available if the camera is off; ENTER scores the rival in training. Spell casting is suspended during the event, then waits for hands to relax before rearming. **Reset circle tracking** clears a partial loop; toggle the camera off/on to restart a stopped stream. The easy bot charges at roughly 0.65 circles per second.
+The client sends a bounded fingertip path through `CIRCLE_TRACE`. The server validates it, recomputes the score, associates it with the current clash and authenticated socket, and retains improvements only. Video and full hand landmarks stay local; the existing face snapshots still go to the rival. The wire struggle kind remains `pump`.
 
-The wire kind remains `pump` and uses the existing `STRUGGLE_PUSH` input, server rate limit, and synchronized scoring. Video and landmarks stay local; the existing small face snapshots still go to the rival.
-
-## Verification
-
-Counter tests cover clockwise/counterclockwise circles, repeated loops, ovals, hand reordering, false movements, interrupted paths, and invalid timestamps. Controller tests cover scoring, suspended casting, mode changes, and stale async detections. Browser tests cover desktop/mobile layouts, fallback controls, winners, and a blank synthetic camera that asks for a hand without scoring. Physical webcam accuracy still needs a check in the intended room lighting.
+Tests cover point-pose gating, circle completion, inaccurate movement, score weighting, invalid/stale paths, best-attempt retention, synchronized online scoring, timeout winners, and desktop/mobile UI. A synthetic hand detector exercises the complete camera-to-game scoring path. Real webcam recognition still needs a hands-on check in the intended lighting.

@@ -212,7 +212,6 @@ export class GestureController {
             this.setStatus(feedback.visible ? "TRACKING" : "NO_HAND");
             this.hand = undefined;
             for (const listener of this.circleChargeListeners) listener(feedback);
-            if (feedback.push) this.emitActions(["STRUGGLE_PUSH"], now);
             this.notify("NONE", "NONE", raw, now);
             return;
           }

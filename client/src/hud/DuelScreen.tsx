@@ -174,7 +174,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       }
       else if (intent.kind === "push") {
         sfx.push();
-        source.push(intent.slot);
+        if (source.state()?.struggle?.kind !== "pump") source.push(intent.slot);
       }
       else if (intent.kind === "powerUp") source.powerUp(intent.powerUp, intent.slot);
     });
@@ -298,7 +298,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
         )}
         <RisingEmbers />
         <div className={state?.struggle?.kind === "pump" ? "magic-charge-event" : "collision-inputs"}>
-          {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} onCircleChargeFeedback={setCircleChargeFeedback} onReady={() => setCameraReady(true)} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
+          {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} onCircleChargeFeedback={(feedback) => { setCircleChargeFeedback(feedback); if (feedback.trace && state?.struggle?.kind === "pump") source.circleTrace({ startedAt: state.struggle.startedAt, points: feedback.trace }); }} onReady={() => setCameraReady(true)} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
           {state?.struggle?.kind === "pump" && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} feedback={circleChargeFeedback} />}
         </div>
         {state?.struggle?.kind === "pose" && <PoseRace key={state.struggle.poseRace.id} struggle={state.struggle} source={source} now={now} hotseat={hotseat} />}

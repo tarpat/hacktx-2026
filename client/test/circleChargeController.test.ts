@@ -5,7 +5,7 @@ vi.mock("../src/gesture/handDetector", () => ({ getDetector: async () => ({ dete
 vi.mock("../src/gesture/raceFaceTracking", () => ({ loadRaceFaceTracker: async () => ({}), RaceFaceReader: class {} }));
 import { GestureController } from "../src/gesture/GestureController";
 
-const hand = (i: number) => Array.from({ length: 21 }, () => ({ x: .5+.16*Math.cos(i*Math.PI/16), y: .5+.16*Math.sin(i*Math.PI/16), z: 0 }));
+import { traceHand as hand } from "./fixtures/pointingHand";
 
 describe("magic charge controller input routing", () => {
   let now: number;
@@ -41,33 +41,34 @@ describe("magic charge controller input routing", () => {
     controller.onDebugFrame(debug);
     await controller.start(video);
     controller.setStruggling(true);
-    for(let i=0;i<=64;i++) await frame(i);
-    expect(actions).toEqual(["STRUGGLE_PUSH", "STRUGGLE_PUSH"]);
+    for(let i=0;i<=96;i++) await frame(i);
+    expect(actions).toEqual([]);
+    expect(feedback.mock.calls.filter(([f])=>f.trace)).toHaveLength(2);
     expect(debug.mock.lastCall?.[0].hands).toHaveLength(1);
     expect(feedback.mock.lastCall?.[0].visible).toBe(true);
     controller.setStruggling(false);
     await frame(0);
-    expect(actions).toEqual(["STRUGGLE_PUSH", "STRUGGLE_PUSH"]);
+    expect(actions).toEqual([]);
   });
   it("clears a partial circle when a new collision starts", async () => {
-    const push=vi.fn(); controller.onAction(e=>{ if(e.action === "STRUGGLE_PUSH") push(); });
+    const push=vi.fn(); controller.onCircleChargeFeedback(f=>{ if(f.trace) push(); });
     await controller.start(video); controller.setStruggling(true);
-    for(let i=0;i<=16;i++) await frame(i);
+    for(let i=0;i<=24;i++) await frame(i);
     controller.setStruggling(false); controller.setStruggling(true);
-    for(let i=17;i<=32;i++) await frame(i);
+    for(let i=25;i<=48;i++) await frame(i);
     expect(push).not.toHaveBeenCalled();
-    for(let i=33;i<=64;i++) await frame(i);
+    for(let i=49;i<=96;i++) await frame(i);
     expect(push).toHaveBeenCalledOnce();
   });
   it("clears progress and reports interrupted hand detection", async () => {
     const feedback=vi.fn(), actions=vi.fn(); controller.onCircleChargeFeedback(feedback); controller.onAction(actions);
     await controller.start(video); controller.setStruggling(true);
-    for(let i=0;i<=16;i++) await frame(i);
+    for(let i=0;i<=24;i++) await frame(i);
     mocks.detect.mockRejectedValueOnce(new Error("Lost frame"));
     now+=40; video.currentTime+=.04; tick(now); await Promise.resolve();
     expect(feedback.mock.lastCall?.[0]).toMatchObject({visible:false, progress:0});
     expect(feedback.mock.lastCall?.[0].hint).toContain("interrupted");
-    for(let i=17;i<=32;i++) await frame(i);
+    for(let i=25;i<=48;i++) await frame(i);
     expect(actions).not.toHaveBeenCalled();
   });
   it("discards a detection that resolves after leaving the challenge", async () => {
