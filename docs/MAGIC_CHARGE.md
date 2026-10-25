@@ -1,6 +1,6 @@
 # Charge your magic: precision circle tracing
 
-Point your index finger toward the screen with the other fingers curled. A golden circle appears on the mirrored camera preview. Trace it in either direction; a green trail shows your fingertip's path. Each completed attempt shows accuracy, completion time, and a score out of 100. The best attempt during the 6.7-second event counts.
+Point your index finger toward the screen with the other fingers curled. A golden circle appears on the mirrored camera preview. Trace it in either direction; a green trail shows your fingertip's path. Each completed attempt shows accuracy, completion time, and a score out of 100. The best attempt during the 15-second event counts.
 
 Accuracy is 80% of the score: radial error against the target is measured in image-width coordinates, so the target stays circular in the 4:3 preview. Speed is 20%, scaled from 400 ms to 5 seconds. Higher scores win. Rounded-score ties use accuracy, then completion time; exact ties draw. A perfect first attempt does not end the event early, so both players can finish.
 

@@ -2,7 +2,7 @@
 
 A real-time 1v1 browser duel. npm workspaces: a React/Vite/TypeScript + Phaser client, a Node/Express/Socket.IO server, and a `shared` package holding the event contract and the duel engine.
 
-Matching spell collisions choose 50/50 between **Charge your magic** and a five-image pose race. Point your index finger at the screen and trace the golden circle precisely and quickly. Accuracy contributes 80% and speed 20%; your best circle during the 6.7-second event wins. Ties in the rounded score use accuracy, then completion time. This event requires the camera; keyboard/taps do not score. See [magic charge tracking and controls](docs/MAGIC_CHARGE.md) and [pose race rules](docs/POSE_RACE.md).
+Matching spell collisions choose 50/50 between **Charge your magic** and a five-image pose race. Point your index finger at the screen and trace the golden circle precisely and quickly. Accuracy contributes 80% and speed 20%; your best circle during the 15-second event wins. Ties in the rounded score use accuracy, then completion time. This event requires the camera; keyboard/taps do not score. See [magic charge tracking and controls](docs/MAGIC_CHARGE.md) and [pose race rules](docs/POSE_RACE.md).
 
 Online, bot and training matches choose uniformly from all three arenas (1/3 each), with a fresh independent draw on every rematch. Hotseat keeps a map picker for testing; its saved choice never affects other modes.
 

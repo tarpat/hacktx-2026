@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { io } from "socket.io-client";
 
-test("online circle traces are scored by the server for the authenticated rival", { timeout: 20_000 }, async (t) => {
+test("online circle traces are scored by the server for the authenticated rival", { timeout: 30_000 }, async (t) => {
   const entry = new URL("../dist/index.js", import.meta.url).href;
   const child = spawn(process.execPath, ["--input-type=module", "--eval", `Math.random = () => 0.1; await import(${JSON.stringify(entry)})`], {
     env: { ...process.env, PORT: "0", NODE_ENV: "production", CLIENT_ORIGIN: "" }, stdio: ["ignore", "pipe", "pipe"],
@@ -32,7 +32,7 @@ test("online circle traces are scored by the server for the authenticated rival"
   a.on("MATCH_STATE", (state, events) => { latest.A = state; seen.push(...events); });
   b.on("MATCH_STATE", (state) => { latest.B = state; });
   const until = async (predicate) => {
-    const deadline = Date.now() + 8000;
+    const deadline = Date.now() + 18_000;
     while (!predicate()) {
       if (Date.now() > deadline) throw new Error("Expected synchronized match state did not arrive");
       await delay(25);
@@ -46,7 +46,7 @@ test("online circle traces are scored by the server for the authenticated rival"
   await a.timeout(3000).emitWithAck("CAST_REQUEST", { spell: "fireball", clientActionId: "six-seven-a" });
   await b.timeout(3000).emitWithAck("CAST_REQUEST", { spell: "fireball", clientActionId: "six-seven-b" });
   await until(() => latest.A?.struggle?.kind === "pump" && latest.B?.struggle?.kind === "pump");
-  assert.equal(latest.A.struggle.endsAt - latest.A.struggle.startedAt, 6700);
+  assert.equal(latest.A.struggle.endsAt - latest.A.struggle.startedAt, 15000);
   assert.deepEqual(latest.A.struggle.pushes, { A: 0, B: 0 });
   const startedAt=latest.B.struggle.startedAt;
   b.emit("CIRCLE_TRACE",{startedAt:startedAt-1,points:[]});

@@ -12,6 +12,6 @@ test("arena keeps embers and draws a camera clash when neither player traces", a
   await page.getByRole("button", { name: "Magic charge", exact:false }).click();
   await expect(page.locator(".struggle-leader")).toHaveText("Dead even!");
   await page.keyboard.press("Space"); await page.keyboard.press("Enter");
-  await expect(page.locator(".clash-result")).toContainText("Evenly matched!", { timeout: 10_000 });
+  await expect(page.locator(".clash-result")).toContainText("Evenly matched!", { timeout: 18_000 });
   await expect(page.locator(".clash-result")).toContainText("Both spells cancel out.");
 });
