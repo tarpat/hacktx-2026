@@ -41,7 +41,7 @@ const REARM_BLOCKS: Record<HoldPose, HandPose[]> = {
 };
 
 export const DEFAULT_TIMINGS: GestureTimings = {
-  fistStableMs: 200,
+  fistStableMs: 150,
   charge: {
     fireball: { minMs: 300, maxMs: 1800 },
     ultimate: { minMs: 600, maxMs: 2500 },
@@ -49,7 +49,7 @@ export const DEFAULT_TIMINGS: GestureTimings = {
   releaseWindowMs: 600,
   pointDropMs: 150,
   recoveryMs: 300,
-  holdMs: { BOTH_PALMS: 250, VICTORY: 300, HORNS: 300 },
+  holdMs: { BOTH_PALMS: 200, VICTORY: 220, HORNS: 220 },
 };
 
 export type GestureState =

@@ -1397,6 +1397,7 @@ kbd {
   color: var(--mist);
 }
 .gesture-cam-legend img { width: 24px; height: 24px; object-fit: contain; }
+.gesture-cam-legend li.armed { background: rgba(246, 196, 83, 0.28); box-shadow: 0 0 0 1px #f6c453, 0 0 12px rgba(246, 196, 83, 0.6); transform: scale(1.08); }
 .gesture-cam-legend li.locked { opacity: 0.35; filter: grayscale(1); }
 
 .gesture-cam-error {

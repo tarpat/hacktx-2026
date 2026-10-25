@@ -1,13 +1,9 @@
-import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import { classifyPose, combinePoses, PoseSmoother } from "./poseClassifier";
+import { getDetector, type HandDetector } from "./handDetector";
 import { filterHands, HandStabilizer } from "./handTracking";
 import { PumpCounter } from "./pumpCounter";
 import { DEFAULT_TIMINGS, resetGesture, stepGesture, type GestureState, type GestureTimings } from "./gestureStateMachine";
 import type { GestureAction, GestureActionEvent, GestureObservation, Handedness, HandPose, Landmark, TrackingStatus } from "./types";
-
-const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm";
-const MODEL_URL =
-  "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
 
 /** Local-only debug frame. Never send this over the network. */
 export interface DebugFrame {
@@ -18,32 +14,6 @@ export interface DebugFrame {
 }
 
 export class CameraError extends Error {}
-
-let landmarkerPromise: Promise<HandLandmarker> | null = null;
-
-function loadLandmarker(): Promise<HandLandmarker> {
-  landmarkerPromise ??= (async () => {
-    const fileset = await FilesetResolver.forVisionTasks(WASM_URL);
-    const create = (delegate: "GPU" | "CPU") =>
-      HandLandmarker.createFromOptions(fileset, {
-        baseOptions: { modelAssetPath: MODEL_URL, delegate },
-        runningMode: "VIDEO",
-        numHands: 2,
-        // Stricter than MediaPipe's 0.5 defaults: fewer ghost hands from faces, sleeves and background.
-        minHandDetectionConfidence: 0.7,
-        minHandPresenceConfidence: 0.7,
-        minTrackingConfidence: 0.6,
-      });
-    try {
-      return await create("GPU");
-    } catch {
-      return await create("CPU");
-    }
-  })();
-  // Allow a retry if loading failed (e.g. offline).
-  landmarkerPromise.catch(() => (landmarkerPromise = null));
-  return landmarkerPromise;
-}
 
 function describeCameraError(error: unknown): string {
   const name = error instanceof DOMException ? error.name : "";
@@ -60,8 +30,8 @@ export class GestureController {
   /** Bumped on every start/stop so a stale async start can detect it was cancelled. */
   private generation = 0;
   private lastVideoTime = -1;
-  /** 5-of-7 frame vote: a pose has to persist ~130 ms, which filters single-frame misreads. */
-  private smoother = new PoseSmoother(7, 5);
+  /** 4-of-6 frame vote: a pose has to persist ~130 ms at 30 fps, which filters single-frame misreads. */
+  private smoother = new PoseSmoother(6, 4);
   private stabilizer = new HandStabilizer();
   private pumps = new PumpCounter();
   /** During a spell struggle, hands pump to push instead of casting. */
@@ -106,16 +76,16 @@ export class GestureController {
       video.playsInline = true;
       await video.play();
 
-      let landmarker: HandLandmarker;
+      let detector: HandDetector;
       try {
-        landmarker = await loadLandmarker();
+        detector = await getDetector();
       } catch {
         throw new CameraError("Could not load the hand-tracking model. Check the network connection and try again.");
       }
       if (generation !== this.generation) return;
 
       this.setStatus("NO_HAND");
-      this.loop(landmarker, generation);
+      this.loop(detector, generation);
     } catch (error) {
       if (generation !== this.generation) return;
       this.stopMedia();
@@ -156,22 +126,31 @@ export class GestureController {
     return () => this.debugListeners.delete(callback);
   }
 
-  private loop(landmarker: HandLandmarker, generation: number) {
+  private loop(detector: HandDetector, generation: number) {
+    let busy = false;
     const tick = () => {
       if (generation !== this.generation || !this.video) return;
       this.rafId = requestAnimationFrame(tick);
       const video = this.video;
-      // Skip until metadata is ready and skip frames we've already processed.
-      if (video.videoWidth === 0 || video.currentTime === this.lastVideoTime) return;
+      // Skip until metadata is ready, skip frames we've already processed, and keep one frame in flight.
+      if (busy || video.videoWidth === 0 || video.currentTime === this.lastVideoTime) return;
       this.lastVideoTime = video.currentTime;
 
       const now = performance.now();
-      const result = landmarker.detectForVideo(video, now);
-      const raw = result.landmarks as Landmark[][];
-      const hands = this.stabilizer.update(filterHands(raw), now);
-      // Handedness is only meaningful for one-hand gestures.
-      this.hand = hands.length === 1 && raw.length === 1 ? (result.handedness[0]?.[0]?.categoryName as Handedness | undefined) : undefined;
-      this.processFrame(hands, now);
+      busy = true;
+      detector.detect(video, now).then(
+        ({ landmarks: raw, handedness }) => {
+          busy = false;
+          if (generation !== this.generation) return;
+          const hands = this.stabilizer.update(filterHands(raw), now);
+          // Handedness is only meaningful for one-hand gestures.
+          this.hand = hands.length === 1 && raw.length === 1 ? handedness[0] : undefined;
+          this.processFrame(hands, now);
+        },
+        () => {
+          busy = false;
+        },
+      );
     };
     this.rafId = requestAnimationFrame(tick);
   }
