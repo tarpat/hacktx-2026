@@ -36,15 +36,12 @@ interface Banner {
   text: string;
 }
 
-/** Re-renders every animation frame with the match clock's current time. */
+/** Match clock for HUD timers, re-rendered at ~10 Hz. The arena reads `source.now()` itself every frame. */
 function useMatchNow(source: DuelSource) {
   const [now, setNow] = useState(() => source.now());
   useEffect(() => {
-    let frame = requestAnimationFrame(function loop() {
-      setNow(source.now());
-      frame = requestAnimationFrame(loop);
-    });
-    return () => cancelAnimationFrame(frame);
+    const timer = setInterval(() => setNow(source.now()), 100);
+    return () => clearInterval(timer);
   }, [source]);
   return now;
 }
@@ -79,6 +76,8 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   const [insets, setInsets] = useState({ top: 0, bottom: 0 });
   const frame = useRef<ArenaFrame>({ state, now, leftSlot: source.localSlot, map, insets });
   frame.current = { state, now, leftSlot: source.localSlot, map, insets };
+  const clock = useRef(source);
+  clock.current = source;
 
   const left = source.localSlot;
   const right = opponentOf(left);
@@ -132,7 +131,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   useEffect(() => {
     const element = host.current;
     if (!element) return;
-    const arena = new ArenaScene(() => frame.current);
+    const arena = new ArenaScene(() => ({ ...frame.current, now: clock.current.now() }));
     scene.current = arena;
     const game = new Phaser.Game({
       type: Phaser.AUTO,

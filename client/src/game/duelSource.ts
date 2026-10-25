@@ -135,7 +135,9 @@ export class OnlineDuel implements DuelSource {
     this.onState = (state, events) => {
       // Network delay only ever makes the server look behind, so keep the largest observed offset.
       const sample = state.now - Date.now();
-      this.offset = this.synced ? Math.max(this.offset * 0.98 + sample * 0.02, sample) : sample;
+      // Ease toward later samples instead of jumping, so animations never skip; snap only on big drift.
+      const target = Math.max(this.offset * 0.98 + sample * 0.02, sample);
+      this.offset = this.synced && Math.abs(target - this.offset) < 250 ? this.offset + (target - this.offset) * 0.2 : target;
       this.synced = true;
       this.latest = state;
       this.listeners.forEach((listener) => listener(state, events));
