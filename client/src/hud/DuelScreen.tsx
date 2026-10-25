@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
-import { DEFAULT_MATCH_CONFIG, opponentOf, type GameEvent, type MatchState, type PlayerSlot, type SpellId } from "@spellcaster/shared";
+import { castBlocker, DEFAULT_MATCH_CONFIG, opponentOf, type GameEvent, type MatchState, type PlayerSlot, type SpellId } from "@spellcaster/shared";
 import { RisingEmbers } from "../arena/RisingEmbers";
 import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
 import { loadMapChoice, type MapId } from "../arena/maps";
@@ -115,7 +115,12 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   useEffect(() => {
     const unbindKeys = bindKeyboard(source.localSlot, hotseat ? opponentOf(source.localSlot) : null);
     const unsubscribe = spellInput.subscribe((intent) => {
-      if (intent.kind === "cast") source.cast(intent.spell, intent.slot, intent.power);
+      if (intent.kind === "cast") {
+        // Drop casts the engine would reject (cooldown, before the start, after the end) instead of sending them.
+        const current = source.state();
+        if (!current || castBlocker(current, intent.slot ?? source.localSlot, intent.spell, source.now())) return;
+        source.cast(intent.spell, intent.slot, intent.power);
+      }
       else if (intent.kind === "push") {
         sfx.push();
         source.push(intent.slot);
@@ -209,7 +214,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       <div className={`duel-stage phase-${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
         <RisingEmbers />
-        <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} />
+        <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />
         {state?.struggle && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} />}
         {clashResult && !state?.struggle && (
           <section className={`clash-result ${clashResult.winner ? `player-${clashResult.winner}` : "draw"}`} role="status" key={clashResult.id}>

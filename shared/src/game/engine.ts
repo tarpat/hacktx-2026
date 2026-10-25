@@ -1,5 +1,5 @@
 import { DEFAULT_MATCH_CONFIG, type MatchConfig } from "./config.js";
-import type { CastResult, EndReason, GameEvent, MatchState, PlayerSlot, PlayerState, PowerUpId, Projectile, SpellId, Struggle } from "./types.js";
+import type { CastRejectReason, CastResult, EndReason, GameEvent, MatchState, PlayerSlot, PlayerState, PowerUpId, Projectile, SpellId, Struggle } from "./types.js";
 
 type EventPayload = GameEvent extends infer E ? (E extends GameEvent ? Omit<E, "id" | "at"> : never) : never;
 
@@ -11,6 +11,17 @@ interface ClashPlan {
 export const opponentOf = (slot: PlayerSlot): PlayerSlot => (slot === "A" ? "B" : "A");
 
 const isLive = (state: MatchState) => state.phase === "active" || state.phase === "suddenDeath";
+
+/** Why `slot` can't cast `spell` right now, or null if it can. Clients use this to skip casts the engine would reject. */
+export function castBlocker(state: MatchState, slot: PlayerSlot, spell: SpellId, now: number, config: MatchConfig = DEFAULT_MATCH_CONFIG): CastRejectReason | null {
+  const spellConfig = config.spells[spell];
+  if (!spellConfig) return "unknown";
+  if (!isLive(state)) return "not_active";
+  const player = state.players[slot];
+  if (spellConfig.offensive && now < player.frozenUntil) return "frozen";
+  if (spell === "ultimate") return player.ultimate < config.ultimateMax ? "meter" : null;
+  return now < player.readyAt[spell] ? "cooldown" : null;
+}
 
 function createPlayer(slot: PlayerSlot, config: MatchConfig): PlayerState {
   return {
@@ -84,12 +95,9 @@ export class DuelEngine {
       this.emit(now, { type: "CAST_REJECTED", slot, spell, reason });
       return { ok: false, reason };
     };
-    if (!isLive(this.state)) return reject("not_active");
+    const blocked = castBlocker(this.state, slot, spell, now, this.config);
+    if (blocked) return reject(blocked);
     const player = this.state.players[slot];
-    if (spellConfig.offensive && now < player.frozenUntil) return reject("frozen");
-    if (spell === "ultimate" ? player.ultimate < this.config.ultimateMax : now < player.readyAt[spell]) {
-      return reject(spell === "ultimate" ? "meter" : "cooldown");
-    }
 
     player.stats.casts += 1;
     player.readyAt[spell] = now + this.cooldownFor(player, spell, now);
