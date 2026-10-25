@@ -53,7 +53,7 @@ function writeEnabled(on: boolean) {
 /**
  * Floating webcam panel that casts spells for the local wizard through `spellInput`,
  * the same entry point the keyboard fallback uses. Video is processed locally; the only
- * thing that leaves the browser is the small face snapshot shown on your wizard to your rival.
+ * thing that leaves the browser is the knockout snapshot shown on the victory card.
  */
 export function GestureCamera({
   ultimateReady = true,
@@ -197,7 +197,7 @@ export function GestureCamera({
     });
   }, [enabled]);
 
-  // Lend the webcam to the duel for the wizard's face and the knockout snapshot.
+  // Lend the webcam to the duel for the knockout snapshot on the victory card.
   useEffect(() => {
     setFaceSource(enabled ? videoRef.current : null);
     return () => setFaceSource(null);
