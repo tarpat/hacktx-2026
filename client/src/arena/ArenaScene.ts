@@ -57,6 +57,9 @@ interface StormView {
   target: PlayerSlot;
   cloud: Phaser.GameObjects.Particles.ParticleEmitter;
   sparks: Phaser.GameObjects.Particles.ParticleEmitter;
+  /** Lightning flickering inside the cloud while it builds. */
+  crackle: Phaser.GameObjects.Graphics;
+  crackleAt: number;
 }
 
 interface Release {
@@ -671,9 +674,27 @@ export class ArenaScene extends Phaser.Scene {
       const t = Phaser.Math.Clamp((now - projectile.launchedAt) / Math.max(1, projectile.arrivesAt - projectile.launchedAt), 0, 1);
       storm.cloud.frequency = Phaser.Math.Linear(70, 18, t);
       storm.sparks.frequency = Phaser.Math.Linear(260, 50, t);
+      // Forks flicker under the cloud more often as the strike nears.
+      if (now - storm.crackleAt > Phaser.Math.Linear(420, 110, t)) {
+        storm.crackleAt = now;
+        this.crackle(storm, t);
+      }
       gloom = Math.max(gloom, t * 0.45);
     }
     if (this.storms.size > 0) this.gloom.setAlpha(gloom);
+  }
+
+  /** A short fork dropping out of the cloud, longer as the storm grows. */
+  private crackle(storm: StormView, t: number) {
+    const x = this.stormX(storm.target) + Phaser.Math.Between(-80, 80) * this.unit;
+    const y = this.stormY() + 14 * this.unit;
+    const length = (40 + 90 * t) * this.unit;
+    const points = this.jagged(x, y, x + Phaser.Math.Between(-30, 30) * this.unit, y + length, 6, 12);
+    const g = storm.crackle.clear().setAlpha(1);
+    for (const [width, color, alpha] of [[12, LIGHTNING.glow, 0.25], [4.5, LIGHTNING.glow, 0.6], [1.8, LIGHTNING.core, 1]] as const) {
+      g.lineStyle(width * this.unit, color, alpha).strokePoints(points);
+    }
+    this.tweens.add({ targets: g, alpha: 0, duration: 140 });
   }
 
   private stormY() {
@@ -713,12 +734,14 @@ export class ArenaScene extends Phaser.Scene {
       frequency: 260,
     });
     sparks.setDepth(6);
-    return { target, cloud, sparks };
+    const crackle = this.add.graphics().setDepth(6).setBlendMode(Phaser.BlendModes.ADD);
+    return { target, cloud, sparks, crackle, crackleAt: -Infinity };
   }
 
   /** A forked bolt from the cloud to the target's feet, flickering a few times before it fades. */
   private strike(storm: StormView) {
     storm.sparks.destroy();
+    storm.crackle.destroy();
     storm.cloud.stop();
     this.time.delayedCall(1800, () => storm.cloud.destroy());
 
@@ -726,9 +749,9 @@ export class ArenaScene extends Phaser.Scene {
     const top = { x: this.stormX(storm.target), y: this.stormY() };
     const bolt = this.add.graphics().setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
     // Strike, go dark, restrike: real lightning flickers rather than fading.
-    const flickers: [number, number][] = [[0, 1], [60, 0.25], [110, 1], [200, 0.35], [260, 1], [380, 0.7]];
+    const flickers: [number, number][] = [[0, 1], [50, 0.3], [90, 1], [170, 0.4], [230, 1], [340, 0.5], [400, 1], [520, 0.85]];
     flickers.forEach(([delay, alpha]) => this.time.delayedCall(delay, () => this.drawLightning(bolt.setAlpha(alpha), top.x, top.y, x, y)));
-    this.tweens.add({ targets: bolt, alpha: 0, delay: 440, duration: 260, onComplete: () => bolt.destroy() });
+    this.tweens.add({ targets: bolt, alpha: 0, delay: 600, duration: 320, onComplete: () => bolt.destroy() });
 
     this.playFx("lightning-strike", x, y - 42 * this.unit, 180);
     this.playFx("lightning-burst", x, y - 66 * this.unit, 216);
@@ -750,7 +773,7 @@ export class ArenaScene extends Phaser.Scene {
       return this.jagged(from.x, from.y, from.x + (Math.random() < 0.5 ? -reach : reach), from.y + reach, 5, 16);
     });
     // Wide soft glow, then a narrower bright glow, then the white-hot core.
-    for (const [width, color, alpha] of [[22, LIGHTNING.glow, 0.18], [9, LIGHTNING.glow, 0.5], [3.5, LIGHTNING.core, 1]] as const) {
+    for (const [width, color, alpha] of [[36, LIGHTNING.glow, 0.2], [15, LIGHTNING.glow, 0.55], [5.5, LIGHTNING.core, 1]] as const) {
       g.lineStyle(width * this.unit, color, alpha);
       g.strokePoints(trunk);
       g.lineStyle(width * 0.5 * this.unit, color, alpha);
