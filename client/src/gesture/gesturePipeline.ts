@@ -20,7 +20,7 @@ export class GesturePipeline {
   /** 4-of-6 frame vote: a pose has to persist ~130 ms at 30 fps, which filters single-frame misreads. */
   private smoother = new PoseSmoother(6, 4);
   private stabilizer = new HandStabilizer();
-  /** During a collision challenge, the body tracker supplies beats and hand casting is suspended. */
+  /** During a collision challenge, the circle tracker supplies charges and hand casting is suspended. */
   private struggling = false;
   private gestureState: GestureState = { kind: "IDLE" };
 
@@ -49,7 +49,7 @@ export class GesturePipeline {
     return { hands, pose, rawPose, hand, actions };
   }
 
-  /** Switch between casting and the 6–7 collision challenge. Returns actions that close out a half-made gesture. */
+  /** Switch between casting and the Charge your magic challenge. Returns actions that close out a half-made gesture. */
   setStruggling(on: boolean): GestureAction[] {
     if (on === this.struggling) return [];
     this.struggling = on;

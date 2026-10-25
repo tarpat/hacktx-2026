@@ -15,6 +15,7 @@ import {
   type Struggle,
   type TraitId,
   type PoseSample,
+  type CircleTrace,
   POSE_RACE,
 } from "@spellcaster/shared";
 import { socket } from "../socket";
@@ -33,6 +34,7 @@ export interface DuelSource {
   powerUp(powerUp: PowerUpId, slot?: PlayerSlot): void;
   /** One push in a spell struggle. */
   push(slot?: PlayerSlot): void;
+  circleTrace(trace: CircleTrace, slot?: PlayerSlot): void;
   poseSample(sample: PoseSample, slot?: PlayerSlot): void;
   subscribe(listener: DuelListener): () => void;
   /** Starts a fresh match (practice) or asks the server for a rematch (online). */
@@ -96,6 +98,10 @@ export class LocalDuel implements DuelSource {
     if (slot === "B" && this.mode !== "training") return;
     this.engine.cast(slot, spell, Date.now(), power);
     this.step();
+  }
+
+  circleTrace(trace: CircleTrace, slot: PlayerSlot = this.localSlot) {
+    this.engine.circleTrace(slot, trace, Date.now());
   }
 
   push(slot: PlayerSlot = this.localSlot) {
@@ -182,7 +188,11 @@ export class LocalDuel implements DuelSource {
     const snapshot = this.snapshot(now);
     const botSpell = this.bot?.decide(snapshot, now);
     if (botSpell) this.engine.cast("B", botSpell, now);
-    if (this.bot?.wantsPush(snapshot, now)) this.engine.push("B", now);
+    if (this.bot?.wantsPush(snapshot, now) && snapshot.struggle) {
+      const duration=1800;
+      const points=Array.from({length:49},(_,i)=>({x:.5+.21*Math.cos(i*Math.PI/24),y:.375+.21*Math.sin(i*Math.PI/24),at:i*duration/48}));
+      this.engine.circleTrace("B",{startedAt:snapshot.struggle.startedAt,points},now);
+    }
     if (this.bot && snapshot.struggle?.kind === "pose") {
       const race = snapshot.struggle.poseRace;
       const p = race.progress.B;
@@ -241,6 +251,8 @@ export class OnlineDuel implements DuelSource {
   powerUp(powerUp: PowerUpId) {
     socket.emit("POWER_UP_REQUEST", { powerUp, clientActionId: actionId() });
   }
+
+  circleTrace(trace: CircleTrace) { socket.emit("CIRCLE_TRACE", trace); }
 
   push() {
     socket.emit("STRUGGLE_PUSH");

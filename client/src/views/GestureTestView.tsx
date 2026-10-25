@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { GestureController, type DebugFrame } from "../gesture/GestureController";
 import { SpellPreview } from "./SpellPreview";
-import { drawForearms, drawHands } from "../gesture/drawHand";
-import type { SixSevenFeedback } from "../gesture/sixSevenCounter";
+import { drawHands, drawTraceGuide } from "../gesture/drawHand";
+import type { CircleChargeFeedback } from "../gesture/circleChargeCounter";
 import type { GestureActionEvent, GestureObservation } from "../gesture/types";
 import { compactDetection, RECORDING_ENDPOINT, RECORDING_TARGETS, type GestureRecording, type RecordingLabel } from "../gesture/recording";
 
@@ -46,9 +46,9 @@ export function GestureTestView() {
   const [shieldUp, setShieldUp] = useState(false);
   const [charging, setCharging] = useState(false);
   const [error, setError] = useState("");
-  const [sixSevenMode, setSixSevenMode] = useState(false);
+  const [circleChargeMode, setCircleChargeMode] = useState(false);
   const [beats, setBeats] = useState(0);
-  const [sixSevenFeedback, setSixSevenFeedback] = useState<SixSevenFeedback | null>(null);
+  const [circleChargeFeedback, setCircleChargeFeedback] = useState<CircleChargeFeedback | null>(null);
   const recordingRef = useRef<Recording | null>(null);
   const [label, setLabel] = useState<RecordingLabel>("fireball");
   const [reps, setReps] = useState(5);
@@ -59,9 +59,10 @@ export function GestureTestView() {
     const controller = new GestureController();
     controllerRef.current = controller;
     let nextId = 0;
+    let traceFeedback: CircleChargeFeedback | null = null;
     let shieldTimer: ReturnType<typeof setTimeout> | undefined;
     const unsubscribers = [
-      controller.onSixSevenFeedback(setSixSevenFeedback),
+      controller.onCircleChargeFeedback(feedback => { traceFeedback=feedback; setCircleChargeFeedback(feedback); if(feedback.trace) setBeats(count=>count+1); }),
       controller.onObservation((o) => {
         setObservation(o);
         if (o.status === "ERROR") setError((e) => e || "The camera stopped. Reconnect it and press Start.");
@@ -70,7 +71,6 @@ export function GestureTestView() {
         recordingRef.current?.frames.push(compactDetection(detection));
       }),
       controller.onAction((event) => {
-        if (event.action === "STRUGGLE_PUSH") setBeats((count) => count + 1);
         recordingRef.current?.actions.push({ timestampMs: event.localTimestampMs, action: event.action });
         setLog((entries) => [{ ...event, id: nextId++ }, ...entries].slice(0, 10));
         if (event.action === "SHIELD_CAST") {
@@ -84,8 +84,8 @@ export function GestureTestView() {
       }),
       controller.onDebugFrame((frame) => {
         if (canvasRef.current) {
-          if (frame.body) drawForearms(canvasRef.current, frame.body, frame.hands);
-          else drawHands(canvasRef.current, frame.hands);
+          drawHands(canvasRef.current, frame.hands);
+          if(frame.state === "STRUGGLE") drawTraceGuide(canvasRef.current,traceFeedback);
         }
         setDebug((d) => (d.fps === frame.fps && d.state === frame.state && d.handCount === frame.hands.length
           ? d : { fps: frame.fps, state: frame.state, handCount: frame.hands.length }));
@@ -100,10 +100,10 @@ export function GestureTestView() {
   }, []);
 
   useEffect(() => {
-    controllerRef.current?.setStruggling(sixSevenMode);
+    controllerRef.current?.setStruggling(circleChargeMode);
     setBeats(0);
-    setSixSevenFeedback(null);
-  }, [sixSevenMode]);
+    setCircleChargeFeedback(null);
+  }, [circleChargeMode]);
 
   const start = async () => {
     if (!videoRef.current || !controllerRef.current) return;
@@ -155,7 +155,7 @@ export function GestureTestView() {
     <section className="gesture-test">
       <p className="eyebrow">LOCAL ONLY · NO FRAMES LEAVE THIS BROWSER</p>
       <h1>Gesture test</h1>
-      <label className="six-seven-test-toggle"><input type="checkbox" checked={sixSevenMode} disabled={recordingMs !== null} onChange={(event) => setSixSevenMode(event.target.checked)} /> Test the 6–7 collision gesture</label>
+      <label className="magic-charge-test-toggle"><input type="checkbox" checked={circleChargeMode} disabled={recordingMs !== null} onChange={(event) => setCircleChargeMode(event.target.checked)} /> Test magic charge circles</label>
       <div className={`camera-frame gesture-camera${shieldUp ? " is-shield" : ""}${charging ? " is-charging" : ""}`}>
         <video ref={videoRef} className="mirrored" autoPlay playsInline muted />
         <canvas ref={canvasRef} className="mirrored" width={640} height={480} />
@@ -174,16 +174,17 @@ export function GestureTestView() {
           </select>
           <label>reps <input type="number" min={0} max={30} value={reps} onChange={(e) => setReps(Number(e.target.value))} disabled={recordingMs !== null || label === "idle"} /></label>
           {recordingMs === null
-            ? <button className="primary-button" onClick={startRecording} disabled={!live || sixSevenMode}>● Record</button>
+            ? <button className="primary-button" onClick={startRecording} disabled={!live || circleChargeMode}>● Record</button>
             : <button className="primary-button is-recording" onClick={() => void stopRecording()}>■ Stop & save ({Math.floor(recordingMs / 1000)}s)</button>}
         </div>
         <p className="gesture-hint">{RECORDING_HINTS[label]}{label !== "idle" && ` Do it ${reps}×, then stop.`}</p>
         {saved && <p className="gesture-hint">{saved}</p>}
       </div>
-      {sixSevenMode ? <div className="six-seven-test-feedback">
-        <strong>{beats} {beats === 1 ? "beat" : "beats"}</strong>
-        <p role="status">{sixSevenFeedback?.hint ?? "Start the camera and keep both elbows and wrists in view."}</p>
-        <button className="secondary-button" onClick={() => { controllerRef.current?.retryBodyTracking(); setBeats(0); }}>Reset / retry 6–7 tracking</button>
+      {circleChargeMode ? <div className="magic-charge-test-feedback">
+        <strong>{beats} {beats === 1 ? "circle" : "circles"}</strong>
+        {circleChargeFeedback?.result && <p>{circleChargeFeedback.result.accuracy}% accuracy · {(circleChargeFeedback.result.durationMs/1000).toFixed(2)}s · {circleChargeFeedback.result.score}/100</p>}
+        <p role="status">{circleChargeFeedback?.hint ?? "Point one index finger at the screen."}</p>
+        <button className="secondary-button" onClick={() => { controllerRef.current?.resetCircleTracking(); setBeats(0); }}>Reset circle tracking</button>
       </div> : <SpellPreview lastAction={log[0] ?? null} />}
       <dl className="gesture-stats">
         <div><dt>STATUS</dt><dd>{status}</dd></div>
@@ -194,7 +195,7 @@ export function GestureTestView() {
         <div><dt>HANDS TRACKED</dt><dd>{live ? debug.handCount : 0} / 2</dd></div>
         <div><dt>FPS</dt><dd>{live ? debug.fps : "—"}</dd></div>
       </dl>
-      <p className="gesture-hint">{sixSevenMode ? "Palms up. Rock your forearms up and down. Each wrist lift above its elbow scores one beat." : "✊ hold → ✋ open: fireball · 🙌 both palms: shield · ✌️ peace: ice · 🤘 hook 'em: taurus · ☝️ point up, then drop: ultimate"}</p>
+      <p className="gesture-hint">{circleChargeMode ? "Point your index finger at the screen and trace a precise circle quickly." : "✊ hold → ✋ open: fireball · 🙌 both palms: shield · ✌️ peace: ice · 🤘 hook 'em: taurus · ☝️ point up, then drop: ultimate"}</p>
       <ol className="gesture-log">
         {log.length === 0 && <li className="empty">No actions yet</li>}
         {log.map((entry) => <li key={entry.id}><span>{(entry.localTimestampMs / 1000).toFixed(2)}s</span>{entry.action}</li>)}

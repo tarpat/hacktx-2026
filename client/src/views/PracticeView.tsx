@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { MapPicker, useMapChoice } from "../arena/MapPicker";
 import type { Struggle } from "@spellcaster/shared";
 import { LocalDuel, type LocalMode } from "../game/duelSource";
 import { DuelScreen } from "../hud/DuelScreen";
+import { IntroCutscene, introSeen } from "./IntroCutscene";
 
 const MODES: { mode: LocalMode; label: string }[] = [
   { mode: "training", label: "🎯 Training" },
@@ -12,7 +12,7 @@ const MODES: { mode: LocalMode; label: string }[] = [
 
 /** Buttons that start each collision challenge on demand in training. */
 const CLASHES: { kind: Struggle["kind"]; label: string }[] = [
-  { kind: "pump", label: "⚡ 6–7 clash" },
+  { kind: "pump", label: "⚡ Magic charge" },
   { kind: "pose", label: "🐒 Pose race" },
 ];
 
@@ -30,25 +30,27 @@ export function PracticeView() {
   const requested = params.get("mode");
   const mode = modeFrom(requested);
   const [source, setSource] = useState<LocalDuel | null>(null);
-  const [map, setMap] = useMapChoice();
+  const [showIntro, setShowIntro] = useState(() => !introSeen());
+  const endIntro = useCallback(() => setShowIntro(false), []);
   useEffect(() => {
+    // The match clock starts when the duel is created, so wait until the story is over.
+    if (showIntro) return;
     const duel = new LocalDuel(mode);
     setSource(duel);
     return () => duel.dispose();
-  }, [mode]);
+  }, [mode, showIntro]);
 
+  if (showIntro) return <IntroCutscene onDone={endIntro} />;
   if (!source) return null;
   return (
     <DuelScreen
       key={mode}
       source={source}
       hotseat={mode === "training"}
-      map={mode === "training" ? map : undefined}
       onLeave={() => navigate("/")}
       header={
         <nav className="duel-nav">
           <span className="duel-mode">{mode === "training" ? "TRAINING · YOU CONTROL BOTH WIZARDS" : "PRACTICE"}</span>
-          {mode === "training" && <MapPicker value={map} onChange={setMap} compact />}
           {mode === "training" && CLASHES.map(({ kind, label }) => (
             <button key={kind} onClick={() => source.rehearseClash(kind)}>
               {label}

@@ -5,14 +5,14 @@ export interface BotOptions {
   reflexes: number;
   /** Minimum and maximum delay between attack decisions. */
   thinkMs: [number, number];
-  /** How fast the bot pushes in a spell struggle. */
+  /** Completed circles per second during a magic charge clash. */
   pushesPerSec: number;
 }
 
-export const TRAINING_DUMMY: BotOptions = { reflexes: 0.4, thinkMs: [1_300, 2_800], pushesPerSec: 5 };
+export const TRAINING_DUMMY: BotOptions = { reflexes: 0.4, thinkMs: [1_300, 2_800], pushesPerSec: 1 };
 
 /** Gentler practice opponent: slower to attack and rarely shields. */
-export const EASY_BOT: BotOptions = { reflexes: 0.15, thinkMs: [4_000, 7_000], pushesPerSec: 3 };
+export const EASY_BOT: BotOptions = { reflexes: 0.15, thinkMs: [4_000, 7_000], pushesPerSec: 0.65 };
 
 /**
  * A simple opponent for practice mode and demo fallback. Call `decide` every frame;

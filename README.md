@@ -1,83 +1,119 @@
 # SpellCaster: Wizard Duel
 
-A real-time 1v1 browser duel. npm workspaces: a React/Vite/TypeScript + Phaser client, a Node/Express/Socket.IO server, and a `shared` package holding the event contract and the duel engine.
+A real-time 1v1 browser game where two wizards cast spells with hand gestures, block attacks, and compete in camera-based collision challenges. Built for HackTX 2026 with React, Phaser, MediaPipe, and an authoritative Socket.IO server.
 
-Matching spell collisions choose 50/50 between a **6–7 forearm challenge** and a five-image pose race. In 6–7, rock your forearms up and down with palms up; each wrist lift above its elbow scores a beat. Keep both elbows and wrists visible. You have 6.7 seconds to push the clash toward your rival; SPACE or the on-screen buttons also score (hotseat rival: ENTER). See [6–7 tracking and controls](docs/SIX_SEVEN.md) and [pose race rules](docs/POSE_RACE.md).
+## Run locally
 
-Online, bot and training matches choose uniformly from all three arenas (1/3 each), with a fresh independent draw on every rematch. Hotseat keeps a map picker for testing; its saved choice never affects other modes.
-
-## Getting started
+Use Node.js 24 (the deployment pins 24.13.1) and npm.
 
 ```sh
 npm install
-npm run dev     # shared (watch), server :3001, client :5173
-npm test        # duel engine unit tests
-npm run typecheck
+npm run dev
 ```
 
-Set `CLIENT_ORIGIN` or `VITE_SERVER_URL` when using a different local setup (for example two laptops on the same Wi-Fi).
+Open `http://localhost:5173`. The development command builds and watches the shared package, starts the game server on port 3001, and starts Vite on port 5173.
 
-## Deploy on Render
+For gesture controls, allow camera access and keep your hands visible in good lighting. Camera access requires localhost or HTTPS. Keyboard and on-screen spell buttons are available for ordinary combat; collision challenges have their own camera requirements below. The app does not request a microphone.
 
-The app can run entirely on a Render Web Service: one public URL serves the game and
-its multiplayer server. `render.yaml` contains the deployment settings. Build with
-`npm ci --include=dev && npm run build`, start with `npm start`, and use `/health` as
-the health check. Leave `VITE_SERVER_URL` unset so clients connect to the hosted origin.
-See [deployment instructions](docs/DEPLOYMENT.md) for branch selection and verification.
+## Play
 
-Speech transcription has been dropped. This branch uses the latest game from `main`
-and does not automatically request a microphone.
+- **Online:** create a duel, share the five-character room code, complete calibration, and ready both players. After the match, both players request a rematch.
+- **Practice** (`/practice`): duel an easy bot locally.
+- **Training** (`/practice?mode=training`): control both wizards using separate key sets or spell buttons. Use **Magic charge** and **Pose race** to rehearse collision challenges. Old `?mode=hotseat` links open training.
+- **Gesture test** (`/gesture-test`): inspect hand recognition and test circle tracing.
 
-## Playing
+Online and bot matches select uniformly from three arenas, with a fresh independent selection on each rematch. Training uses the default arena.
 
-- **Online**: lobby → Create a duel / join by code → calibration → ready room → 3-2-1 → duel. After the match both players press Request rematch.
-- **Practice** (`/practice`): you versus the training dummy, or `?mode=hotseat` for two players on one keyboard. Also the demo fallback if the network or camera fails.
+### Spells and controls
 
-| Action | Local wizard | Hotseat wizard |
-| --- | --- | --- |
-| Incendio (fireball) | `Q` | `U` |
-| Protego (shield) | `W` | `I` |
-| Glacius (ice) | `E` | `O` |
-| Fulmen (ultimate) | `R` | `P` |
-| Empower / Haste / Heal power-ups | `1` / `2` / `3` | |
+| Spell | Gesture | Your keys | Training rival | Default effect |
+| --- | --- | --- | --- | --- |
+| Incendio | Make a fist, then open your hand | `Q` | `U` | 20 damage; 2.5 s cooldown |
+| Protego | Raise both palms toward the camera | `W` | `I` | Block for 1.2 s; 3 s cooldown |
+| Glacius | Hold a peace sign | `E` | `O` | 10 damage, freeze attacks for 1.2 s; 5 s cooldown |
+| Taurus | Raise index and pinky fingers | `T` | `[` | 15 damage, breaks shields; 4 s cooldown |
+| Fulmen | Point upward, then lower your finger | `R` | `P` | 30 damage; requires a full ultimate meter; deals half damage through shields |
 
-## Rules (defaults in `shared/src/game/config.ts`)
+Hits, blocks, and damage taken charge the ultimate meter. The engine also supports Empower (+50% on the next attack), Haste (cooldowns ×0.6 for 6 s), and Heal (+15 HP), with a shared 12 s power-up cooldown per player. These are available through the input bridge; number keys are not bound to power-ups.
 
-- 100 HP each, 3 s countdown, 60 s round. Higher HP wins on time; a tie goes to 15 s sudden death where the next hit wins, then a draw.
-- Incendio 20 dmg, 2.5 s cooldown. Glacius 10 dmg and freezes attacks for 1.2 s, 5 s cooldown. Taurus 15 dmg and smashes through shields, 4 s cooldown. Protego blocks one spell arriving within its 1.2 s window, 3 s cooldown.
-- Each wizard rolls a trait during the countdown (bot and online matches; training has a 🎲 Roll traits button): Ironhide +10% max health, Pyromancer Incendio +25% damage, Frostbite Glacius freezes 2.5× as long, Stormcaller Fulmen charges 50% faster, Siphon heals 10% of damage dealt, Stampede Taurus +25% damage. Each wins about 56–63% of bot-vs-bot duels against no trait.
-- Hits, blocks and damage taken charge the Fulmen meter; Fulmen deals 30 and breaks through shields at half damage.
-- Opposing attacks launched within 350 ms clash mid-arena: the stronger spell continues with the difference, equal spells fizzle.
-- Power-ups: one per 12 s. Empower (+50% on the next attack), Haste (cooldowns x0.6 for 6 s), Heal (+15 HP).
+### Match rules and collisions
+
+Each wizard starts with 100 HP. A 3 s countdown precedes a 60 s round. Higher HP wins when time runs out; tied rounds enter 15 s sudden death, where the next hit wins, followed by a draw if neither player lands a hit.
+
+Opposing fireballs and ice spells launched within 500 ms can collide; Taurus and Fulmen bypass collisions. Different spells resolve by damage: the stronger continues with the difference. Matching spells randomly select one of two challenges with equal probability:
+
+- **Charge your magic:** point your index finger toward the screen and trace the golden circle. Your best completed trace during 15 s wins. Accuracy contributes 80% and speed 20%; rounded-score ties use accuracy, then completion time. This challenge requires the camera; keys and taps do not score. See [circle tracing rules](docs/MAGIC_CHARGE.md).
+- **Pose race:** after 3 s preparation, match five reference poses in order within 25 s. The first player to finish wins the combined spell damage; if neither finishes, both spells fizzle. Combat timers pause during the race. Online play requires camera tracking; local practice offers an explicit keyboard assist. See [pose race rules](docs/POSE_RACE.md).
+
+Each wizard rolls a trait at the start of bot and online matches, revealed on a reel and shown on the health bars (training has a 🎲 Roll traits button): Ironhide +10% max health, Pyromancer Incendio +25% damage, Frostbite Glacius freezes 2.5× as long, Stormcaller Fulmen charges 50% faster, Siphon heals 10% of damage dealt, Stampede Taurus +25% damage. Each wins about 56–63% of bot-vs-bot duels against no trait.
+
+Combat defaults live in [`shared/src/game/config.ts`](shared/src/game/config.ts).
+
+## Development and validation
+
+```sh
+npm test                 # shared engine, server integration, and gesture tests
+npm run typecheck        # TypeScript checks across workspaces
+npm run build            # production build of shared, server, and client
+npm start                # serve the built app and multiplayer on :3001
+```
+
+After building, run the production hosting browser checks with:
+
+```sh
+npm run test:hosting --workspace @spellcaster/client
+```
+
+These require Playwright Chromium (`npx playwright install chromium`), or an installed browser selected with `PLAYWRIGHT_CHANNEL=chrome` or `msedge`. Automated tests cover synthetic gesture inputs; real camera recognition still needs validation with people and the intended lighting.
+
+### Configuration
+
+| Variable | Purpose |
+| --- | --- |
+| `PORT` | Game server port; defaults to `3001` |
+| `DEV_SERVER_URL` | Vite's development proxy target when the server runs elsewhere |
+| `VITE_SERVER_URL` | Client server URL for a separate backend; leave unset for same-origin hosting |
+| `CLIENT_ORIGIN` | Comma-separated allowed frontend origins when hosting the client separately |
+| `NODE_ENV=production` | Require the built client when starting the server |
+
+## Deploy
+
+[`render.yaml`](render.yaml) configures a single Render Node Web Service that serves both the built game and Socket.IO. Deploy from `main` with:
+
+- **Build:** `npm ci --include=dev && npm run build`
+- **Start:** `npm start`
+- **Health check:** `/health`
+
+Leave `VITE_SERVER_URL` unset so clients connect to the hosted origin. Rooms and matches live in process memory, so use one server instance; restarts and redeploys clear them. See [deployment instructions](docs/DEPLOYMENT.md) for verification steps; its deployment-branch references describe the original hosting rollout, and the current source branch is `main`.
 
 ## Architecture
 
-- `shared/src/game/engine.ts`: deterministic `DuelEngine`. Every call takes the current time, so the same rules run on the server (authoritative) and in the browser (practice). It emits typed `GameEvent`s (`SPELL_CAST`, `DAMAGE_APPLIED`, `SPELL_BLOCKED`, `SPELL_CLASH`, `MATCH_END`, ...).
-- `server/src/match.ts`: one `MatchRunner` per room. Starts when both players are ready, ticks every 50 ms, de-duplicates `CAST_REQUEST`s by `clientActionId`, and broadcasts `MATCH_STATE` with a server timestamp.
-- `client/src/game/duelSource.ts`: `LocalDuel` (engine + bot in the browser) and `OnlineDuel` (socket, server clock offset) behind one interface.
-- `client/src/hud/`: React HUD (health bars, clock, spell tray, power-ups, narrator banner, victory screen).
-- `client/src/arena/ArenaScene.ts`: Phaser scene that only renders state and reacts to events.
-- `client/src/theme.css` + `client/src/theme.ts`: the fairy-tale palette. Swap hex values there to restyle everything.
+| Location | Responsibility |
+| --- | --- |
+| `shared/src/game/` | Deterministic duel engine, combat configuration, and typed game events |
+| `server/src/` | Room sessions, authoritative matches, input validation, and production web hosting |
+| `client/src/game/` | Local engine/bot and online socket adapters behind one duel interface |
+| `client/src/gesture/` | MediaPipe tracking, gesture recognition, circle tracing, and pose matching |
+| `client/src/hud/` | Health, spells, clock, collision challenges, and match results |
+| `client/src/arena/` | Phaser arenas, animated wizards, and spell effects |
+| `client/src/audio/` | Sound effects and audio controls |
 
-## Input integration
-
-Gesture, keyboard and button actions use the shared input bridge:
+Gesture, keyboard, and button actions share the input bridge:
 
 ```ts
 import { spellInput } from "./game/input";
 
-spellInput.cast("fireball"); // fist held, then open palm release
-spellInput.cast("shield");   // open palm
-spellInput.cast("ice");      // two fingers
-spellInput.powerUp("empower"); // explicit power-up input
+spellInput.cast("fireball");
+spellInput.cast("taurus");
+spellInput.powerUp("empower");
 ```
 
-It is also exposed as `window.spellcaster` for quick console testing.
+The same bridge is exposed as `window.spellcaster` for browser-console testing.
 
-## Not done yet
+Hand and face inference runs in the browser. The face model requires a connection on first load. Camera face snapshots can be relayed to the rival for in-game portraits; challenge observations and circle paths are sent to the server for scoring. Pose observations are client-reported, so they are not an anti-cheat system. A disconnected player can reclaim their seat within 30 s using the browser's room session token.
 
-Gesture/camera integration, production audio, automatic reconnect UX, operator demo controls, and the report's sustained-pose beam-clash feature remain follow-on work. Rejoining within the 30-second grace period can reclaim the same seat using the browser's room session token.
+## Project references and credits
 
-## Planning documents
+See [docs/](docs/README.md) for the original report, game design, team assignments, implementation history, and integration contract. Historical planning documents may describe earlier behavior; the source code defines the current game.
 
-See [docs/](docs/README.md) for the original report, game design, team assignments, implementation record, and current integration contract.
+Spell effects by [Viktor Hahn](https://v-ktor.itch.io/spell-animations) (CC BY 4.0), [TornadoGames](https://tornadogames.itch.io/magic-sparksattacks-for-the-devs), and [Kenney](https://kenney.nl/assets/particle-pack). Bull run cycle by [reivaxcorp](https://opengameart.org/content/bull-run-cycle) and gallop sound by [Alan McKinney](https://opengameart.org/node/132682) (CC BY 3.0).

@@ -36,8 +36,6 @@ interface WizardConfig {
   staffX: number;
   staffY: number;
   orbColor: number;
-  /** Where the face is in the art, as fractions of its width and height, and its diameter. */
-  face: { x: number; y: number; size: number };
 }
 
 const WIZARD_CONFIGS: Record<PlayerSlot, WizardConfig> = {
@@ -49,7 +47,6 @@ const WIZARD_CONFIGS: Record<PlayerSlot, WizardConfig> = {
     staffX: 56,
     staffY: -91,
     orbColor: 0xffe27a,
-    face: { x: 0.56, y: 0.35, size: 0.26 },
   },
   B: {
     texture: "wizard-purple",
@@ -59,7 +56,6 @@ const WIZARD_CONFIGS: Record<PlayerSlot, WizardConfig> = {
     staffX: 47,
     staffY: -97,
     orbColor: 0xc9a8f0,
-    face: { x: 0.57, y: 0.29, size: 0.23 },
   },
 };
 
@@ -133,8 +129,6 @@ export class WizardRig {
   private flashUntil = 0;
   private cheering = false;
   private charged = false;
-  /** The player's webcam face, pasted over the wizard's. */
-  private face: Phaser.GameObjects.Image | null = null;
 
   constructor(scene: Phaser.Scene, slotOrStyle: PlayerSlot | WizardStyle, slotHint?: PlayerSlot) {
     const slot: PlayerSlot =
@@ -180,24 +174,6 @@ export class WizardRig {
 
     this.castNode.add([this.staffGlow, this.castOrb]);
     this.rig.add(this.castNode);
-  }
-
-  /** Shows a webcam face on the wizard's head, or the drawn face again with null. */
-  setFace(textureKey: string | null) {
-    if (!textureKey) {
-      this.face?.destroy();
-      this.face = null;
-      return;
-    }
-    if (!this.face) {
-      this.face = this.scene.add.image(0, 0, textureKey);
-      this.rig.add(this.face);
-    } else {
-      this.face.setTexture(textureKey);
-    }
-    const diameter = this.cfg.face.size * this.width * this.baseScale;
-    this.face.setScale(diameter / Math.max(1, this.face.width));
-    this.face.setData("base", this.face.scaleX);
   }
 
   play(action: RigAction, now: number, options: { color?: number; releaseMs?: number; onRelease?: () => void } = {}) {
@@ -315,14 +291,6 @@ export class WizardRig {
       strip.setPosition(left * sx + this.offsetAt(h, lean, lag, head), (y0 - this.height) * s * scaleY);
       if (flash) strip.setTintFill(0xffffff);
       else if (strip.isTinted) strip.clearTint();
-    }
-    if (this.face) {
-      const { x, y } = this.cfg.face;
-      const base = this.face.getData("base") as number;
-      this.face.setPosition((x - this.cfg.originX) * this.width * s + this.offsetAt(1 - y, lean, lag, head), (y * this.height - this.height) * s * scaleY);
-      this.face.setScale(base, base * scaleY).setRotation(lean * 0.35 + head * 0.5);
-      if (flash) this.face.setTintFill(0xffffff);
-      else if (this.face.isTinted) this.face.clearTint();
     }
     const staffH = -this.cfg.staffY / (this.height * s);
     this.castNode.setPosition(this.cfg.staffX + this.offsetAt(staffH, lean, lag, head), this.cfg.staffY * scaleY);

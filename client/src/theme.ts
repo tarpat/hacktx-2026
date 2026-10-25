@@ -56,7 +56,7 @@ export const art = {
 
 /** Texture keys and files the arena loads. */
 export const arenaTextures = [
-  "path", "ground", "platform-upper",
+  "path", "ground",
   "fireball", "fireball-impact", "ice",
   "shield", "shield-shatter", "frozen", "ultimate-aura", "clash", "hit-sparks",
   "empower", "haste", "frog", "teapot",

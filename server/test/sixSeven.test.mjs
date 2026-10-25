@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { io } from "socket.io-client";
 
-test("online 6–7 beats synchronize both clients and score the authenticated rival", { timeout: 20_000 }, async (t) => {
+test("online circle traces are scored by the server for the authenticated rival", { timeout: 30_000 }, async (t) => {
   const entry = new URL("../dist/index.js", import.meta.url).href;
   const child = spawn(process.execPath, ["--input-type=module", "--eval", `Math.random = () => 0.1; await import(${JSON.stringify(entry)})`], {
     env: { ...process.env, PORT: "0", NODE_ENV: "production", CLIENT_ORIGIN: "" }, stdio: ["ignore", "pipe", "pipe"],
@@ -32,7 +32,7 @@ test("online 6–7 beats synchronize both clients and score the authenticated ri
   a.on("MATCH_STATE", (state, events) => { latest.A = state; seen.push(...events); });
   b.on("MATCH_STATE", (state) => { latest.B = state; });
   const until = async (predicate) => {
-    const deadline = Date.now() + 5000;
+    const deadline = Date.now() + 18_000;
     while (!predicate()) {
       if (Date.now() > deadline) throw new Error("Expected synchronized match state did not arrive");
       await delay(25);
@@ -46,13 +46,19 @@ test("online 6–7 beats synchronize both clients and score the authenticated ri
   await a.timeout(3000).emitWithAck("CAST_REQUEST", { spell: "fireball", clientActionId: "six-seven-a" });
   await b.timeout(3000).emitWithAck("CAST_REQUEST", { spell: "fireball", clientActionId: "six-seven-b" });
   await until(() => latest.A?.struggle?.kind === "pump" && latest.B?.struggle?.kind === "pump");
-  assert.equal(latest.A.struggle.endsAt - latest.A.struggle.startedAt, 6700);
+  assert.equal(latest.A.struggle.endsAt - latest.A.struggle.startedAt, 15000);
   assert.deepEqual(latest.A.struggle.pushes, { A: 0, B: 0 });
-  for (let i = 0; i < 15; i++) {
-    b.emit("STRUGGLE_PUSH", { slot: "A" }); // Payload cannot impersonate the other socket's wizard.
-    await delay(130);
-  }
-  await until(() => !latest.A.struggle && !latest.B.struggle && latest.A.players.A.hp < latest.A.players.A.maxHp && latest.B.players.A.hp === latest.A.players.A.hp);
+  const startedAt=latest.B.struggle.startedAt;
+  b.emit("CIRCLE_TRACE",{startedAt:startedAt-1,points:[]});
+  b.emit("STRUGGLE_PUSH",{slot:"A"});
+  await delay(1700);
+  const points=Array.from({length:49},(_,i)=>({x:.5+.22*Math.cos(i*Math.PI/24),y:.375+.22*Math.sin(i*Math.PI/24),at:i*30}));
+  b.emit("CIRCLE_TRACE",{startedAt,points,slot:"A",score:0});
+  await until(()=>latest.A.struggle?.traceScores?.B?.score>90);
+  assert.equal(latest.A.struggle.traceScores.A,null);
+  assert.deepEqual(latest.A.struggle.traceScores,latest.B.struggle.traceScores);
+  await until(() => !latest.A.struggle && !latest.B.struggle);
+  await until(()=>latest.A.players.A.hp<latest.A.players.A.maxHp);
   const clash = seen.find((event) => event.type === "SPELL_CLASH");
   assert.equal(clash?.winner, "B");
   assert.equal(clash?.challenge, "pump");
