@@ -106,6 +106,18 @@ io.on("connection", (socket) => {
     callback?.(ack);
   });
 
+  // Names and webcam faces are just relayed; cap their size so nobody can flood the room.
+  socket.on("FLAIR", (flair) => {
+    const slot = roomCode ? rooms.slotOf(roomCode, socket.id) : null;
+    if (!roomCode || !slot || !flair || typeof flair !== "object") return;
+    const image = (value: unknown) => typeof value === "string" && value.startsWith("data:image/") && value.length <= 60_000;
+    const patch: { name?: string; face?: string; ko?: string } = {};
+    if (typeof flair.name === "string") patch.name = flair.name.slice(0, 20);
+    if (image(flair.face)) patch.face = flair.face;
+    if (image(flair.ko)) patch.ko = flair.ko;
+    if (Object.keys(patch).length) socket.to(roomCode).emit("FLAIR", slot, patch);
+  });
+
   socket.on("STRUGGLE_PUSH", () => {
     const runner = roomCode ? matches.get(roomCode) : undefined;
     const slot = roomCode ? rooms.slotOf(roomCode, socket.id) : null;

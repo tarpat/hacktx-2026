@@ -4,6 +4,7 @@ import {
   DuelEngine,
   EASY_BOT,
   makeMatchConfig,
+  type FlairPatch,
   randomStageId,
   type GameEvent,
   type MatchState,
@@ -14,6 +15,7 @@ import {
   POSE_RACE,
 } from "@spellcaster/shared";
 import { socket } from "../socket";
+import { setFlair } from "./flair";
 
 export type DuelListener = (state: MatchState, events: GameEvent[]) => void;
 
@@ -32,6 +34,8 @@ export interface DuelSource {
   subscribe(listener: DuelListener): () => void;
   /** Starts a fresh match (practice) or asks the server for a rematch (online). */
   rematch(): void;
+  /** Sends your name or face to the rival (online only). */
+  shareFlair?(flair: FlairPatch): void;
   dispose(): void;
 }
 
@@ -156,6 +160,7 @@ export class OnlineDuel implements DuelSource {
   private synced = false;
   private readonly listeners = new Set<DuelListener>();
   private readonly onState: DuelListener;
+  private readonly onFlair = (slot: PlayerSlot, patch: FlairPatch) => setFlair(slot, patch);
 
   constructor(readonly localSlot: PlayerSlot) {
     this.onState = (state, events) => {
@@ -169,6 +174,11 @@ export class OnlineDuel implements DuelSource {
       this.listeners.forEach((listener) => listener(state, events));
     };
     socket.on("MATCH_STATE", this.onState);
+    socket.on("FLAIR", this.onFlair);
+  }
+
+  shareFlair(flair: FlairPatch) {
+    socket.emit("FLAIR", flair);
   }
 
   now() {
@@ -208,6 +218,7 @@ export class OnlineDuel implements DuelSource {
 
   dispose() {
     socket.off("MATCH_STATE", this.onState);
+    socket.off("FLAIR", this.onFlair);
     this.listeners.clear();
   }
 }
