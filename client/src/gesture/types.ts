@@ -12,7 +12,7 @@ export type GestureAction =
   | "ICE_CAST"
   /** 🤘 Hook 'em, held. */
   | "TAURUS_CAST"
-  /** One confirmed forearm lift during the 6–7 collision challenge. */
+  /** One completed hand circle during the Charge your magic challenge. */
   | "STRUGGLE_PUSH";
 
 export type TrackingStatus = "CAMERA_OFF" | "STARTING" | "TRACKING" | "NO_HAND" | "ERROR";

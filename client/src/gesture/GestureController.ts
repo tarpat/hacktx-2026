@@ -1,10 +1,9 @@
-import type { FaceLandmarker, PoseLandmarker } from "@mediapipe/tasks-vision";
+import type { FaceLandmarker } from "@mediapipe/tasks-vision";
 import { POSE_RACE, type RacePoseId } from "@spellcaster/shared";
 import { loadRaceFaceTracker, RaceFaceReader } from "./raceFaceTracking";
 import { matchRacePose, type PoseFeedback } from "./racePoseMatcher";
 import { getDetector, type HandDetector } from "./handDetector";
-import { SixSevenCounter, type BodyLandmark, type SixSevenFeedback } from "./sixSevenCounter";
-import { loadSixSevenTracker } from "./sixSevenTracking";
+import { CircleChargeCounter, type CircleChargeFeedback } from "./circleChargeCounter";
 import { GesturePipeline, type PipelineFrame } from "./gesturePipeline";
 import { DEFAULT_TIMINGS, type GestureState, type GestureTimings } from "./gestureStateMachine";
 import type { GestureAction, GestureActionEvent, GestureObservation, Handedness, HandPose, Landmark, TrackingStatus } from "./types";
@@ -13,7 +12,6 @@ import type { GestureAction, GestureActionEvent, GestureObservation, Handedness,
 export interface DebugFrame {
   /** One entry per tracked hand (0–2). */
   hands: Landmark[][];
-  body?: BodyLandmark[];
   fps: number;
   state: GestureState["kind"] | "STRUGGLE";
 }
@@ -42,23 +40,16 @@ export class GestureController {
   /** Bumped on every start/stop so a stale async start can detect it was cancelled. */
   private generation = 0;
   private lastVideoTime = -1;
-  private sixSeven = new SixSevenCounter();
-  private bodyTracker: PoseLandmarker | null = null;
-  private bodyLoading = false;
-  private bodyError = false;
-  private lastBodyFrame = -Infinity;
-  private sixSevenHands: Landmark[][] = [];
-  private sixSevenHandsAt = -Infinity;
-  private sixSevenListeners = new Set<(feedback: SixSevenFeedback) => void>();
+  private circleCharge = new CircleChargeCounter();
+  private circleChargeListeners = new Set<(feedback: CircleChargeFeedback) => void>();
   /** Invalidates in-flight hand detections when the input mode changes. */
   private inputEpoch = 0;
-  /** During a spell struggle, forearm lifts push instead of casting. */
+  /** During a spell struggle, hand circles push instead of casting. */
   private struggling = false;
   private pipeline: GesturePipeline;
   private raceTarget: RacePoseId | null = null;
   private faceTracker: FaceLandmarker | null = null;
   private faceLoad: Promise<void> = Promise.resolve();
-  private bodyLoad: Promise<void> = Promise.resolve();
   private faceReader: RaceFaceReader | null = null;
   private faceLoading = false;
   private faceError = false;
@@ -116,7 +107,6 @@ export class GestureController {
 
       // Preload alongside normal play so a collision does not wait for the face model.
       this.prepareFaceTracker();
-      this.prepareBodyTracker();
 
       this.setStatus("NO_HAND");
       this.loop(detector, generation);
@@ -128,16 +118,12 @@ export class GestureController {
     }
   }
 
-  /** Switch between casting and the 6–7 collision challenge. */
+  /** Switch between casting and the Charge your magic challenge. */
   setStruggling(on: boolean): void {
     if (on === this.struggling) return;
     this.struggling = on;
     this.inputEpoch++;
-    this.sixSeven.reset();
-    this.lastBodyFrame = -Infinity;
-    this.sixSevenHands = [];
-    this.sixSevenHandsAt = -Infinity;
-    if (on && this.video && !this.raceTarget) this.prepareBodyTracker();
+    this.circleCharge.reset();
     this.emitActions(this.pipeline.setStruggling(on), performance.now());
   }
 
@@ -159,21 +145,13 @@ export class GestureController {
     return () => this.raceListeners.delete(callback);
   }
 
-  onSixSevenFeedback(callback: (feedback: SixSevenFeedback) => void): () => void {
-    this.sixSevenListeners.add(callback);
-    return () => this.sixSevenListeners.delete(callback);
+  onCircleChargeFeedback(callback: (feedback: CircleChargeFeedback) => void): () => void {
+    this.circleChargeListeners.add(callback);
+    return () => this.circleChargeListeners.delete(callback);
   }
 
-  retryBodyTracking(): void {
-    this.bodyError = false;
-    this.sixSeven.reset();
-    this.prepareBodyTracker();
-  }
-
-  private prepareBodyTracker(): void {
-    if (this.bodyTracker || this.bodyLoading || this.bodyError) return;
-    this.bodyLoading = true;
-    this.bodyLoad = loadSixSevenTracker().then((tracker) => { this.bodyTracker = tracker; }).catch(() => { this.bodyError = true; }).finally(() => { this.bodyLoading = false; });
+  resetCircleTracking(): void {
+    this.circleCharge.reset();
   }
 
   private prepareFaceTracker(): void {
@@ -182,9 +160,9 @@ export class GestureController {
     this.faceLoad = loadRaceFaceTracker().then((tracker) => { this.faceTracker = tracker; }).catch(() => { this.faceError = true; }).finally(() => { this.faceLoading = false; });
   }
 
-  /** Resolves once the preloaded face and body models have finished (or failed) loading; loading them stalls the page. */
+  /** Resolves once the preloaded face model have finished (or failed) loading; loading them stalls the page. */
   whenWarm(): Promise<void> {
-    return Promise.allSettled([this.faceLoad, this.bodyLoad]).then(() => undefined);
+    return Promise.allSettled([this.faceLoad]).then(() => undefined);
   }
 
   stop(): void {
@@ -220,29 +198,22 @@ export class GestureController {
       if (generation !== this.generation || !this.video) return;
       this.rafId = requestAnimationFrame(tick);
       const video = this.video;
-      const bodyMode = this.struggling && !this.raceTarget;
-      // Keep pose scoring live while the worker processes a hand-overlay frame.
-      if ((!bodyMode && busy) || video.videoWidth === 0 || video.currentTime === this.lastVideoTime) return;
+      if (busy || video.videoWidth === 0 || video.currentTime === this.lastVideoTime || document.hidden) return;
       this.lastVideoTime = video.currentTime;
-
       const now = performance.now();
-      // Cap pose scoring and the hand overlay at 20 Hz. Hand detections in this
-      // mode are visual only; they must never cast spells or score fist flips.
-      if (bodyMode) {
-        if (now - this.lastBodyFrame < 50 || document.hidden) return;
-        this.lastBodyFrame = now;
-        this.processBodyFrame(video, now);
-        if (busy) return;
-      }
       const epoch = this.inputEpoch;
       busy = true;
       detector.detect(video, now).then(
         ({ landmarks: raw, handedness }) => {
           busy = false;
           if (generation !== this.generation || epoch !== this.inputEpoch || document.hidden) return;
-          if (bodyMode) {
-            this.sixSevenHands = this.pipeline.step(raw, handedness, now, false).hands;
-            this.sixSevenHandsAt = now;
+          if (this.struggling && !this.raceTarget) {
+            const feedback = this.circleCharge.update(raw, now);
+            this.setStatus(feedback.visible ? "TRACKING" : "NO_HAND");
+            this.hand = undefined;
+            for (const listener of this.circleChargeListeners) listener(feedback);
+            if (feedback.push) this.emitActions(["STRUGGLE_PUSH"], now);
+            this.notify("NONE", "NONE", raw, now);
             return;
           }
           for (const listener of this.detectionListeners) listener({ timestampMs: now, landmarks: raw, handedness });
@@ -250,31 +221,17 @@ export class GestureController {
         },
         () => {
           busy = false;
+          if (generation !== this.generation || epoch !== this.inputEpoch || document.hidden) return;
+          if (this.struggling && !this.raceTarget) {
+            this.circleCharge.reset();
+            this.setStatus("NO_HAND");
+            for (const listener of this.circleChargeListeners) listener({ visible: false, progress: 0, hint: "Hand tracking interrupted. Show your hand again or restart the camera." });
+            this.notify("NONE", "NONE", [], now);
+          }
         },
       );
     };
     this.rafId = requestAnimationFrame(tick);
-  }
-
-  private processBodyFrame(video: HTMLVideoElement, now: number): void {
-    let points: BodyLandmark[] = [];
-    let interrupted = false;
-    let hint = this.bodyError ? "6–7 tracking unavailable. Retry tracking or use SPACE / tap." : "Loading 6–7 tracking… Use SPACE / tap while you wait.";
-    if (this.bodyTracker) {
-      try {
-        points = this.bodyTracker.detectForVideo(video, now).landmarks[0] ?? [];
-      } catch {
-        interrupted = true;
-        hint = "Tracking interrupted. Keep elbows in view or use SPACE / tap.";
-      }
-    }
-    const feedback = this.sixSeven.update(points, now);
-    if (this.bodyTracker && !interrupted) hint = feedback.hint;
-    this.setStatus(feedback.visible ? "TRACKING" : "NO_HAND");
-    this.hand = undefined;
-    for (const listener of this.sixSevenListeners) listener({ ...feedback, hint });
-    if (feedback.push) this.emitActions(["STRUGGLE_PUSH"], now);
-    this.notify("NONE", "NONE", now - this.sixSevenHandsAt <= 150 ? this.sixSevenHands : [], now, points);
   }
 
   private processFrame({ hands, pose, rawPose, hand, actions }: PipelineFrame, now: number) {
@@ -302,7 +259,7 @@ export class GestureController {
     this.notify(pose, rawPose, hands, now);
   }
 
-  private notify(pose: HandPose, rawPose: HandPose, hands: Landmark[][], now: number, body?: BodyLandmark[]) {
+  private notify(pose: HandPose, rawPose: HandPose, hands: Landmark[][], now: number) {
     for (const listener of this.observationListeners) {
       listener({ pose, rawPose, status: this.status, hand: this.hand, timestampMs: now });
     }
@@ -310,7 +267,7 @@ export class GestureController {
     this.frameTimes.push(now);
     while (this.frameTimes.length > 0 && now - this.frameTimes[0] > 1000) this.frameTimes.shift();
     for (const listener of this.debugListeners) {
-      listener({ hands, body, fps: this.frameTimes.length, state: this.pipeline.stateKind });
+      listener({ hands, fps: this.frameTimes.length, state: this.pipeline.stateKind });
     }
   }
 
@@ -323,10 +280,7 @@ export class GestureController {
   /** Force CHARGE_CANCEL so the game never shows a dangling charge. */
   private flushGestureState() {
     this.inputEpoch++;
-    this.sixSeven.reset();
-    this.lastBodyFrame = -Infinity;
-    this.sixSevenHands = [];
-    this.sixSevenHandsAt = -Infinity;
+    this.circleCharge.reset();
     this.emitActions(this.pipeline.reset(), performance.now());
   }
 

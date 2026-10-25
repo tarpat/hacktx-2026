@@ -2,7 +2,7 @@
 
 A real-time 1v1 browser duel. npm workspaces: a React/Vite/TypeScript + Phaser client, a Node/Express/Socket.IO server, and a `shared` package holding the event contract and the duel engine.
 
-Matching spell collisions choose 50/50 between a **6–7 forearm challenge** and a five-image pose race. In 6–7, rock your forearms up and down with palms up; each wrist lift above its elbow scores a beat. Keep both elbows and wrists visible. You have 6.7 seconds to push the clash toward your rival; SPACE or the on-screen buttons also score (hotseat rival: ENTER). See [6–7 tracking and controls](docs/SIX_SEVEN.md) and [pose race rules](docs/POSE_RACE.md).
+Matching spell collisions choose 50/50 between **Charge your magic** and a five-image pose race. Draw big circles with one hand, in either direction; each full circle adds a charge. Keep your hand visible. You have 6.7 seconds to push the clash toward your rival; SPACE or the on-screen buttons also score (training rival: ENTER). See [magic charge tracking and controls](docs/MAGIC_CHARGE.md) and [pose race rules](docs/POSE_RACE.md).
 
 Online, bot and training matches choose uniformly from all three arenas (1/3 each), with a fresh independent draw on every rematch. Hotseat keeps a map picker for testing; its saved choice never affects other modes.
 

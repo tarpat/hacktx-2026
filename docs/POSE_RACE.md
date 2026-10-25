@@ -1,6 +1,6 @@
 # Collision pose race
 
-Matching airborne spells use one server-side random draw per collision: below 0.5 starts the [6–7 forearm challenge](SIX_SEVEN.md); 0.5 and above starts a pose race. Different spell collisions retain their damage-based resolution. Both online players receive the same event and sequence.
+Matching airborne spells use one server-side random draw per collision: below 0.5 starts the [magic charge circle challenge](MAGIC_CHARGE.md); 0.5 and above starts a pose race. Different spell collisions retain their damage-based resolution. Both online players receive the same event and sequence.
 
 The race has a three-second preparation period and 25 seconds to finish all five supplied images in order: finger to mouth, tongue out, finger to mouth again, hands together with a gasp, one raised finger with a grin. The grin accepts either an index or middle finger. The first and third images intentionally appear separately. Either hand works. First to finish wins the combined spell damage; if neither finishes, both spells fizzle, even if one player has a partial lead. Online ordering uses server receipt time, so network latency can affect a close finish.
 

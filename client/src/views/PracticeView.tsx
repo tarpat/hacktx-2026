@@ -12,7 +12,7 @@ const MODES: { mode: LocalMode; label: string }[] = [
 
 /** Buttons that start each collision challenge on demand in training. */
 const CLASHES: { kind: Struggle["kind"]; label: string }[] = [
-  { kind: "pump", label: "⚡ 6–7 clash" },
+  { kind: "pump", label: "⚡ Magic charge" },
   { kind: "pose", label: "🐒 Pose race" },
 ];
 
