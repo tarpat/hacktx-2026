@@ -901,7 +901,7 @@ kbd {
 
 /* ---------- overlays ---------- */
 
-.countdown {
+.match-countdown {
   position: absolute;
   inset: 0;
   display: grid;
@@ -910,7 +910,7 @@ kbd {
   background: radial-gradient(circle, #120d2b55, transparent 60%);
 }
 
-.countdown span {
+.match-countdown span {
   font: 900 clamp(90px, 16vw, 180px) var(--font-title);
   color: var(--gold-soft);
   text-shadow: 0 0 50px var(--gold), 0 6px 0 var(--plum);
@@ -2598,7 +2598,7 @@ body {
 /* Numbers and status words read better in the ornate display face than in gothic. */
 .health-value,
 .spell-state,
-.countdown span { font-family: var(--font-display); }
+.match-countdown span { font-family: var(--font-display); }
 .spell-name { font-family: var(--font-label); }
 
 /* Brand lockup: keep the lozenge on the text's centre line everywhere. */
