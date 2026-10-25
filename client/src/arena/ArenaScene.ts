@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile, type SpellId } from "@spellcaster/shared";
 import { arenaTextures, art, palette, spellColor, textureUrl } from "../theme";
 import { MAP_ORDER, MAPS, type MapId } from "./maps";
+import { StruggleBeams } from "./StruggleBeams";
 import { RELEASE_MS, WizardRig } from "./WizardRig";
 import { getFlair } from "../game/flair";
 
@@ -152,6 +153,7 @@ export class ArenaScene extends Phaser.Scene {
   private storms = new Map<string, StormView>();
   private bulls = new Map<string, BullView>();
   private gloom!: Phaser.GameObjects.Rectangle;
+  private beams!: StruggleBeams;
   private unit = 1;
   private groundY = 0;
   private builtMap: MapId | null = null;
@@ -199,6 +201,13 @@ export class ArenaScene extends Phaser.Scene {
     for (const event of this.queue.splice(0)) this.react(event, time);
     for (const slot of ["A", "B"] as PlayerSlot[]) this.updateWizard(slot, state, now, time, delta);
     this.updateProjectiles(state.projectiles, now);
+    const flying = new Set(state.projectiles.map((p) => p.id));
+    this.beams.update(
+      time,
+      state.struggle,
+      { A: this.wizards.A.rig.handPoint(), B: this.wizards.B.rig.handPoint() },
+      (id) => (flying.has(id) ? this.lastPositions.get(id) : undefined),
+    );
   }
 
   // ---------- layout ----------
@@ -237,6 +246,7 @@ export class ArenaScene extends Phaser.Scene {
     this.builtSize = this.sizeKey();
     this.drawBackdrop(width, height);
     this.wizards = { A: this.makeWizard("A"), B: this.makeWizard("B") };
+    this.beams = new StruggleBeams(this, this.unit, SPARK);
     // Darkens the arena while Fulmen gathers; the strike lights it back up.
     this.gloom = this.add.rectangle(0, 0, width, height, palette.night).setOrigin(0).setDepth(4).setAlpha(0);
   }
@@ -790,7 +800,9 @@ export class ArenaScene extends Phaser.Scene {
         break;
       }
       case "SPELL_CLASH": {
-        const point = event.fizzledIds.map((id) => this.lastPositions.get(id)).find(Boolean) ?? { x: this.scale.width / 2, y: this.groundY - 66 * this.unit };
+        const junction = event.challenge ? this.beams.point : null;
+        if (event.challenge) this.beams.resolve(time, event.winner, event.survivorId);
+        const point = junction ?? event.fizzledIds.map((id) => this.lastPositions.get(id)).find(Boolean) ?? { x: this.scale.width / 2, y: this.groundY - 66 * this.unit };
         this.flash("clash", point.x, point.y, 220, 700, true);
         this.burst(point.x, point.y, palette.goldSoft, 30, 1.6);
         this.cameras.main.flash(160, 255, 231, 168);

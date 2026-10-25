@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from "react";
+import { StoryBackdrop } from "../StoryBackdrop";
 import { Link, useNavigate } from "react-router-dom";
 import { drawHands } from "../gesture/drawHand";
 import { GestureController } from "../gesture/GestureController";
 import type { HandPose, TrackingStatus } from "../gesture/types";
 import { useSession } from "../session";
 
-const GESTURE_INFO: { id: string; num: string; name: string; emoji: string; pose: HandPose[] }[] = [
-  { id: "fist", num: "01", name: "FIST", emoji: "✊", pose: ["FIST", "BOTH_FISTS"] },
-  { id: "palms", num: "02", name: "BOTH PALMS", emoji: "🙌", pose: ["BOTH_PALMS", "OPEN_PALM"] },
-  { id: "victory", num: "03", name: "TWO FINGERS", emoji: "✌️", pose: ["VICTORY"] },
-  { id: "horns", num: "04", name: "HOOK 'EM", emoji: "🤘", pose: ["HORNS"] },
-  { id: "point", num: "05", name: "POINT UP", emoji: "☝️", pose: ["POINT"] },
+const GESTURE_INFO: { id: string; num: string; name: string; emoji: string; spell: string; pose: HandPose[] }[] = [
+  { id: "fist", num: "01", name: "Fist", emoji: "✊", spell: "Incendio", pose: ["FIST", "BOTH_FISTS"] },
+  { id: "palms", num: "02", name: "Both Palms", emoji: "🙌", spell: "Protego", pose: ["BOTH_PALMS"] },
+  { id: "victory", num: "03", name: "Two Fingers", emoji: "✌️", spell: "Glacius", pose: ["VICTORY"] },
+  { id: "horns", num: "04", name: "Hook 'em", emoji: "🤘", spell: "Taurus", pose: ["HORNS"] },
+  { id: "point", num: "05", name: "Point Up", emoji: "☝️", spell: "Fulmen", pose: ["POINT"] },
 ];
 
 export function CalibrationView() {
@@ -92,22 +93,25 @@ export function CalibrationView() {
       ? "Hold your hand up to the camera"
       : pose === "FIST" || pose === "BOTH_FISTS"
       ? "Fist detected! ✊"
-      : pose === "BOTH_PALMS" || pose === "OPEN_PALM"
+      : pose === "BOTH_PALMS"
       ? "Palms detected! 🙌"
       : pose === "VICTORY"
       ? "Two fingers detected! ✌️"
       : pose === "POINT"
       ? "Point detected! ☝️"
+      : pose === "OPEN_PALM"
+      ? ""
       : "Hand tracked · Try a gesture below";
 
   return (
-    <main className="shell secondary-shell">
+    <main className="shell secondary-shell calibration-shell">
+      <StoryBackdrop />
       <header className="topbar">
         <Link to="/" className="brand-link">
           <span className="brand-mark">✦</span> SPELLCASTER
         </Link>
         <span className="step-label">
-          {session ? `ROOM ${session.room.code} · ` : ""}01 / CALIBRATION
+          {session && <>Room: <strong>{session.room.code}</strong></>}
         </span>
       </header>
 
@@ -125,15 +129,13 @@ export function CalibrationView() {
 
           {!live && (
             <div className="camera-placeholder">
-              <span className="camera-icon">◉</span>
               <strong>{status === "STARTING" ? "STARTING CAMERA PREVIEW…" : "CAMERA ACCESS NEEDED"}</strong>
               <span>{error || "Position yourself clearly in frame"}</span>
             </div>
           )}
 
-          {live && (
+          {live && statusMessage && (
             <div className={`calibration-badge ${status === "TRACKING" ? "active" : ""}`}>
-              <span className="pulse-dot" />
               <span>{statusMessage}</span>
             </div>
           )}
@@ -150,10 +152,13 @@ export function CalibrationView() {
                 key={g.id}
                 className={`gesture-card ${isDetected ? "detected" : ""} ${isCalibrated ? "calibrated" : ""}`}
               >
-                <span>{g.num}</span>
+                <div className="gesture-medallion">
+                  <i>{g.emoji}</i>
+                  <span className="gesture-num">{g.num}</span>
+                  {isCalibrated && <span className="gesture-seal" aria-label="Calibrated">✓</span>}
+                </div>
                 <strong>{g.name}</strong>
-                <i>{g.emoji}</i>
-                {isCalibrated && <span className="calibrated-pill">CALIBRATED ✓</span>}
+                <em>Casts {g.spell}</em>
               </div>
             );
           })}
@@ -163,7 +168,7 @@ export function CalibrationView() {
           className={`primary-button ${allCalibrated ? "all-calibrated" : ""}`}
           onClick={onEnterArena}
         >
-          Enter the arena <span>↗</span>
+          Enter the arena <span>→</span>
         </button>
       </section>
     </main>

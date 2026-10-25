@@ -7,7 +7,7 @@ import { MAP_ORDER, type MapId } from "../arena/maps";
 import { playEvents, setMusic, sfx } from "../audio/sound";
 import { GestureCamera } from "../gesture/GestureCamera";
 import type { SixSevenFeedback } from "../gesture/sixSevenCounter";
-import { SpellStruggle, StruggleOrb } from "./SpellStruggle";
+import { SpellStruggle } from "./SpellStruggle";
 import { PoseRace } from "./PoseRace";
 import type { DuelSource } from "../game/duelSource";
 import { bindKeyboard, spellInput } from "../game/input";
@@ -261,7 +261,6 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
           {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} onSixSevenFeedback={setSixSevenFeedback} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
           {state?.struggle?.kind === "pump" && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} feedback={sixSevenFeedback} />}
         </div>
-        {state?.struggle?.kind === "pump" && <StruggleOrb state={state} leftSlot={left} />}
         {state?.struggle?.kind === "pose" && <PoseRace key={state.struggle.poseRace.id} struggle={state.struggle} source={source} now={now} hotseat={hotseat} />}
         {clashResult && !state?.struggle && (
           <section className={`clash-result ${clashResult.winner ? `player-${clashResult.winner}` : "draw"}`} role="status" key={clashResult.id}>

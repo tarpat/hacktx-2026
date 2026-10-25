@@ -1,33 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSession } from "../session";
-import { art } from "../theme";
-
-const MOTES = Array.from({ length: 24 }, (_, i) => ({
-  left: `${(i * 37) % 100}%`,
-  delay: `${(i * 0.7) % 9}s`,
-  duration: `${9 + (i % 5) * 2}s`,
-  size: `${2 + (i % 3)}px`,
-}));
-
-function WaitingBackdrop() {
-  return (
-    <div className="home-backdrop" aria-hidden="true" style={{ backgroundImage: `url(${art.background})` }}>
-      {MOTES.map((m, i) => (
-        <i
-          key={i}
-          style={{
-            left: m.left,
-            animationDelay: m.delay,
-            animationDuration: m.duration,
-            width: m.size,
-            height: m.size,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+import { StoryBackdrop } from "../StoryBackdrop";
 
 export function WaitingView() {
   const navigate = useNavigate();
@@ -60,14 +34,19 @@ export function WaitingView() {
 
   if (!room) {
     return (
-      <main className="shell secondary-shell">
-        <WaitingBackdrop />
-        <section className="calibration">
+      <main className="shell secondary-shell waiting-shell">
+        <StoryBackdrop />
+        <header className="topbar">
+          <Link to="/" className="brand-link">
+            <span className="brand-mark">✦</span> SPELLCASTER
+          </Link>
+        </header>
+        <section className="calibration waiting-panel waiting-empty">
           <p className="eyebrow">NO DUEL IN PROGRESS</p>
           <h1>No room created</h1>
           <p className="intro">Head back to the lobby to create or join a duel.</p>
           <Link className="primary-button" to="/">
-            Back to lobby <span>↗</span>
+            Back to lobby <span>→</span>
           </Link>
         </section>
       </main>
@@ -76,12 +55,12 @@ export function WaitingView() {
 
   return (
     <main className="shell secondary-shell waiting-shell">
-      <WaitingBackdrop />
+      <StoryBackdrop />
       <header className="topbar">
         <Link to="/" className="brand-link">
           <span className="brand-mark">✦</span> SPELLCASTER
         </Link>
-        <span className="step-label">ROOM {room.code}</span>
+        <span className="step-label">Room: <strong>{room.code}</strong></span>
       </header>
 
       <section className="calibration waiting-panel">
@@ -101,14 +80,14 @@ export function WaitingView() {
             ))}
           </div>
           <button className="secondary-button copy-button" onClick={copyCode}>
-            {copied ? "Copied! ✓" : "Copy room code"}
+            {copied ? "Copied!" : "Copy room code"}
           </button>
         </div>
 
         <div className="waiting-status-card">
           <div className={`status-pulse-dot ${rival ? "online" : ""}`} />
           <div className="status-text">
-            <strong>{rival ? "Rival connected!" : "Waiting for rival to enter room…"}</strong>
+            <strong>{rival ? "Rival connected!" : "Waiting for your rival to arrive…"}</strong>
             <span>
               {rival
                 ? "Rival is here! Entering spellcraft calibration…"
@@ -120,11 +99,11 @@ export function WaitingView() {
         <div className="waiting-actions">
           {rival ? (
             <button className="primary-button" onClick={() => navigate("/calibration")}>
-              Proceed to calibration <span>↗</span>
+              Proceed to calibration <span>→</span>
             </button>
           ) : (
             <button className="secondary-button" onClick={() => navigate("/calibration")}>
-              Calibrate camera while waiting →
+              Calibrate your camera while you wait
             </button>
           )}
         </div>

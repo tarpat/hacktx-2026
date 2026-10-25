@@ -1,35 +1,46 @@
 /*
- * Fairy-tale palette. Every color in the app comes from these tokens, so matching the
- * HackTX opening ceremony slides is a matter of swapping the hex values here
- * (and the mirrored numbers in src/theme.ts used by the Phaser arena).
+ * Enchanted-forest palette. Every color in the app comes from these tokens, so retheming
+ * is a matter of swapping the hex values here (and the mirrored numbers in src/theme.ts
+ * used by the Phaser arena). Token names are kept from the original theme.
  */
-@import url("https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@500;700&family=Nunito:wght@400;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Pirata+One&family=Cinzel:wght@600;700&family=Alegreya:wght@500;700&family=Marcellus+SC&family=Nunito:wght@400;600;700;800&display=swap");
 
 :root {
-  /* Rapunzel twilight: lantern gold, forest green and royal purple. */
-  --night: #1c1236;
-  --night-2: #2a1a4f;
-  --dusk: #3a2466;
-  --plum: #5b2a86;
-  --gold: #f6c453;
-  --gold-soft: #ffe7a8;
-  --parchment: #fff4dc;
-  --mist: #d4c4ee;
-  --muted: #a493c8;
-  --rose: #f4a6c0;
-  --mint: #9be38a;
-  --ember: #ff8a4c;
+  /* Twilight woods: moss and pine, lantern amber, toadstool red, a touch of fairy plum. */
+  --night: #17241c;
+  --night-2: #1f3226;
+  --dusk: #2c4733;
+  --plum: #6b3b5a;
+  --gold: #f2b85e;
+  --gold-soft: #ffe1a8;
+  --parchment: #fff4e0;
+  --mist: #dfe8cf;
+  --muted: #a7b897;
+  --rose: #f0907a;
+  --mint: #a8d98c;
+  --ember: #ff7a45;
   --frost: #b9d4ff;
-  --leaf: #7ccf6b;
+  --leaf: #7cbf6b;
   --forest: #2f6b3f;
-  --lavender: #b28ddb;
-  --berry: #ff4f7b;
-  --line: #ffffff24;
+  --lavender: #c7a3d6;
+  --berry: #e24b4b;
+  --line: #ffe1a82e;
 
-  --player-a: #9be38a;
-  --player-b: #cfb2f5;
+  /* Flat surfaces for cards and panels. */
+  --surface: #1f3226;
+  --surface-2: #29402f;
 
-  --font-title: "Cinzel Decorative", serif;
-  --font-label: "Cinzel", serif;
+  --player-a: #a8d98c;
+  --player-b: #d7b4ef;
+
+  /* Ornate display face: the main title only. */
+  --font-display: "Cinzel Decorative", serif;
+  /* Storybook gothic: section headings and big moments. */
+  --font-title: "Pirata One", "Cinzel Decorative", serif;
+  /* Flared small caps: labels, eyebrows, buttons. */
+  --font-label: "Marcellus SC", Georgia, serif;
+  /* Readable fantasy: codes, instructions and calibration actions. */
+  --font-rune: "Cinzel", Georgia, serif;
+  --font-book: "Alegreya", Georgia, serif;
   --font-body: "Nunito", system-ui, sans-serif;
 }

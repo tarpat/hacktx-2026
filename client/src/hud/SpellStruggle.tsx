@@ -1,7 +1,7 @@
-import { DuelEngine, type MatchState, type PlayerSlot } from "@spellcaster/shared";
+import { type MatchState, type PlayerSlot } from "@spellcaster/shared";
 import { spellInput } from "../game/input";
 import type { SixSevenFeedback } from "../gesture/sixSevenCounter";
-import { playerName, spellGlyph } from "../theme";
+import { playerName } from "../theme";
 
 interface SpellStruggleProps {
   state: MatchState;
@@ -11,10 +11,6 @@ interface SpellStruggleProps {
   hotseat: boolean;
   feedback: SixSevenFeedback;
 }
-
-// Where the arena's cast points sit across the stage, so the clash orb lines up with the spells.
-const LANE_LEFT = 18;
-const LANE_RIGHT = 82;
 
 /**
  * Live tug-of-war for a same-spell clash: the locked spells sit where they're being
@@ -73,17 +69,4 @@ export function SpellStruggle({ state, now, leftSlot, hotseat, feedback }: Spell
         <small>{hotseat ? `Camera scores ${playerName[leftSlot]}. ` : ""}Build a lead to win. Winner's spell absorbs both attacks.</small>
       </section>
   );
-}
-
-export function StruggleOrb({ state, leftSlot }: Pick<SpellStruggleProps, "state" | "leftSlot">) {
-  const struggle = state.struggle;
-  if (!struggle) return null;
-  const rightSlot = leftSlot === "A" ? "B" : "A";
-  const position = DuelEngine.strugglePosition(struggle);
-  const screen = leftSlot === "A" ? position : 1 - position;
-  return <div className="struggle-orb" style={{ left: `${LANE_LEFT + (LANE_RIGHT - LANE_LEFT) * screen}%` }} aria-hidden>
-    <span className={`struggle-half player-${leftSlot}`} />
-    <span className={`struggle-half player-${rightSlot}`} />
-    <b>{spellGlyph[struggle.spell]}</b>
-  </div>;
 }
