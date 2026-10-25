@@ -199,13 +199,13 @@ export class GestureController {
     if (this.raceTarget) {
       if (now - this.lastRaceFrame >= POSE_RACE.sampleIntervalMs) {
         this.lastRaceFrame = now;
-        let feedback: PoseFeedback = { matched: null, hint: this.faceError ? "Face tracking failed to load. Retry face tracking below." : "Loading face tracking…" };
+        let feedback: PoseFeedback = { matched: null, hint: this.faceError ? "Face tracking failed to load. Open Options to retry." : "Loading face tracking…" };
         if (this.faceTracker && this.video && !document.hidden) {
           try {
             this.faceReader ??= new RaceFaceReader();
             feedback = matchRacePose(this.raceTarget, this.faceReader.read(this.faceTracker, this.video, hands, now));
           } catch {
-            feedback = { matched: null, hint: "Face tracking interrupted. Keep your face in view or retry below." };
+            feedback = { matched: null, hint: "Face tracking interrupted. Keep your face in view or retry in Options." };
           }
         }
         for (const listener of this.raceListeners) listener(feedback);

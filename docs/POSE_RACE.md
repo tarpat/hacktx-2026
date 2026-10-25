@@ -6,6 +6,8 @@ The race has a three-second preparation period and 25 seconds to finish all five
 
 The round clock, existing projectiles, pending collisions, cooldowns and temporary effects pause during the race. Casting and power-ups are disabled. The clock and pending actions resume after the actual race duration, including early finishes.
 
+The race UI shows the current reference beside the camera, a timer, compact player progress, and one changing instruction with a hold indicator. An Options menu contains camera controls, face-tracking retry, hotseat camera assignment and local keyboard assist. Only the current reference image is displayed; all five are still required in order. Camera-off recovery has a direct Enable camera button. The UI also works with the worker-based hand tracker and independent arena clock from main.
+
 ## How a monkey reference is matched to a human
 
 These images are visual prompts, not training examples or pixel-similarity templates. Each reference is transcribed into a geometric rule in `client/src/gesture/racePoseMatcher.ts`. MediaPipe Hand Landmarker supplies 21 points per hand; Face Landmarker supplies the face mesh and jaw/smile blendshape scores. Face and hand x/y coordinates share the same unmirrored camera coordinate system, with aspect-ratio correction. Distances are divided by face width, and finger extension uses wrist-to-tip / wrist-to-joint ratios. This tolerates changes in body size, distance and position; it does not require matching the monkey's appearance, background or anatomy. The preview is mirrored only for display.

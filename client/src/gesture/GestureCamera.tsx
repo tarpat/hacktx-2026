@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { SpellId, RacePoseId } from "@spellcaster/shared";
 import type { PoseFeedback } from "./racePoseMatcher";
 import { startCharge, stopCharge } from "../audio/sound";
@@ -60,7 +60,7 @@ function writeEnabled(on: boolean) {
  * Floating webcam panel that casts spells for the local wizard through `spellInput`,
  * the same entry point the keyboard fallback uses. Frames never leave the browser.
  */
-export function GestureCamera({ ultimateReady = true, struggling = false, raceTarget = null, onRaceFeedback }: { ultimateReady?: boolean; struggling?: boolean; raceTarget?: RacePoseId | null; onRaceFeedback?: (feedback: PoseFeedback) => void }) {
+export function GestureCamera({ ultimateReady = true, struggling = false, raceTarget = null, onRaceFeedback, compact = false, extraControls }: { ultimateReady?: boolean; struggling?: boolean; raceTarget?: RacePoseId | null; onRaceFeedback?: (feedback: PoseFeedback) => void; compact?: boolean; extraControls?: ReactNode }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const controllerRef = useRef<GestureController | null>(null);
@@ -87,7 +87,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false, raceTa
       controller.onObservation((o) => {
         setStatus(o.status);
         setPose(o.pose);
-        if (o.status === "ERROR") setError((e) => e || "Camera stopped. Turn gestures off and on to retry.");
+        if (o.status === "ERROR") setError((e) => e || "Camera stopped. Turn the camera off and on to retry.");
       }),
       controller.onAction(({ action, localTimestampMs }) => {
         if (action === "FIREBALL_CHARGE_START" || action === "ULTIMATE_CHARGE_START") {
@@ -152,7 +152,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false, raceTa
   useEffect(() => {
     if (!raceTarget) return;
     if (!enabled) raceCallback.current?.({ matched: null, hint: "Turn on the camera to match poses" });
-    else if (status === "ERROR") raceCallback.current?.({ matched: null, hint: error || "Camera stopped. Turn gestures off and on to retry." });
+    else if (status === "ERROR") raceCallback.current?.({ matched: null, hint: error || "Camera stopped. Turn the camera off and on to retry." });
     else if (status === "STARTING") raceCallback.current?.({ matched: null, hint: "Starting the camera…" });
   }, [enabled, status, raceTarget, error]);
 
@@ -180,21 +180,21 @@ export function GestureCamera({ ultimateReady = true, struggling = false, raceTa
 
   return (
     <>
-    <ChargeOrb charge={charge} outcome={chargeOutcome} ultimateReady={ultimateReady} />
-    <aside className={`gesture-cam${raceTarget ? " pose-camera" : ""}${enabled ? " on" : ""}${charge ? ` is-charging charge-${charge.kind}` : ""}`}>
-      {raceTarget && !enabled && <div className="pose-camera-placeholder"><b>Camera is off</b><span>Enable gestures below.<br />Keep your face and both hands in view.</span></div>}
+    {!compact && <ChargeOrb charge={charge} outcome={chargeOutcome} ultimateReady={ultimateReady} />}
+    <aside className={`gesture-cam${compact || raceTarget ? " pose-camera" : ""}${enabled ? " on" : ""}${charge ? ` is-charging charge-${charge.kind}` : ""}`}>
+      {(compact || raceTarget) && !enabled && <div className="pose-camera-placeholder"><span>Camera off</span><button className="gesture-cam-toggle" onClick={toggle}>Enable camera</button></div>}
       <div className="gesture-cam-view" hidden={!enabled}>
         <video ref={videoRef} className="mirrored" autoPlay playsInline muted />
         <canvas ref={canvasRef} className="mirrored" width={640} height={480} />
-        <i className="gesture-cam-corner tl" /><i className="gesture-cam-corner tr" /><i className="gesture-cam-corner bl" /><i className="gesture-cam-corner br" />
-        {live && <span className="gesture-cam-label">{label}</span>}
-        {lastCast && (
+        {!compact && <><i className="gesture-cam-corner tl" /><i className="gesture-cam-corner tr" /><i className="gesture-cam-corner bl" /><i className="gesture-cam-corner br" /></>}
+        {live && !compact && <span className="gesture-cam-label">{label}</span>}
+        {lastCast && !compact && (
           <span className="gesture-cam-cast" key={lastCast.id}>
             <SpellIcon spell={lastCast.spell} />
           </span>
         )}
       </div>
-      {enabled && !raceTarget && (
+      {enabled && !raceTarget && !compact && (
         <ul className="gesture-cam-legend">
           {LEGEND.map(({ spell, pose: hint, poses }) => (
             // Light up the spell the moment its pose is recognized, before the hold completes.
@@ -205,11 +205,18 @@ export function GestureCamera({ ultimateReady = true, struggling = false, raceTa
           ))}
         </ul>
       )}
-      {error && <p className="gesture-cam-error">{error}</p>}
-      {raceTarget && enabled && <button className="gesture-cam-toggle" onClick={() => controllerRef.current?.retryFaceTracking()}>Retry face tracking</button>}
-      <button className="gesture-cam-toggle" onClick={toggle}>
-        {enabled ? "Gestures on · turn off" : "🎥 Cast with gestures"}
-      </button>
+      {error && <p className="gesture-cam-error" role="alert">{error}</p>}
+      {compact ? <details className="pose-options">
+        <summary>Options</summary>
+        <div className="pose-options-panel">
+          <button type="button" onClick={toggle}>{enabled ? "Turn camera off" : "Enable camera"}</button>
+          {enabled && raceTarget && <button type="button" onClick={() => controllerRef.current?.retryFaceTracking()}>Retry face tracking</button>}
+          {extraControls}
+        </div>
+      </details> : <>
+        {raceTarget && enabled && <button className="gesture-cam-toggle" onClick={() => controllerRef.current?.retryFaceTracking()}>Retry face tracking</button>}
+        <button className="gesture-cam-toggle" onClick={toggle}>{enabled ? "Gestures on · turn off" : "🎥 Cast with gestures"}</button>
+      </>}
     </aside>
     </>
   );
