@@ -8,7 +8,7 @@ describe("local match arenas", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => { sources.splice(0).forEach((source) => source.dispose()); vi.restoreAllMocks(); vi.useRealTimers(); });
 
-  it.each(["bot", "training"] as const)("draws all three arenas for %s without excluding the previous one", (mode) => {
+  it.each(["bot"] as const)("draws all three arenas for %s without excluding the previous one", (mode) => {
     const random = vi.spyOn(Math, "random").mockReturnValue(.8);
     const source = new LocalDuel(mode); sources.push(source);
     expect(source.state().stageId).toBe(2);
@@ -23,9 +23,9 @@ describe("local match arenas", () => {
     expect(source.state().stageId).toBe(1); // A live match keeps its selection between snapshots.
   });
 
-  it("leaves arena selection to the hotseat picker across rematches", () => {
+  it("leaves arena selection to the training picker across rematches", () => {
     vi.spyOn(Math, "random").mockReturnValue(.8);
-    const source = new LocalDuel("hotseat"); sources.push(source);
+    const source = new LocalDuel("training"); sources.push(source);
     expect(source.state().stageId).toBeUndefined();
     source.rematch();
     expect(source.state().stageId).toBeUndefined();

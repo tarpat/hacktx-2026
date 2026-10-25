@@ -34,7 +34,7 @@ Keep what Phase 0 already scaffolded. It fits a 24 to 36 hour build well.
    `heal` (potion, +15 HP). Voice and gesture tracks call one function to grant them.
 9. **Announcer banner**: short comedic fairy-tale narrator lines on big moments.
 10. **Victory screen**: winner title, loser transforms into a frog or teapot, rematch button.
-11. **Practice mode** (`/practice`): solo vs a training-dummy bot, or local hotseat on one keyboard.
+11. **Practice mode** (`/practice`): an easy bot, or training: drive both wizards from one keyboard and start any collision challenge on demand.
     Doubles as a demo fallback if the network or camera fails.
 12. **Online match**: server runs the engine per room, starts on both-ready, validates
     `CAST_REQUEST` with client action IDs (duplicate-safe), broadcasts state with server timestamps.
@@ -49,7 +49,7 @@ spellInput.cast("ice");           // two fingers
 spellInput.powerUp("empower");    // voice track: incantation bonus
 ```
 
-Keyboard fallback: `Q` Fireball, `W` Shield, `E` Ice, `R` Fulmen (hotseat opponent: `U I O P`).
+Keyboard fallback: `Q` Fireball, `W` Shield, `E` Ice, `R` Fulmen (training opponent: `U I O P`).
 Power-ups: `1` Empower, `2` Haste, `3` Heal (stand-ins until the voice track calls `spellInput.powerUp`).
 Power-ups are limited to one per player every 12 s so they cannot be spammed.
 

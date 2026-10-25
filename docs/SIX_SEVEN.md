@@ -8,8 +8,8 @@ The panel includes an animated guide, a camera preview with the game's glowing g
 
 ## Controls and recovery
 
-- Camera gestures score the local wizard; in hotseat that is the left wizard.
-- SPACE and the local tap button score the local wizard. ENTER and the rival button score the other hotseat wizard. Each press/tap is a beat; holding a key does not repeat.
+- Camera gestures score the local wizard; in training that is the left wizard.
+- SPACE and the local tap button score the local wizard. ENTER and the rival button score the other wizard in training. Each press/tap is a beat; holding a key does not repeat.
 - Camera off, blocked access, unavailable tracking, and model loading all leave keyboard and tap controls available.
 - Retry 6–7 tracking retries a failed model load. Turning the camera off/on restarts a stopped stream. The counter resets on mode changes, camera restart/loss, hidden tabs, missing landmarks, or gaps over 250 ms.
 - Spell gestures are suspended during the challenge. On exit, hands must relax before a spell pose can arm again.

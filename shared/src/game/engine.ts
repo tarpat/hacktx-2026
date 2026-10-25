@@ -55,6 +55,8 @@ export class DuelEngine {
   private eventSeq = 0;
   private projectileSeq = 0;
   private clashes: ClashPlan[] = [];
+  /** Set by rehearseClash so the next struggle is the one asked for instead of a coin flip. */
+  private forcedStruggle: Struggle["kind"] | null = null;
 
   constructor(now: number, config: MatchConfig = DEFAULT_MATCH_CONFIG, private readonly random: () => number = Math.random) {
     this.config = config;
@@ -128,6 +130,20 @@ export class DuelEngine {
     this.state.projectiles.push(projectile);
     this.emit(now, { type: "SPELL_CAST", slot, spell, projectileId: projectile.id, empowered });
     return { ok: true };
+  }
+
+  /**
+   * Practice only: both wizards throw a fireball at once, ignoring the fireball cooldown, and the
+   * clash opens a struggle of `kind`. False if the match isn't live, a struggle is on, or a cast fails.
+   */
+  rehearseClash(kind: Struggle["kind"], now: number): boolean {
+    this.tick(now);
+    if (!isLive(this.state) || this.state.struggle) return false;
+    for (const slot of ["A", "B"] as PlayerSlot[]) this.state.players[slot].readyAt.fireball = now;
+    this.forcedStruggle = kind;
+    const ok = this.cast("A", "fireball", now).ok && this.cast("B", "fireball", now).ok;
+    if (!ok) this.forcedStruggle = null;
+    return ok;
   }
 
   grantPowerUp(slot: PlayerSlot, powerUp: PowerUpId, now: number): boolean {
@@ -286,7 +302,9 @@ export class DuelEngine {
       lastPushAt: { A: 0, B: 0 },
     };
     const progress = (): PoseProgress => ({ step: 0, released: false, neutralSince: null, holdSince: null, lastSampleAt: 0 });
-    const struggle: Struggle = this.random() < 0.5 ? { ...base, kind: "pump" } : {
+    const kind = this.forcedStruggle ?? (this.random() < 0.5 ? "pump" : "pose");
+    this.forcedStruggle = null;
+    const struggle: Struggle = kind === "pump" ? { ...base, kind: "pump" } : {
       ...base, kind: "pose", endsAt: at + POSE_RACE.countdownMs + POSE_RACE.durationMs,
       poseRace: { id: `${first.id}:${second.id}`, readyAt: at + POSE_RACE.countdownMs, progress: { A: progress(), B: progress() } },
     };
