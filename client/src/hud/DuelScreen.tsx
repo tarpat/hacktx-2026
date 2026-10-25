@@ -6,7 +6,7 @@ import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
 import { MAP_ORDER, type MapId } from "../arena/maps";
 import { playEvents, setMusic, sfx } from "../audio/sound";
 import { GestureCamera } from "../gesture/GestureCamera";
-import type { SixSevenFeedback } from "../gesture/sixSevenCounter";
+import type { CircleChargeFeedback } from "../gesture/circleChargeCounter";
 import { SpellStruggle } from "./SpellStruggle";
 import { PoseRace } from "./PoseRace";
 import type { DuelSource } from "../game/duelSource";
@@ -53,7 +53,7 @@ function useMatchNow(source: DuelSource) {
 export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, footer, map = MAP_ORDER[0] }: DuelScreenProps) {
   const [state, setState] = useState<MatchState | null>(() => source.state());
   const [clashResult, setClashResult] = useState<ClashResult | null>(null);
-  const [sixSevenFeedback, setSixSevenFeedback] = useState<SixSevenFeedback>({ visible: false, left: null, right: null, hint: "Keep both elbows and wrists in view." });
+  const [circleChargeFeedback, setCircleChargeFeedback] = useState<CircleChargeFeedback>({ visible: false, progress: 0, hint: "Show one hand and draw a circle." });
   const [toast, setToast] = useState<Banner | null>(null);
   const [hype, setHype] = useState<Banner | null>(null);
   const hypeTracker = useRef(new HypeTracker());
@@ -174,7 +174,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       }
       else if (intent.kind === "push") {
         sfx.push();
-        source.push(intent.slot);
+        if (source.state()?.struggle?.kind !== "pump") source.push(intent.slot);
       }
       else if (intent.kind === "powerUp") source.powerUp(intent.powerUp, intent.slot);
     });
@@ -282,7 +282,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
   const castAs = (slot: PlayerSlot) => (slot === left || hotseat ? (spell: SpellId) => spellInput.cast(spell, slot) : undefined);
 
-  // Keep the camera and tap targets stationary throughout the 6–7 challenge.
+  // Keep the camera and tap targets stationary throughout the Magic charge challenge.
   const shakeClass = activeShake && state?.struggle?.kind !== "pump"
     ? ` screen-shake-${activeShake.type}-${(activeShake.id % 2) + 1}`
     : "";
@@ -297,9 +297,9 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
           </div>
         )}
         <RisingEmbers />
-        <div className={state?.struggle?.kind === "pump" ? "six-seven-event" : "collision-inputs"}>
-          {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} onSixSevenFeedback={setSixSevenFeedback} onReady={() => setCameraReady(true)} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
-          {state?.struggle?.kind === "pump" && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} feedback={sixSevenFeedback} />}
+        <div className={state?.struggle?.kind === "pump" ? "magic-charge-event" : "collision-inputs"}>
+          {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} onCircleChargeFeedback={(feedback) => { setCircleChargeFeedback(feedback); if (feedback.trace && state?.struggle?.kind === "pump") source.circleTrace({ startedAt: state.struggle.startedAt, points: feedback.trace }); }} onReady={() => setCameraReady(true)} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
+          {state?.struggle?.kind === "pump" && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} feedback={circleChargeFeedback} />}
         </div>
         {state?.struggle?.kind === "pose" && <PoseRace key={state.struggle.poseRace.id} struggle={state.struggle} source={source} now={now} hotseat={hotseat} />}
         {clashResult && !state?.struggle && (

@@ -1,4 +1,5 @@
 import type { CastRejectReason, GameEvent, MatchState, PlayerSlot, PowerUpId, SpellId } from "./game/types.js";
+import type { CircleTrace } from "./game/circleTrace.js";
 import type { PoseSample } from "./game/poses.js";
 
 export * from "./game/types.js";
@@ -7,6 +8,7 @@ export * from "./game/engine.js";
 export * from "./game/bot.js";
 export * from "./game/poses.js";
 export * from "./game/arenas.js";
+export * from "./game/circleTrace.js";
 
 export interface RoomPlayer {
   slot: PlayerSlot;
@@ -58,6 +60,7 @@ export interface ClientToServerEvents {
   POWER_UP_REQUEST: (request: PowerUpRequest, callback?: (ack: CastAck) => void) => void;
   /** One push in a spell struggle. The engine rate-limits pushes, so no payload or ack is needed. */
   STRUGGLE_PUSH: () => void;
+  CIRCLE_TRACE: (trace: CircleTrace) => void;
   POSE_SAMPLE: (sample: PoseSample) => void;
   /** Your display name, live webcam face or knockout snapshot, relayed to your rival. */
   FLAIR: (flair: FlairPatch) => void;

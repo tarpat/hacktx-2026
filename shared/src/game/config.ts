@@ -70,7 +70,7 @@ export const DEFAULT_MATCH_CONFIG: MatchConfig = {
   freezeMs: 1_200,
   ultimateShieldFactor: 0.5,
   clashWindowMs: 500,
-  struggle: { durationMs: 6_700, pushStep: 0.07, minPushGapMs: 60, drawMargin: 0.1, speedFactor: 0.7 },
+  struggle: { durationMs: 15_000, pushStep: 0.07, minPushGapMs: 60, drawMargin: 0.1, speedFactor: 0.7 },
   ultimateMax: 100,
   ultimateGain: { perDamageDealt: 1.25, perBlock: 25, perDamageTaken: 0.5 },
   empowerMultiplier: 1.5,

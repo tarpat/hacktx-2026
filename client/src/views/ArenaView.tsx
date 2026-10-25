@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { opponentOf } from "@spellcaster/shared";
 import { OnlineDuel } from "../game/duelSource";
@@ -6,6 +6,7 @@ import { DuelScreen } from "../hud/DuelScreen";
 import { setSession, useSession, type Session } from "../session";
 import { socket } from "../socket";
 import { playerName } from "../theme";
+import { IntroCutscene, introSeen } from "./IntroCutscene";
 
 export function ArenaView() {
   const session = useSession();
@@ -31,6 +32,9 @@ function OnlineArena({ session }: { session: Session }) {
   const navigate = useNavigate();
   const [source, setSource] = useState<OnlineDuel | null>(null);
   const [hasMatch, setHasMatch] = useState(false);
+  // The story plays before the ready room, so neither player loses time in a live match.
+  const [showIntro, setShowIntro] = useState(() => !introSeen());
+  const endIntro = useCallback(() => setShowIntro(false), []);
   useEffect(() => {
     const duel = new OnlineDuel(session.slot);
     duel.subscribe(() => setHasMatch(true));
@@ -51,6 +55,8 @@ function OnlineArena({ session }: { session: Session }) {
       {waitingForRematch && <span className="presence">Rematch requested</span>}
     </nav>
   );
+
+  if (showIntro && !hasMatch) return <IntroCutscene onDone={endIntro} />;
 
   if (!hasMatch || !source) {
     return (

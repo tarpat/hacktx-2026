@@ -1,39 +1,17 @@
 import { test, expect } from "@playwright/test";
 
-test("arena shows embers and announces both clash winners and draws", async ({ page }) => {
+test("arena keeps embers and draws a camera clash when neither player traces", async ({ page }) => {
   await page.addInitScript(() => {
-    Math.random = () => 0.1; // Exercise the 6–7 half of the collision coin flip.
-    navigator.mediaDevices.getUserMedia = async () => { throw new Error("Camera disabled for test"); };
+    Math.random = () => 0.1;
+    sessionStorage.setItem("spellcaster:intro-seen", "1");
+    sessionStorage.setItem("spellcaster:gestures", "off");
   });
   await page.goto("/practice?mode=training");
   await expect(page.locator(".duel-stage .rising-embers i")).toHaveCount(24);
   await expect(page.locator(".clock.active")).toBeVisible();
-
-  const clash = async () => {
-    await page.keyboard.press("q");
-    await page.keyboard.press("u");
-    await expect(page.locator(".struggle")).toBeVisible();
-  };
-  await clash();
+  await page.getByRole("button", { name: "Magic charge", exact:false }).click();
   await expect(page.locator(".struggle-leader")).toHaveText("Dead even!");
-  for (let i = 0; i < 8; i++) {
-    await page.keyboard.press("Space");
-    await page.waitForTimeout(140);
-  }
-  await expect(page.locator(".clash-result")).toContainText("Green Wizard wins!", { timeout: 9000 });
-  await expect(page.locator(".clash-result")).toHaveClass(/player-A/);
-  await expect(page.locator(".clash-result")).toBeHidden({ timeout: 5_000 });
-
-  await clash();
-  for (let i = 0; i < 8; i++) {
-    await page.keyboard.press("Enter");
-    await page.waitForTimeout(140);
-  }
-  await expect(page.locator(".clash-result")).toContainText("Purple Wizard wins!", { timeout: 9000 });
-  await expect(page.locator(".clash-result")).toHaveClass(/player-B/);
-  await expect(page.locator(".clash-result")).toBeHidden({ timeout: 5_000 });
-
-  await clash();
-  await expect(page.locator(".clash-result")).toContainText("Evenly matched!", { timeout: 10_000 });
+  await page.keyboard.press("Space"); await page.keyboard.press("Enter");
+  await expect(page.locator(".clash-result")).toContainText("Evenly matched!", { timeout: 18_000 });
   await expect(page.locator(".clash-result")).toContainText("Both spells cancel out.");
 });

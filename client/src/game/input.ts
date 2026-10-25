@@ -21,7 +21,7 @@ export const spellInput = {
   powerUp(powerUp: PowerUpId, slot?: PlayerSlot) {
     listeners.forEach((listener) => listener({ kind: "powerUp", powerUp, slot }));
   },
-  /** One 6–7 forearm lift, keyboard press, or touch during a spell struggle. */
+  /** One completed hand circle, keyboard press, or touch during a spell struggle. */
   push(slot?: PlayerSlot) {
     listeners.forEach((listener) => listener({ kind: "push", slot }));
   },

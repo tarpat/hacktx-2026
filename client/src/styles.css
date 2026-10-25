@@ -2249,9 +2249,9 @@ img.spell-glyph {
 .struggle-leader { display: block; margin: 8px 0; font-size: clamp(1.2rem, 3vw, 1.65rem); }
 .struggle-versus { opacity: 0.6; }
 
-/* 6–7 collision: keep the live framing preview beside the motion guide. */
+/* magic charge collision: keep the live framing preview beside the motion guide. */
 .collision-inputs { display: contents; }
-.six-seven-event {
+.magic-charge-event {
   position: absolute;
   z-index: 10;
   top: 50%;
@@ -2271,7 +2271,7 @@ img.spell-glyph {
   background: #1b142df5;
   box-shadow: 0 16px 80px #0009;
 }
-.duel .six-seven-event .struggle {
+.duel .magic-charge-event .struggle {
   position: static;
   transform: none;
   grid-column: 1;
@@ -2283,61 +2283,55 @@ img.spell-glyph {
   background: none;
   box-shadow: none;
 }
-.duel .six-seven-event .gesture-cam {
+.duel .magic-charge-event .gesture-cam {
   position: static;
   grid-column: 2;
   grid-row: 1;
   width: 100%;
   justify-items: stretch;
 }
-.six-seven-camera .gesture-cam-view video,
-.six-seven-camera .gesture-cam-view canvas { object-fit: contain; }
-.six-seven-camera .gesture-cam-label { font: 600 10px/1.4 system-ui; }
-.six-seven-camera .gesture-cam-toggle { font-size: 11px; padding: 8px; }
-.six-seven-camera-placeholder { display: grid; place-content: center; gap: 6px; aspect-ratio: 4 / 3; padding: 12px; border: 1px dashed #f6c45366; border-radius: 16px; color: var(--gold-soft); text-align: center; }
-.six-seven-camera-placeholder > span { font: 900 30px/1 var(--font-title); }
-.six-seven-camera-placeholder b { font-size: 12px; }
-.six-seven-camera-placeholder small { font: 11px/1.5 system-ui; color: var(--muted); }
-.six-seven h2 { margin: 8px 0 0; color: var(--gold-soft); font-size: clamp(22px, 3vw, 30px); }
-.six-seven header > span { font-size: 12px; }
-.six-seven-cue { display: flex; justify-content: center; align-items: center; gap: 32px; height: 88px; }
-.six-seven-arm { display: flex; align-items: center; gap: 8px; transform: translateY(9px); transition: transform 100ms; }
-.six-seven-arm.raised { transform: translateY(-9px); }
-.six-seven-arm b { color: var(--gold); font: 900 38px/1 var(--font-title); }
-.six-seven-arm i { font-size: 34px; font-style: normal; transform: rotate(80deg); }
-.six-seven-arm:last-child i { transform: rotate(-80deg) scaleX(-1); }
-.six-seven-rhythm { color: var(--gold-soft); letter-spacing: 4px; }
-.six-seven-cue.demo .six-seven-arm { animation: six-seven-rock 750ms ease-in-out infinite alternate; }
-.six-seven-cue.demo .six-seven-arm:last-child { animation-direction: alternate-reverse; }
-@keyframes six-seven-rock { from { transform: translateY(9px); } to { transform: translateY(-9px); } }
-.six-seven .six-seven-instruction { animation: none; margin: 0 0 8px; font: 500 13px/1.5 system-ui; }
-.six-seven-tracking { min-height: 36px; display: grid; place-items: center; padding: 4px 8px; border-radius: 8px; background: #ffffff08; color: var(--gold-soft); font: 12px/1.4 system-ui; }
-.six-seven-tracking.ready { color: #7dffb0; background: #7dffb010; }
-.six-seven .struggle-leader { font-size: 19px; }
-.six-seven .struggle-sides { gap: 8px; font-size: 12px; }
-.six-seven-controls { display: flex; gap: 8px; margin: 12px 0 8px; }
-.six-seven-controls button { flex: 1; min-height: 44px; border: 1px solid #f6c45388; border-radius: 10px; background: #f6c45318; color: #fff4d9; font: 700 13px/1.4 system-ui; cursor: pointer; touch-action: manipulation; }
-.six-seven-controls button:hover, .six-seven-controls button:active { background: #f6c45340; }
-.six-seven-controls button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
-.six-seven-controls kbd { display: inline-block; margin-left: 6px; font: 10px/1.4 system-ui; opacity: 0.7; }
-.six-seven small { display: block; font: 11px/1.4 system-ui; }
-.six-seven-test-toggle { display: block; margin: 12px 0; color: var(--gold-soft); }
-.six-seven-test-feedback { margin: 16px 0; padding: 16px; border: 1px solid #f6c45355; border-radius: 12px; }
-.six-seven-test-feedback > strong { font-size: 28px; color: var(--gold-soft); }
+.magic-charge-camera .gesture-cam-view video,
+.magic-charge-camera .gesture-cam-view canvas { object-fit: contain; }
+.magic-charge-camera .gesture-cam-label { font: 600 10px/1.4 system-ui; }
+.magic-charge-camera .gesture-cam-toggle { font-size: 11px; padding: 8px; }
+.magic-charge-camera-placeholder { display: grid; place-content: center; gap: 6px; aspect-ratio: 4 / 3; padding: 12px; border: 1px dashed #f6c45366; border-radius: 16px; color: var(--gold-soft); text-align: center; }
+.magic-charge-camera-placeholder > span { font: 900 30px/1 var(--font-title); }
+.magic-charge-camera-placeholder b { font-size: 12px; }
+.magic-charge-camera-placeholder small { font: 11px/1.5 system-ui; color: var(--muted); }
+.magic-charge h2 { margin: 8px 0 0; color: var(--gold-soft); font-size: clamp(22px, 3vw, 30px); }
+.magic-charge header > span { font-size: 12px; }
+.magic-charge-orbit { position: relative; display: grid; place-items: center; width: 76px; height: 76px; margin: 10px auto; border-radius: 50%; background: conic-gradient(var(--gold) var(--charge), #ffffff15 0); }
+.magic-charge-orbit::before { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: var(--night); }
+.magic-charge-orbit span { position: relative; font-size: 28px; }
+.magic-charge-orbit b { position: absolute; right: -18px; color: var(--gold-soft); font-size: 32px; animation: magic-orbit 2s linear infinite; }
+@keyframes magic-orbit { to { transform: rotate(360deg); } }
+.magic-charge .magic-charge-instruction { animation: none; margin: 0 0 8px; font: 500 13px/1.5 system-ui; }
+.magic-charge-tracking { min-height: 36px; display: grid; place-items: center; padding: 4px 8px; border-radius: 8px; background: #ffffff08; color: var(--gold-soft); font: 12px/1.4 system-ui; }
+.magic-charge-tracking.ready { color: #7dffb0; background: #7dffb010; }
+.magic-charge .struggle-leader { font-size: 19px; }
+.magic-charge .struggle-sides { gap: 8px; font-size: 12px; }
+.magic-charge-controls { display: flex; gap: 8px; margin: 12px 0 8px; }
+.magic-charge-controls button { flex: 1; min-height: 44px; border: 1px solid #f6c45388; border-radius: 10px; background: #f6c45318; color: #fff4d9; font: 700 13px/1.4 system-ui; cursor: pointer; touch-action: manipulation; }
+.magic-charge-controls button:hover, .magic-charge-controls button:active { background: #f6c45340; }
+.magic-charge-controls button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.magic-charge-controls kbd { display: inline-block; margin-left: 6px; font: 10px/1.4 system-ui; opacity: 0.7; }
+.magic-charge small { display: block; font: 11px/1.4 system-ui; }
+.magic-charge-test-toggle { display: block; margin: 12px 0; color: var(--gold-soft); }
+.magic-charge-test-feedback { margin: 16px 0; padding: 16px; border: 1px solid #f6c45355; border-radius: 12px; }
+.magic-charge-test-feedback > strong { font-size: 28px; color: var(--gold-soft); }
 @media (max-width: 640px) {
-  .six-seven-event { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px; }
-  .duel .six-seven-event .gesture-cam { grid-column: 1; grid-row: 2; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 8px; }
-  .six-seven-camera .gesture-cam-view { grid-row: 1 / 4; }
-  .six-seven-camera-placeholder { grid-row: 1 / 4; padding: 8px; }
-  .six-seven-camera-placeholder small { display: none; }
-  .six-seven-camera .gesture-cam-error { grid-column: 2; margin: 0; font-size: 10px; }
-  .six-seven-camera .gesture-cam-toggle { grid-column: 2; }
-  .six-seven .struggle-sides { font-size: 11px; }
+  .magic-charge-event { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px; }
+  .duel .magic-charge-event .gesture-cam { grid-column: 1; grid-row: 2; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 8px; }
+  .magic-charge-camera .gesture-cam-view { grid-row: 1 / 4; }
+  .magic-charge-camera-placeholder { grid-row: 1 / 4; padding: 8px; }
+  .magic-charge-camera-placeholder small { display: none; }
+  .magic-charge-camera .gesture-cam-error { grid-column: 2; margin: 0; font-size: 10px; }
+  .magic-charge-camera .gesture-cam-toggle { grid-column: 2; }
+  .magic-charge .struggle-sides { font-size: 11px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .six-seven-cue.demo .six-seven-arm { animation: none; }
-  .six-seven-cue.demo .six-seven-arm:last-child { transform: translateY(-9px); }
-  .six-seven .struggle-bar i, .six-seven .struggle-bar em { transition: none; }
+  .magic-charge-orbit b { animation: none; }
+  .magic-charge .struggle-bar i, .magic-charge .struggle-bar em { transition: none; }
 }
 
 /* One reference, one camera and one instruction keep the race readable at a glance. */
@@ -3054,6 +3048,171 @@ body {
   .clock-time { font-size: 22px; }
 }
 
+/* ---------- story intro ---------- */
+
+.story {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow: hidden;
+  background: var(--night);
+}
+
+.story-stage {
+  position: absolute;
+  inset: 0;
+  background: center bottom / cover no-repeat;
+  animation: story-in 0.8s ease-out both;
+  transition: opacity 0.7s ease, filter 0.7s ease;
+}
+
+.story.is-loading .story-stage {
+  opacity: 0.25;
+  filter: blur(4px);
+}
+
+.story-actor {
+  position: absolute;
+  bottom: 6vh;
+  margin: 0;
+  height: min(52vh, 460px);
+  display: flex;
+  justify-content: center;
+}
+
+.story-actor img {
+  height: 100%;
+  width: auto;
+  filter: drop-shadow(0 12px 14px #0007);
+}
+
+.story-villain {
+  left: 8vw;
+  animation: story-stride 1.4s ease-out 0.2s both;
+}
+
+.story-queen {
+  right: 10vw;
+  transition: transform 1.2s cubic-bezier(0.5, 0, 0.9, 0.6);
+}
+
+.story-queen.fleeing {
+  transform: translateX(70vw);
+}
+
+.story-champion {
+  right: 32vw;
+  opacity: 0;
+  transform: translateY(-40vh) scale(0.6);
+}
+
+/* The art faces right; the champion stands on the right, so flip only the picture. */
+.story-champion img {
+  transform: scaleX(-1);
+}
+
+.story-champion.arrived {
+  opacity: 1;
+  transform: none;
+  transition: transform 0.55s cubic-bezier(0.3, 1.5, 0.5, 1), opacity 0.2s;
+}
+
+.story-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 62% 60%, #fff 0, #cfb2f5 25%, transparent 60%);
+  pointer-events: none;
+  animation: story-flash 0.7s ease-out forwards;
+}
+
+.story-bubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  width: max-content;
+  max-width: min(320px, 36vw);
+  margin: 0 0 10px;
+  padding: 12px 18px;
+  border-radius: 20px;
+  border: 3px solid var(--night-2);
+  background: var(--parchment);
+  color: var(--night);
+  font: 700 clamp(14px, 1.7vw, 20px) var(--font-label);
+  text-align: center;
+  transform: translateX(-50%);
+  box-shadow: 0 8px 20px #0006;
+  animation: story-pop 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.story-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 12px solid transparent;
+  border-top-color: var(--night-2);
+  transform: translateX(-50%);
+}
+
+.story-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 900 clamp(26px, 4vw, 48px) var(--font-title);
+  color: var(--gold-soft);
+  text-shadow: 0 0 30px #f6c45388;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+.story.is-loading .story-loading {
+  opacity: 1;
+}
+
+.story-dots {
+  display: inline-block;
+  width: 1.6em;
+  text-align: left;
+}
+
+.story-skip {
+  position: absolute;
+  right: 24px;
+  bottom: 22px;
+  border: 1px solid #ffffff55;
+  border-radius: 999px;
+  padding: 8px 18px;
+  background: #1c1236b3;
+  color: var(--parchment);
+  font: 700 13px var(--font-body);
+  cursor: pointer;
+}
+
+@keyframes story-in {
+  from { opacity: 0; transform: scale(1.05); }
+}
+
+@keyframes story-stride {
+  from { transform: translateX(-30vw); }
+}
+
+@keyframes story-flash {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes story-pop {
+  from { opacity: 0; transform: translateX(-50%) scale(0.5); }
+}
+
+@media (max-width: 760px) {
+  .story-actor { height: 34vh; }
+  .story-champion { right: 28vw; }
+}
+
 /* Hold the camera panel back until the HUD above it has its final height. */
 .duel:not(.settled) .gesture-cam { visibility: hidden; }
 
@@ -3115,4 +3274,18 @@ body {
   22% { opacity: 1; transform: translateX(-50%) scale(1) rotate(-2deg); }
   82% { opacity: 1; transform: translateX(-50%) scale(1.04) rotate(-2deg); }
   100% { opacity: 0; transform: translateX(-50%) scale(0.9) rotate(-2deg); }
+}
+
+.magic-trace-result { color: var(--gold-soft); font: 600 12px/1.5 system-ui; margin: 6px 0; }
+.magic-charge-camera .gesture-cam-view { min-width: 0; }
+/* Precision tracing needs a large target and a readable fingertip trail. */
+.magic-charge-event { width: min(900px, calc(100% - 32px)); grid-template-columns: minmax(0, 1fr) 320px; }
+@media (max-width: 760px) {
+  .magic-charge-event { grid-template-columns: minmax(0, 1fr); }
+  .duel .magic-charge-event .gesture-cam { grid-template-columns: 1fr; grid-row: 1; max-width: 280px; justify-self: center; }
+  .duel .magic-charge-event .struggle { grid-row: 2; }
+  .magic-charge-camera .gesture-cam-view, .magic-charge-camera-placeholder { grid-row: auto; }
+  .magic-charge-camera .gesture-cam-toggle, .magic-charge-camera .gesture-cam-error { grid-column: 1; }
+  .magic-charge-camera-placeholder { display: none; }
+  .magic-charge-orbit { display: none; }
 }

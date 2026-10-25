@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { opponentOf, type GameEvent, type MatchState, type PlayerSlot, type Projectile, type SpellId } from "@spellcaster/shared";
 import { arenaTextures, art, palette, spellColor, textureUrl } from "../theme";
-import { MAP_ORDER, MAPS, type MapId } from "./maps";
+import { MAP_ORDER, type MapId } from "./maps";
 import { StruggleBeams } from "./StruggleBeams";
 import { RELEASE_MS, WizardRig } from "./WizardRig";
 import { getFlair } from "../game/flair";
@@ -142,7 +142,7 @@ const mapFor = (frame: ArenaFrame): MapId => {
 };
 
 /** Renders match state; it owns no game rules and never decides outcomes. */
-const WIZARD_SCALE = 1.7;
+const WIZARD_SCALE = 3.4;
 const CLOUD_PUFF = "cloud-puff";
 
 export class ArenaScene extends Phaser.Scene {
@@ -164,7 +164,12 @@ export class ArenaScene extends Phaser.Scene {
 
   /** Scale for the wizards and anything placed on them: they are the focus, so drawn larger than the stage. */
   private get wiz() {
-    return this.unit * WIZARD_SCALE;
+    const { width, height } = this.scale;
+    const { top, bottom } = this.getFrame().insets;
+    // Double the duelists and their face overlays, while leaving room for their animation
+    // and keeping both full sprites inside narrow screens.
+    const openHeight = Math.max(1, height - top - bottom - 12 * this.unit);
+    return Math.min(this.unit * WIZARD_SCALE, openHeight / 165, width / 375);
   }
 
   constructor(getFrame: () => ArenaFrame, private readonly onReady?: () => void) {
@@ -230,7 +235,7 @@ export class ArenaScene extends Phaser.Scene {
   private anchor(slot: PlayerSlot) {
     const { width } = this.scale;
     const left = this.getFrame().leftSlot === slot;
-    return { x: width * (left ? 0.14 : 0.86), y: this.groundY, facing: left ? 1 : -1 };
+    return { x: width * (left ? 0.22 : 0.78), y: this.groundY, facing: left ? 1 : -1 };
   }
 
   /** Where spells strike a wizard (chest height, just in front of them). */
@@ -294,22 +299,6 @@ export class ArenaScene extends Phaser.Scene {
       advance: 10_000,
     });
 
-    // Ledge heights are fractions of the open band above the path, so they clear the HUD.
-    const band = this.groundY - insets.top;
-    for (const ledge of MAPS[this.builtMap ?? "twin-ledges"].ledges) {
-      const y = insets.top + ledge.y * band;
-      const branch = this.add.image(width * ledge.x, y, "platform-upper");
-      branch.setScale((width * ledge.width) / branch.width);
-      if (ledge.flipX) branch.setFlipX(true);
-      this.tweens.add({
-        targets: branch,
-        y: branch.y - (ledge.bob ?? 5) * this.unit,
-        duration: 2600 + ledge.x * 1200,
-        yoyo: true,
-        repeat: -1,
-        ease: "Sine.easeInOut",
-      });
-    }
   }
 
   private makeWizard(slot: PlayerSlot): WizardView {

@@ -1,38 +1,6 @@
+import { TRACE_TARGET } from "@spellcaster/shared";
+import type { CircleChargeFeedback } from "./circleChargeCounter";
 import type { Landmark } from "./types";
-import type { BodyLandmark } from "./sixSevenCounter";
-
-/** The same golden hand skeleton, extended to the shoulders and elbows for 6–7. */
-export function drawForearms(canvas: HTMLCanvasElement, points: BodyLandmark[], hands: Landmark[][] = []) {
-  drawHands(canvas, hands);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  ctx.save();
-  ctx.shadowColor = "#f6c453";
-  ctx.shadowBlur = 14;
-  ctx.strokeStyle = "#f6c453";
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
-  const joints = new Set<BodyLandmark>();
-  for (const [a, b] of [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16]]) {
-    const start = points[a], end = points[b];
-    if (!start || !end || start.visibility < 0.5 || end.visibility < 0.5) continue;
-    ctx.beginPath();
-    ctx.moveTo(start.x * canvas.width, start.y * canvas.height);
-    ctx.lineTo(end.x * canvas.width, end.y * canvas.height);
-    ctx.stroke();
-    joints.add(start);
-    joints.add(end);
-  }
-  ctx.shadowBlur = 8;
-  ctx.fillStyle = "#fff4dc";
-  for (const p of joints) {
-    ctx.beginPath();
-    ctx.arc(p.x * canvas.width, p.y * canvas.height, 3.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
 // Bone pairs for drawing the 21-point hand skeleton.
 const BONES: [number, number][] = [
   [0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [5, 9], [9, 10], [10, 11], [11, 12],
@@ -68,4 +36,18 @@ function drawSkeleton(ctx: CanvasRenderingContext2D, landmarks: Landmark[], widt
     ctx.fill();
   }
   ctx.shadowBlur = 0;
+}
+
+export function drawTraceGuide(canvas: HTMLCanvasElement, circleFeedback: CircleChargeFeedback | null) {
+  const ctx=canvas.getContext("2d");
+  if(ctx) {
+    const w=canvas.width;
+    ctx.save(); ctx.shadowBlur=0; ctx.strokeStyle="#f6c453"; ctx.lineWidth=3; ctx.setLineDash([9,7]);
+    ctx.beginPath(); ctx.arc(TRACE_TARGET.x*w,TRACE_TARGET.y*w,TRACE_TARGET.radius*w,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]); ctx.strokeStyle="#7dffb0"; ctx.lineWidth=4; ctx.beginPath();
+    circleFeedback?.trail?.forEach((p,i)=>{ if(i) ctx.lineTo((1-p.x)*w,p.y*w); else ctx.moveTo((1-p.x)*w,p.y*w); }); ctx.stroke();
+    const tip=circleFeedback?.trail?.at(-1);
+    if(tip) { ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc((1-tip.x)*w,tip.y*w,6,0,Math.PI*2); ctx.fill(); }
+    ctx.restore();
+  }
 }

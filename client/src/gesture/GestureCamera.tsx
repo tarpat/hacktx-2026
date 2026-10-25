@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { SpellId, RacePoseId } from "@spellcaster/shared";
+import { type SpellId, type RacePoseId } from "@spellcaster/shared";
 import type { PoseFeedback } from "./racePoseMatcher";
 import { startCharge, stopCharge } from "../audio/sound";
 import { setFaceSource } from "../game/flair";
 import { spellInput } from "../game/input";
 import { art, spellGlyph } from "../theme";
 import { ChargeOrb, type ActiveCharge, type ChargeOutcome } from "./ChargeOrb";
-import { drawForearms, drawHands } from "./drawHand";
-import type { SixSevenFeedback } from "./sixSevenCounter";
+import { drawHands, drawTraceGuide } from "./drawHand";
+import type { CircleChargeFeedback } from "./circleChargeCounter";
 import { GestureController } from "./GestureController";
 import type { ChargeKind } from "./gestureStateMachine";
 import type { GestureAction, HandPose, TrackingStatus } from "./types";
@@ -61,7 +61,7 @@ export function GestureCamera({
   canCast = () => true,
   raceTarget = null,
   onRaceFeedback,
-  onSixSevenFeedback,
+  onCircleChargeFeedback,
   onReady,
   compact = false,
   extraControls,
@@ -72,7 +72,7 @@ export function GestureCamera({
   canCast?: (spell: SpellId) => boolean;
   raceTarget?: RacePoseId | null;
   onRaceFeedback?: (feedback: PoseFeedback) => void;
-  onSixSevenFeedback?: (feedback: SixSevenFeedback) => void;
+  onCircleChargeFeedback?: (feedback: CircleChargeFeedback) => void;
   /** Called once the camera is tracking, has failed, or is off: its model load blocks the page while it runs. */
   onReady?: () => void;
   compact?: boolean;
@@ -91,10 +91,11 @@ export function GestureCamera({
   const [lastCast, setLastCast] = useState<{ id: number; spell: SpellId } | null>(null);
   const charging = charge !== null;
   const [error, setError] = useState("");
+  const [circleComplete, setCircleComplete] = useState(false);
   const raceCallback = useRef(onRaceFeedback);
   raceCallback.current = onRaceFeedback;
-  const sixSevenCallback = useRef(onSixSevenFeedback);
-  sixSevenCallback.current = onSixSevenFeedback;
+  const circleChargeCallback = useRef(onCircleChargeFeedback);
+  circleChargeCallback.current = onCircleChargeFeedback;
   const readyCallback = useRef(onReady);
   readyCallback.current = onReady;
 
@@ -117,11 +118,12 @@ export function GestureCamera({
     // Mirrors `charge` so the action handler can read the current kind without a stale closure.
     let current: ActiveCharge | null = null;
     let handColor = HAND_COLOR.idle;
+    let circleFeedback: CircleChargeFeedback | null = null;
     // A charge started while its spell was unavailable: ignore it until it ends.
     let blocked = false;
     const unsubscribers = [
       controller.onRaceFeedback((feedback) => raceCallback.current?.(feedback)),
-      controller.onSixSevenFeedback((feedback) => sixSevenCallback.current?.(feedback)),
+      controller.onCircleChargeFeedback((feedback) => { circleFeedback = feedback; setCircleComplete(!!feedback.completed); circleChargeCallback.current?.(feedback); }),
       controller.onObservation((o) => {
         setStatus(o.status);
         setPose(o.pose);
@@ -165,8 +167,8 @@ export function GestureCamera({
       }),
       controller.onDebugFrame((frame) => {
         if (!canvasRef.current) return;
-        if (frame.body) drawForearms(canvasRef.current, frame.body, frame.hands);
-        else drawHands(canvasRef.current, frame.hands, handColor);
+        drawHands(canvasRef.current, frame.hands, handColor);
+        if (frame.state === "STRUGGLE") drawTraceGuide(canvasRef.current, circleFeedback);
       }),
     ];
     return () => {
@@ -203,15 +205,18 @@ export function GestureCamera({
 
   useEffect(() => {
     controllerRef.current?.setStruggling(struggling);
+    setCircleComplete(false);
   }, [struggling]);
 
   useEffect(() => {
     if (!struggling || raceTarget) return;
-    const hint = !enabled ? "Camera off · Use SPACE or tap to score."
-      : status === "ERROR" ? "Camera stopped · Use SPACE or tap to score."
-      : status === "STARTING" ? "Starting camera… Use SPACE or tap while you wait."
-      : "Keep both elbows and wrists in view. Each wrist lift scores.";
-    sixSevenCallback.current?.({ visible: false, left: null, right: null, hint });
+    const hint = !enabled ? "Enable your camera to trace the circle."
+      : status === "ERROR" ? "Camera stopped · restart it to trace."
+      : status === "STARTING" ? "Starting camera…"
+      : "Point at the screen and trace the golden circle.";
+    // During normal tracking the controller owns progress, including brief dropouts.
+    // Do not replace its saved trace with an empty status-change frame.
+    if(!enabled || status === "ERROR" || status === "STARTING") circleChargeCallback.current?.({ visible: false, progress: 0, hint });
   }, [struggling, raceTarget, enabled, status]);
 
   useEffect(() => { controllerRef.current?.setRaceTarget(raceTarget); }, [raceTarget]);
@@ -243,13 +248,13 @@ export function GestureCamera({
 
   const live = status === "TRACKING" || status === "NO_HAND";
   const label =
-    status === "STARTING" ? "Starting camera…" : raceTarget ? "Match the reference · face + hands in view" : struggling ? status === "NO_HAND" ? "Step back · elbows + wrists in view" : "6–7! Rock your forearms" : status === "NO_HAND" ? "Show your hand" : charge?.kind === "ultimate" ? "Charging… drop to strike" : charging ? "Charging… open to cast" : POSE_LABELS[pose] ?? "";
+    status === "STARTING" ? "Starting camera…" : raceTarget ? "Match the reference · face + hands in view" : struggling ? status === "NO_HAND" ? "Show one hand" : "Point and trace the circle" : status === "NO_HAND" ? "Show your hand" : charge?.kind === "ultimate" ? "Charging… drop to strike" : charging ? "Charging… open to cast" : POSE_LABELS[pose] ?? "";
 
   return (
     <>
     {!compact && <ChargeOrb charge={charge} outcome={chargeOutcome} ultimateReady={ultimateReady} />}
-    <aside className={`gesture-cam${compact || raceTarget ? " pose-camera" : ""}${struggling && !raceTarget ? " six-seven-camera" : ""}${enabled ? " on" : ""}${charge ? ` is-charging charge-${charge.kind}` : ""}`}>
-      {struggling && !raceTarget && !compact && !enabled && <div className="six-seven-camera-placeholder"><span>6 ↕ 7</span><b>Camera off</b><small>Frame both elbows and wrists to play with gestures.</small></div>}
+    <aside className={`gesture-cam${compact || raceTarget ? " pose-camera" : ""}${struggling && !raceTarget ? " magic-charge-camera" : ""}${enabled ? " on" : ""}${charge ? ` is-charging charge-${charge.kind}` : ""}`}>
+      {struggling && !raceTarget && !compact && !enabled && <div className="magic-charge-camera-placeholder"><span>◯ ✨</span><b>Camera off</b><small>Point your index finger at the screen.</small></div>}
       {(compact || raceTarget) && !enabled && <div className="pose-camera-placeholder"><span>Camera off</span><button className="gesture-cam-toggle" onClick={toggle}>Enable camera</button></div>}
       <div className="gesture-cam-view" hidden={!enabled}>
         <video ref={videoRef} className="mirrored" autoPlay playsInline muted />
@@ -263,8 +268,9 @@ export function GestureCamera({
         )}
       </div>
 
+      {struggling && !raceTarget && !enabled && <button className="gesture-cam-toggle" onClick={toggle}>Enable camera</button>}
       {error && <p className="gesture-cam-error" role="alert">{error}</p>}
-      {struggling && !raceTarget && enabled && <button className="gesture-cam-toggle" onClick={() => controllerRef.current?.retryBodyTracking()}>Retry 6–7 tracking</button>}
+      {struggling && !raceTarget && enabled && <button className="gesture-cam-toggle" onClick={() => { controllerRef.current?.resetCircleTracking(); setCircleComplete(false); }}>{circleComplete ? "Try another circle" : "Reset circle tracking"}</button>}
       {compact ? <details className="pose-options">
         <summary>Options</summary>
         <div className="pose-options-panel">
