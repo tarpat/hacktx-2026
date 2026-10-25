@@ -135,6 +135,8 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   // Your name, and your live face on your wizard's head (refreshed every 1.5s), go to the rival.
   useEffect(() => {
     setFlair(source.localSlot, { name: loadMyName() });
+    // Forget whoever sat in the other seat last time; the rival's own name arrives over the network.
+    setFlair(opponentOf(source.localSlot), { name: "", face: "", ko: "" });
     shareFace(source);
     const timer = window.setInterval(() => shareFace(source), 1_500);
     return () => window.clearInterval(timer);

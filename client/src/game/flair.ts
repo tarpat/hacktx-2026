@@ -58,9 +58,13 @@ export function onFlairChange(listener: () => void) {
 
 const NAME_KEY = "spellcaster:name";
 
+/**
+ * Your name lives per tab (sessionStorage), so two players testing in two tabs of one
+ * browser keep their own names. The last name typed anywhere is only a default for new tabs.
+ */
 export function loadMyName(): string {
   try {
-    return localStorage.getItem(NAME_KEY) ?? "";
+    return sessionStorage.getItem(NAME_KEY) ?? localStorage.getItem(NAME_KEY) ?? "";
   } catch {
     return "";
   }
@@ -68,6 +72,7 @@ export function loadMyName(): string {
 
 export function saveMyName(name: string) {
   try {
+    sessionStorage.setItem(NAME_KEY, cleanName(name));
     localStorage.setItem(NAME_KEY, cleanName(name));
   } catch {
     // Storage blocked; the name still applies to this visit.
