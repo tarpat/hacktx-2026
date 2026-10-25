@@ -124,6 +124,12 @@ io.on("connection", (socket) => {
     if (runner && slot) runner.push(slot);
   });
 
+  socket.on("POSE_SAMPLE", (sample) => {
+    const runner = roomCode ? matches.get(roomCode) : undefined;
+    const slot = roomCode ? rooms.slotOf(roomCode, socket.id) : null;
+    if (runner && slot && typeof sample?.struggleId === "string" && sample.struggleId.length < 80 && Number.isInteger(sample.step)) runner.poseSample(slot, sample);
+  });
+
   socket.on("disconnect", () => {
     if (!roomCode) return;
     const disconnected = rooms.disconnect(roomCode, socket.id, (snapshot) => io.to(snapshot.code).emit("ROOM_UPDATED", snapshot));

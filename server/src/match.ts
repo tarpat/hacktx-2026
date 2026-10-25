@@ -1,4 +1,4 @@
-import { DuelEngine, type CastAck, type GameEvent, type MatchState, type PlayerSlot, type PowerUpId, type SpellId } from "@spellcaster/shared";
+import { DuelEngine, type CastAck, type GameEvent, type MatchState, type PlayerSlot, type PowerUpId, type SpellId, type PoseSample } from "@spellcaster/shared";
 
 const TICK_MS = 50;
 const HEARTBEAT_MS = 500;
@@ -30,6 +30,10 @@ export class MatchRunner {
 
   push(slot: PlayerSlot): void {
     if (this.engine.push(slot, Date.now())) this.flush(true);
+  }
+
+  poseSample(slot: PlayerSlot, sample: PoseSample): void {
+    if (this.engine.poseSample(slot, sample, Date.now())) this.flush(true);
   }
 
   powerUp(slot: PlayerSlot, powerUp: PowerUpId, clientActionId: string): CastAck {

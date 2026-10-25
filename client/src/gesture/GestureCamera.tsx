@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { SpellId } from "@spellcaster/shared";
+import type { SpellId, RacePoseId } from "@spellcaster/shared";
+import type { PoseFeedback } from "./racePoseMatcher";
 import { startCharge, stopCharge } from "../audio/sound";
 import { spellInput } from "../game/input";
 import { art, spellGlyph } from "../theme";
@@ -59,7 +60,7 @@ function writeEnabled(on: boolean) {
  * Floating webcam panel that casts spells for the local wizard through `spellInput`,
  * the same entry point the keyboard fallback uses. Frames never leave the browser.
  */
-export function GestureCamera({ ultimateReady = true, struggling = false }: { ultimateReady?: boolean; struggling?: boolean }) {
+export function GestureCamera({ ultimateReady = true, struggling = false, raceTarget = null, onRaceFeedback }: { ultimateReady?: boolean; struggling?: boolean; raceTarget?: RacePoseId | null; onRaceFeedback?: (feedback: PoseFeedback) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const controllerRef = useRef<GestureController | null>(null);
@@ -71,6 +72,8 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
   const [lastCast, setLastCast] = useState<{ id: number; spell: SpellId } | null>(null);
   const charging = charge !== null;
   const [error, setError] = useState("");
+  const raceCallback = useRef(onRaceFeedback);
+  raceCallback.current = onRaceFeedback;
 
   useEffect(() => {
     const controller = new GestureController();
@@ -80,6 +83,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
     let current: ActiveCharge | null = null;
     let handColor = HAND_COLOR.idle;
     const unsubscribers = [
+      controller.onRaceFeedback((feedback) => raceCallback.current?.(feedback)),
       controller.onObservation((o) => {
         setStatus(o.status);
         setPose(o.pose);
@@ -143,6 +147,15 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
     controllerRef.current?.setStruggling(struggling);
   }, [struggling]);
 
+  useEffect(() => { controllerRef.current?.setRaceTarget(raceTarget); }, [raceTarget]);
+
+  useEffect(() => {
+    if (!raceTarget) return;
+    if (!enabled) raceCallback.current?.({ matched: null, hint: "Turn on the camera to match poses" });
+    else if (status === "ERROR") raceCallback.current?.({ matched: null, hint: error || "Camera stopped. Turn gestures off and on to retry." });
+    else if (status === "STARTING") raceCallback.current?.({ matched: null, hint: "Starting the camera…" });
+  }, [enabled, status, raceTarget, error]);
+
   useEffect(() => {
     if (!chargeOutcome) return;
     // Matches the burst/fizzle animation length.
@@ -163,12 +176,13 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
 
   const live = status === "TRACKING" || status === "NO_HAND";
   const label =
-    status === "STARTING" ? "Starting camera…" : status === "NO_HAND" ? "Show your hand" : struggling ? "✊✋ PUMP! PUMP!" : charge?.kind === "ultimate" ? "Charging… drop to strike" : charging ? "Charging… open to cast" : POSE_LABELS[pose] ?? "";
+    status === "STARTING" ? "Starting camera…" : raceTarget ? "Match the reference · face + hands in view" : status === "NO_HAND" ? "Show your hand" : struggling ? "✊✋ PUMP! PUMP!" : charge?.kind === "ultimate" ? "Charging… drop to strike" : charging ? "Charging… open to cast" : POSE_LABELS[pose] ?? "";
 
   return (
     <>
     <ChargeOrb charge={charge} outcome={chargeOutcome} ultimateReady={ultimateReady} />
-    <aside className={`gesture-cam${enabled ? " on" : ""}${charge ? ` is-charging charge-${charge.kind}` : ""}`}>
+    <aside className={`gesture-cam${raceTarget ? " pose-camera" : ""}${enabled ? " on" : ""}${charge ? ` is-charging charge-${charge.kind}` : ""}`}>
+      {raceTarget && !enabled && <div className="pose-camera-placeholder"><b>Camera is off</b><span>Enable gestures below.<br />Keep your face and both hands in view.</span></div>}
       <div className="gesture-cam-view" hidden={!enabled}>
         <video ref={videoRef} className="mirrored" autoPlay playsInline muted />
         <canvas ref={canvasRef} className="mirrored" width={640} height={480} />
@@ -180,7 +194,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
           </span>
         )}
       </div>
-      {enabled && (
+      {enabled && !raceTarget && (
         <ul className="gesture-cam-legend">
           {LEGEND.map(({ spell, pose }) => (
             <li key={spell} className={spell === "ultimate" && !ultimateReady ? "locked" : ""}>
@@ -191,6 +205,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
         </ul>
       )}
       {error && <p className="gesture-cam-error">{error}</p>}
+      {raceTarget && enabled && <button className="gesture-cam-toggle" onClick={() => controllerRef.current?.retryFaceTracking()}>Retry face tracking</button>}
       <button className="gesture-cam-toggle" onClick={toggle}>
         {enabled ? "Gestures on · turn off" : "🎥 Cast with gestures"}
       </button>

@@ -24,12 +24,13 @@ test("production browser clients connect on the hosted origin without a localhos
     for (const page of [a, b]) page.on("websocket", (socket) => connections.push(socket.url()));
     await a.goto("http://127.0.0.1:4180/");
     await a.getByRole("button", { name: "Create a duel" }).click();
-    const code = await a.locator(".room-ready strong").innerText();
+    await expect(a.locator(".code-characters")).toBeVisible();
+    const code = (await a.locator(".code-box").allTextContents()).join("");
     await b.goto("http://127.0.0.1:4180/");
     await b.getByRole("textbox", { name: "Room code" }).fill(code);
     await b.getByRole("button", { name: "Join", exact: true }).click();
     for (const page of [a, b]) {
-      await page.getByRole("button", { name: "Continue to calibration" }).click();
+      await expect(page.getByRole("heading", { name: "Set your spellcraft" })).toBeVisible();
       await page.getByRole("button", { name: "Enter the arena" }).click();
     }
     await a.getByRole("button", { name: "I'm ready" }).click();

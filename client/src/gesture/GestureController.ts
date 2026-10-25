@@ -1,4 +1,8 @@
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
+import type { FaceLandmarker } from "@mediapipe/tasks-vision";
+import { POSE_RACE, type RacePoseId } from "@spellcaster/shared";
+import { loadRaceFaceTracker, RaceFaceReader } from "./raceFaceTracking";
+import { matchRacePose, type PoseFeedback } from "./racePoseMatcher";
 import { classifyPose, combinePoses, PoseSmoother } from "./poseClassifier";
 import { filterHands, HandStabilizer } from "./handTracking";
 import { PumpCounter } from "./pumpCounter";
@@ -66,6 +70,13 @@ export class GestureController {
   private pumps = new PumpCounter();
   /** During a spell struggle, hands pump to push instead of casting. */
   private struggling = false;
+  private raceTarget: RacePoseId | null = null;
+  private faceTracker: FaceLandmarker | null = null;
+  private faceReader: RaceFaceReader | null = null;
+  private faceLoading = false;
+  private faceError = false;
+  private lastRaceFrame = 0;
+  private raceListeners = new Set<(feedback: PoseFeedback) => void>();
   private gestureState: GestureState = { kind: "IDLE" };
   private hand: Handedness | undefined;
   private status: TrackingStatus = "CAMERA_OFF";
@@ -114,6 +125,9 @@ export class GestureController {
       }
       if (generation !== this.generation) return;
 
+      // Preload alongside normal play so a collision does not wait for the face model.
+      this.prepareFaceTracker();
+
       this.setStatus("NO_HAND");
       this.loop(landmarker, generation);
     } catch (error) {
@@ -132,6 +146,28 @@ export class GestureController {
     // Entering: drop any half-made gesture. Leaving: hands are mid-pump, so wait for them to relax before casting again.
     this.flushGestureState();
     if (!on) this.gestureState = { kind: "REARM", blockedPoses: ["FIST", "BOTH_FISTS", "OPEN_PALM", "BOTH_PALMS", "POINT"] };
+  }
+
+  setRaceTarget(target: RacePoseId | null): void {
+    this.raceTarget = target;
+    this.lastRaceFrame = 0;
+    if (target) this.prepareFaceTracker();
+  }
+
+  retryFaceTracking(): void {
+    this.faceError = false;
+    this.prepareFaceTracker();
+  }
+
+  onRaceFeedback(callback: (feedback: PoseFeedback) => void): () => void {
+    this.raceListeners.add(callback);
+    return () => this.raceListeners.delete(callback);
+  }
+
+  private prepareFaceTracker(): void {
+    if (this.faceTracker || this.faceLoading || this.faceError) return;
+    this.faceLoading = true;
+    loadRaceFaceTracker().then((tracker) => { this.faceTracker = tracker; }).catch(() => { this.faceError = true; }).finally(() => { this.faceLoading = false; });
   }
 
   stop(): void {
@@ -181,6 +217,23 @@ export class GestureController {
     const pose = this.smoother.push(rawPose);
     this.setStatus(hands.length > 0 ? "TRACKING" : "NO_HAND");
 
+    if (this.raceTarget) {
+      if (now - this.lastRaceFrame >= POSE_RACE.sampleIntervalMs) {
+        this.lastRaceFrame = now;
+        let feedback: PoseFeedback = { matched: null, hint: this.faceError ? "Face tracking failed to load. Retry face tracking below." : "Loading face tracking…" };
+        if (this.faceTracker && this.video && !document.hidden) {
+          try {
+            this.faceReader ??= new RaceFaceReader();
+            feedback = matchRacePose(this.raceTarget, this.faceReader.read(this.faceTracker, this.video, hands, now));
+          } catch {
+            feedback = { matched: null, hint: "Face tracking interrupted. Keep your face in view or retry below." };
+          }
+        }
+        for (const listener of this.raceListeners) listener(feedback);
+      }
+      this.notify(pose, rawPose, hands, now);
+      return;
+    }
     if (this.struggling) {
       if (this.pumps.update(rawPose)) this.emitActions(["STRUGGLE_PUSH"], now);
       this.notify(pose, rawPose, hands, now);

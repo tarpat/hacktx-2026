@@ -1,9 +1,11 @@
 import type { CastRejectReason, GameEvent, MatchState, PlayerSlot, PowerUpId, SpellId } from "./game/types.js";
+import type { PoseSample } from "./game/poses.js";
 
 export * from "./game/types.js";
 export * from "./game/config.js";
 export * from "./game/engine.js";
 export * from "./game/bot.js";
+export * from "./game/poses.js";
 
 export interface RoomPlayer {
   slot: PlayerSlot;
@@ -55,6 +57,7 @@ export interface ClientToServerEvents {
   POWER_UP_REQUEST: (request: PowerUpRequest, callback?: (ack: CastAck) => void) => void;
   /** One push in a spell struggle. The engine rate-limits pushes, so no payload or ack is needed. */
   STRUGGLE_PUSH: () => void;
+  POSE_SAMPLE: (sample: PoseSample) => void;
   /** The room creator's map pick (0-2); every match in the room uses it. */
   STAGE_PREFERENCE: (stageId: number) => void;
 }

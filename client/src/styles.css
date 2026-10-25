@@ -2245,6 +2245,72 @@ img.spell-glyph {
 .clash-result p { margin: 0; font-size: 0.9rem; }
 .struggle-leader { display: block; margin: 8px 0; font-size: clamp(1.2rem, 3vw, 1.65rem); }
 .struggle-versus { opacity: 0.6; }
+
+/* Paused combat gives the pose race the full stage for references and camera feedback. */
+.pose-race { position: absolute; z-index: 10; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(920px, calc(100% - 24px)); max-height: calc(100% - 24px); box-sizing: border-box; overflow: auto; overscroll-behavior: contain; padding: 18px 22px; border: 1px solid #d5b77688; border-radius: 20px; color: #fff4d9; background: linear-gradient(140deg, #251842fa, #100d23fa); box-shadow: 0 16px 80px #000a, 0 0 0 100vmax #100b2580; }
+.pose-race-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pose-eyebrow { color: #e9c477; font: 700 10px/1.4 system-ui; letter-spacing: .16em; }
+.pose-race h2 { margin: 3px 0; font-size: clamp(22px, 3vw, 32px); }
+.pose-clock { white-space: nowrap; padding: 9px 12px; border: 1px solid #e9c47788; border-radius: 12px; font: 800 19px/1.2 system-ui; font-variant-numeric: tabular-nums; }
+.pose-rules { margin: 6px 0 12px; font: 13px/1.5 system-ui; color: #d9cfe7; }
+.pose-scoreboard { display: flex; gap: 24px; margin-bottom: 14px; }
+.pose-score { flex: 1; }
+.pose-score b { display: flex; justify-content: space-between; font: 700 12px/1.5 system-ui; }
+.pose-score.player-A { color: #8ef2bd; }
+.pose-score.player-B { color: #d4a6ff; }
+.pose-steps { display: flex; gap: 5px; margin-top: 5px; }
+.pose-steps span { flex: 1; border-radius: 5px; padding: 2px; color: #94899e; background: #ffffff0a; text-align: center; font: 700 12px/1.5 system-ui; }
+.pose-steps .done { color: #151421; background: #8ef2bd; }
+.pose-score.player-B .done { background: #d4a6ff; }
+.pose-steps .current { color: inherit; outline: 1px solid currentColor; }
+.pose-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.pose-reference { position: relative; margin: 0; border-radius: 12px; background: #080810; overflow: hidden; }
+.pose-reference > img { width: 100%; height: clamp(150px, 23vh, 260px); object-fit: contain; display: block; }
+.pose-reference figcaption { padding: 10px 14px; border-top: 1px solid #ffffff1a; }
+.pose-reference figcaption > span { color: #e9c477; font: 700 10px/1.5 system-ui; letter-spacing: .1em; }
+.pose-reference h3 { font-size: 22px; margin: 2px 0; }
+.pose-reference p { margin: 4px 0 0; font: 13px/1.4 system-ui; color: #d9cfe7; }
+.pose-live { display: flex; flex-direction: column; min-width: 0; }
+.duel .pose-race .gesture-cam { position: relative; inset: auto; width: 100%; margin: 0; transform: none; box-sizing: border-box; z-index: auto; }
+.pose-race .gesture-cam-view { aspect-ratio: 4/3; max-height: 23vh; min-height: 120px; }
+.pose-race .gesture-cam-view video, .pose-race .gesture-cam-view canvas { object-fit: contain; }
+.pose-race .gesture-cam-label { font: 11px/1.4 system-ui; white-space: normal; width: calc(100% - 20px); text-align: center; }
+.pose-race .gesture-cam-toggle { font-size: 11px; padding: 5px; }
+.pose-camera-placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; width: 100%; height: clamp(120px, 23vh, 260px); border: 1px dashed #b5a0ca66; border-radius: 10px; background: #080810; color: #d9cfe7; font: 12px/1.4 system-ui; text-align: center; padding: 12px; box-sizing: border-box; }
+.pose-camera-placeholder b { color: #f3ce7e; font-size: 16px; }
+.pose-camera-picker { display: flex; gap: 8px; margin-bottom: 6px; font: 12px/1.5 system-ui; }
+.pose-camera-picker select { color: #fff; background: #302341; border-radius: 5px; }
+.pose-feedback { padding: 10px 0 0; font: 13px/1.4 system-ui; }
+.pose-feedback strong { color: #f3ce7e; }
+.pose-feedback.matching strong { color: #8ef2bd; }
+.pose-feedback p { margin: 4px 0 9px; color: #d9cfe7; min-height: 2.8em; }
+.pose-hold { height: 7px; border-radius: 10px; overflow: hidden; background: #ffffff18; }
+.pose-hold i { display: block; height: 100%; background: #8ef2bd; transition: width 80ms linear; }
+.pose-filmstrip { list-style: none; display: flex; gap: 8px; padding: 0; margin: 14px 0 10px; }
+.pose-filmstrip li { flex: 1; overflow: hidden; min-width: 0; border-radius: 8px; border: 1px solid #ffffff1a; opacity: .5; }
+.pose-filmstrip li.current { border-color: #f3ce7e; opacity: 1; }
+.pose-filmstrip li.done { border-color: #8ef2bd; opacity: .85; }
+.pose-filmstrip img { display: block; width: 100%; height: 45px; object-fit: cover; }
+.pose-filmstrip span { display: block; padding: 5px; font: 10px/1.2 system-ui; }
+.pose-race-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; font-family: system-ui; }
+.pose-race-footer small { color: #ac9fbc; font-size: 10px; }
+.pose-assist { font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.pose-assist-buttons { width: 100%; display: flex; gap: 8px; }
+.pose-assist-buttons button { flex: 1; touch-action: none; font: 11px/1.4 system-ui; padding: 7px; }
+@media (max-width: 600px) {
+  .pose-race { padding: 12px; }
+  .pose-race-header { align-items: flex-start; }
+  .pose-clock { font-size: 14px; padding: 7px; }
+  .pose-comparison { gap: 10px; }
+  .pose-reference > img { height: 150px; }
+  .pose-reference figcaption { padding: 8px; }
+  .pose-reference h3 { font-size: 18px; }
+  .pose-reference p, .pose-feedback { font-size: 11px; }
+  .pose-filmstrip span { font-size: 9px; }
+  .pose-filmstrip img { height: 34px; }
+  .pose-rules { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) { .pose-hold i { transition: none; } }
 @media (prefers-reduced-motion: reduce) {
   .rising-embers { display: none; }
 }
