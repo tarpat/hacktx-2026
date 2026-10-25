@@ -71,7 +71,7 @@ export class GestureController {
       try {
         // Audio stays off so the audio module keeps control of the mic.
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } },
           audio: false,
         });
       } catch (error) {
