@@ -31,6 +31,10 @@ const LEGEND: { spell: SpellId; pose: string; poses: HandPose[] }[] = [
 /** Hand-skeleton glow: gold at rest, the spell's color while charging. */
 const HAND_COLOR = { idle: "#f6c453", fireball: "#ff8a4c", ultimate: "#fff27a" };
 
+/** Webcams drop their frame rate in dim light; warn after it stays low this long. */
+const LOW_FPS = 20;
+const LOW_FPS_MS = 2000;
+
 function SpellIcon({ spell }: { spell: SpellId }) {
   const src = art.spell[spell];
   return src ? <img src={src} alt="" /> : <span>{spellGlyph[spell]}</span>;
@@ -71,6 +75,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
   const [lastCast, setLastCast] = useState<{ id: number; spell: SpellId } | null>(null);
   const charging = charge !== null;
   const [error, setError] = useState("");
+  const [lowLight, setLowLight] = useState(false);
 
   useEffect(() => {
     const controller = new GestureController();
@@ -79,10 +84,15 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
     // Mirrors `charge` so the action handler can read the current kind without a stale closure.
     let current: ActiveCharge | null = null;
     let handColor = HAND_COLOR.idle;
+    let lowSince: number | null = null;
     const unsubscribers = [
       controller.onObservation((o) => {
         setStatus(o.status);
         setPose(o.pose);
+        if (o.status !== "TRACKING" && o.status !== "NO_HAND") {
+          lowSince = null;
+          setLowLight(false);
+        }
         if (o.status === "ERROR") setError((e) => e || "Camera stopped. Turn gestures off and on to retry.");
       }),
       controller.onAction(({ action, localTimestampMs }) => {
@@ -111,6 +121,9 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
       }),
       controller.onDebugFrame((frame) => {
         if (canvasRef.current) drawHands(canvasRef.current, frame.hands, handColor);
+        const now = performance.now();
+        lowSince = frame.fps < LOW_FPS ? lowSince ?? now : null;
+        setLowLight(lowSince !== null && now - lowSince > LOW_FPS_MS);
       }),
     ];
     return () => {
@@ -163,7 +176,7 @@ export function GestureCamera({ ultimateReady = true, struggling = false }: { ul
 
   const live = status === "TRACKING" || status === "NO_HAND";
   const label =
-    status === "STARTING" ? "Starting camera…" : status === "NO_HAND" ? "Show your hand" : struggling ? "✊✋ PUMP! PUMP!" : charge?.kind === "ultimate" ? "Charging… drop to strike" : charging ? "Charging… open to cast" : POSE_LABELS[pose] ?? "";
+    status === "STARTING" ? "Starting camera…" : status === "NO_HAND" ? "Show your hand" : struggling ? "✊✋ PUMP! PUMP!" : charge?.kind === "ultimate" ? "Charging… drop to strike" : charging ? "Charging… open to cast" : lowLight ? "💡 More light on your hands" : POSE_LABELS[pose] ?? "";
 
   return (
     <>

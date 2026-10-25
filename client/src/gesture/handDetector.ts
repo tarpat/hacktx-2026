@@ -69,6 +69,13 @@ export function getDetector(): Promise<HandDetector> {
   return shared;
 }
 
+/** Load the model in the background once the page is idle, so turning on gestures doesn't stall. */
+export function preloadDetector(): void {
+  const load = () => getDetector().catch(() => {});
+  if ("requestIdleCallback" in window) requestIdleCallback(load, { timeout: 3000 });
+  else setTimeout(load, 1000);
+}
+
 async function createDetector(): Promise<HandDetector> {
   if (typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined" && typeof createImageBitmap !== "undefined") {
     try {
