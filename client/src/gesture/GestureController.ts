@@ -57,6 +57,8 @@ export class GestureController {
   private pipeline: GesturePipeline;
   private raceTarget: RacePoseId | null = null;
   private faceTracker: FaceLandmarker | null = null;
+  private faceLoad: Promise<void> = Promise.resolve();
+  private bodyLoad: Promise<void> = Promise.resolve();
   private faceReader: RaceFaceReader | null = null;
   private faceLoading = false;
   private faceError = false;
@@ -171,13 +173,18 @@ export class GestureController {
   private prepareBodyTracker(): void {
     if (this.bodyTracker || this.bodyLoading || this.bodyError) return;
     this.bodyLoading = true;
-    loadSixSevenTracker().then((tracker) => { this.bodyTracker = tracker; }).catch(() => { this.bodyError = true; }).finally(() => { this.bodyLoading = false; });
+    this.bodyLoad = loadSixSevenTracker().then((tracker) => { this.bodyTracker = tracker; }).catch(() => { this.bodyError = true; }).finally(() => { this.bodyLoading = false; });
   }
 
   private prepareFaceTracker(): void {
     if (this.faceTracker || this.faceLoading || this.faceError) return;
     this.faceLoading = true;
-    loadRaceFaceTracker().then((tracker) => { this.faceTracker = tracker; }).catch(() => { this.faceError = true; }).finally(() => { this.faceLoading = false; });
+    this.faceLoad = loadRaceFaceTracker().then((tracker) => { this.faceTracker = tracker; }).catch(() => { this.faceError = true; }).finally(() => { this.faceLoading = false; });
+  }
+
+  /** Resolves once the preloaded face and body models have finished (or failed) loading; loading them stalls the page. */
+  whenWarm(): Promise<void> {
+    return Promise.allSettled([this.faceLoad, this.bodyLoad]).then(() => undefined);
   }
 
   stop(): void {

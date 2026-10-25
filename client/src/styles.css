@@ -3076,3 +3076,43 @@ body {
   line-height: 1.1;
 }
 @media (max-width: 760px) { .spell-state { font-size: 11px; } }
+
+/* Painted backdrop shown while the arena's art loads, so the duel never opens on a bare stage. */
+.arena-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  background-size: cover;
+  background-position: center bottom;
+}
+.arena-loading::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #17241c66;
+}
+.arena-loading span {
+  position: relative;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font: 600 18px var(--font-book);
+  color: var(--gold-soft);
+}
+
+/* Camera sits just under the right-hand health bar rather than below the tall timer. */
+.duel .gesture-cam { top: calc(var(--top-inset) - 70px); }
+
+/* Announcer callouts: a longer, slightly delayed entrance so a busy frame (a lightning strike) can't swallow it. */
+.duel .hype {
+  animation: hype-pop 2.2s cubic-bezier(0.2, 1.4, 0.4, 1) 90ms both;
+}
+@keyframes hype-pop {
+  0% { opacity: 0; transform: translateX(-50%) scale(1.9) rotate(-6deg); }
+  22% { opacity: 1; transform: translateX(-50%) scale(1) rotate(-2deg); }
+  82% { opacity: 1; transform: translateX(-50%) scale(1.04) rotate(-2deg); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.9) rotate(-2deg); }
+}

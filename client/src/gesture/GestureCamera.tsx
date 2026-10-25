@@ -62,6 +62,7 @@ export function GestureCamera({
   raceTarget = null,
   onRaceFeedback,
   onSixSevenFeedback,
+  onReady,
   compact = false,
   extraControls,
 }: {
@@ -72,6 +73,8 @@ export function GestureCamera({
   raceTarget?: RacePoseId | null;
   onRaceFeedback?: (feedback: PoseFeedback) => void;
   onSixSevenFeedback?: (feedback: SixSevenFeedback) => void;
+  /** Called once the camera is tracking, has failed, or is off: its model load blocks the page while it runs. */
+  onReady?: () => void;
   compact?: boolean;
   extraControls?: ReactNode;
 }) {
@@ -92,6 +95,20 @@ export function GestureCamera({
   raceCallback.current = onRaceFeedback;
   const sixSevenCallback = useRef(onSixSevenFeedback);
   sixSevenCallback.current = onSixSevenFeedback;
+  const readyCallback = useRef(onReady);
+  readyCallback.current = onReady;
+
+  useEffect(() => {
+    if (!enabled || error !== "" || status === "ERROR") return readyCallback.current?.();
+    if (status !== "TRACKING" && status !== "NO_HAND") return;
+    let cancelled = false;
+    void controllerRef.current?.whenWarm().then(() => {
+      if (!cancelled) readyCallback.current?.();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, error, status]);
 
   useEffect(() => {
     const controller = new GestureController();
