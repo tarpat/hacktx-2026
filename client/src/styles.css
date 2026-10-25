@@ -2388,3 +2388,10 @@ img.spell-glyph {
   text-transform: uppercase;
   color: var(--gold);
 }
+
+.gesture-recorder{margin:20px 0;padding:14px;border:1px solid #ffffff16;background:#191524;text-align:left}
+.gesture-recorder .gesture-controls{align-items:center}
+.gesture-recorder select,.gesture-recorder input{background:#0f0c18;color:inherit;border:1px solid #ffffff2a;padding:8px;font:12px 'DM Mono',monospace}
+.gesture-recorder input{width:56px;margin-left:6px}
+.gesture-recorder label{font:11px 'DM Mono',monospace;color:#d9bd75}
+.gesture-recorder .is-recording{background:#c0392b}

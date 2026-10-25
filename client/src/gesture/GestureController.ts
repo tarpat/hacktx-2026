@@ -2,11 +2,9 @@ import type { FaceLandmarker } from "@mediapipe/tasks-vision";
 import { POSE_RACE, type RacePoseId } from "@spellcaster/shared";
 import { loadRaceFaceTracker, RaceFaceReader } from "./raceFaceTracking";
 import { matchRacePose, type PoseFeedback } from "./racePoseMatcher";
-import { classifyPose, combinePoses, PoseSmoother } from "./poseClassifier";
 import { getDetector, type HandDetector } from "./handDetector";
-import { filterHands, HandStabilizer } from "./handTracking";
-import { PumpCounter } from "./pumpCounter";
-import { DEFAULT_TIMINGS, resetGesture, stepGesture, type GestureState, type GestureTimings } from "./gestureStateMachine";
+import { GesturePipeline, type PipelineFrame } from "./gesturePipeline";
+import { DEFAULT_TIMINGS, type GestureState, type GestureTimings } from "./gestureStateMachine";
 import type { GestureAction, GestureActionEvent, GestureObservation, Handedness, HandPose, Landmark, TrackingStatus } from "./types";
 
 /** Local-only debug frame. Never send this over the network. */
@@ -15,6 +13,13 @@ export interface DebugFrame {
   hands: Landmark[][];
   fps: number;
   state: GestureState["kind"] | "STRUGGLE";
+}
+
+/** Unfiltered landmarker output for one frame, as recorded by the gesture test page. Local only. */
+export interface RawDetection {
+  timestampMs: number;
+  landmarks: Landmark[][];
+  handedness: (Handedness | undefined)[];
 }
 
 export class CameraError extends Error {}
@@ -34,12 +39,7 @@ export class GestureController {
   /** Bumped on every start/stop so a stale async start can detect it was cancelled. */
   private generation = 0;
   private lastVideoTime = -1;
-  /** 4-of-6 frame vote: a pose has to persist ~130 ms at 30 fps, which filters single-frame misreads. */
-  private smoother = new PoseSmoother(6, 4);
-  private stabilizer = new HandStabilizer();
-  private pumps = new PumpCounter();
-  /** During a spell struggle, hands pump to push instead of casting. */
-  private struggling = false;
+  private pipeline: GesturePipeline;
   private raceTarget: RacePoseId | null = null;
   private faceTracker: FaceLandmarker | null = null;
   private faceReader: RaceFaceReader | null = null;
@@ -47,7 +47,6 @@ export class GestureController {
   private faceError = false;
   private lastRaceFrame = 0;
   private raceListeners = new Set<(feedback: PoseFeedback) => void>();
-  private gestureState: GestureState = { kind: "IDLE" };
   private hand: Handedness | undefined;
   private status: TrackingStatus = "CAMERA_OFF";
   private frameTimes: number[] = [];
@@ -55,8 +54,11 @@ export class GestureController {
   private actionListeners = new Set<(e: GestureActionEvent) => void>();
   private observationListeners = new Set<(e: GestureObservation) => void>();
   private debugListeners = new Set<(f: DebugFrame) => void>();
+  private detectionListeners = new Set<(d: RawDetection) => void>();
 
-  constructor(private readonly timings: GestureTimings = DEFAULT_TIMINGS) {}
+  constructor(timings: GestureTimings = DEFAULT_TIMINGS) {
+    this.pipeline = new GesturePipeline(timings);
+  }
 
   async start(video: HTMLVideoElement): Promise<void> {
     this.stop();
@@ -110,12 +112,7 @@ export class GestureController {
 
   /** Switch between casting and spell-struggle pumping. */
   setStruggling(on: boolean): void {
-    if (on === this.struggling) return;
-    this.struggling = on;
-    this.pumps.reset();
-    // Entering: drop any half-made gesture. Leaving: hands are mid-pump, so wait for them to relax before casting again.
-    this.flushGestureState();
-    if (!on) this.gestureState = { kind: "REARM", blockedPoses: ["FIST", "BOTH_FISTS", "OPEN_PALM", "BOTH_PALMS", "POINT"] };
+    this.emitActions(this.pipeline.setStruggling(on), performance.now());
   }
 
   setRaceTarget(target: RacePoseId | null): void {
@@ -162,6 +159,11 @@ export class GestureController {
     return () => this.debugListeners.delete(callback);
   }
 
+  onDetection(callback: (detection: RawDetection) => void): () => void {
+    this.detectionListeners.add(callback);
+    return () => this.detectionListeners.delete(callback);
+  }
+
   private loop(detector: HandDetector, generation: number) {
     let busy = false;
     const tick = () => {
@@ -178,10 +180,8 @@ export class GestureController {
         ({ landmarks: raw, handedness }) => {
           busy = false;
           if (generation !== this.generation) return;
-          const hands = this.stabilizer.update(filterHands(raw), now);
-          // Handedness is only meaningful for one-hand gestures.
-          this.hand = hands.length === 1 && raw.length === 1 ? handedness[0] : undefined;
-          this.processFrame(hands, now);
+          for (const listener of this.detectionListeners) listener({ timestampMs: now, landmarks: raw, handedness });
+          this.processFrame(this.pipeline.step(raw, handedness, now, !this.raceTarget), now);
         },
         () => {
           busy = false;
@@ -191,9 +191,8 @@ export class GestureController {
     this.rafId = requestAnimationFrame(tick);
   }
 
-  private processFrame(hands: Landmark[][], now: number) {
-    const rawPose = combinePoses(hands.map(classifyPose));
-    const pose = this.smoother.push(rawPose);
+  private processFrame({ hands, pose, rawPose, hand, actions }: PipelineFrame, now: number) {
+    this.hand = hand;
     this.setStatus(hands.length > 0 ? "TRACKING" : "NO_HAND");
 
     if (this.raceTarget) {
@@ -213,14 +212,6 @@ export class GestureController {
       this.notify(pose, rawPose, hands, now);
       return;
     }
-    if (this.struggling) {
-      if (this.pumps.update(rawPose)) this.emitActions(["STRUGGLE_PUSH"], now);
-      this.notify(pose, rawPose, hands, now);
-      return;
-    }
-
-    const { state, actions } = stepGesture(this.gestureState, pose, now, this.timings);
-    this.gestureState = state;
     this.emitActions(actions, now);
     this.notify(pose, rawPose, hands, now);
   }
@@ -233,7 +224,7 @@ export class GestureController {
     this.frameTimes.push(now);
     while (this.frameTimes.length > 0 && now - this.frameTimes[0] > 1000) this.frameTimes.shift();
     for (const listener of this.debugListeners) {
-      listener({ hands, fps: this.frameTimes.length, state: this.struggling ? "STRUGGLE" : this.gestureState.kind });
+      listener({ hands, fps: this.frameTimes.length, state: this.pipeline.stateKind });
     }
   }
 
@@ -245,10 +236,7 @@ export class GestureController {
 
   /** Force CHARGE_CANCEL so the game never shows a dangling charge. */
   private flushGestureState() {
-    this.emitActions(resetGesture(this.gestureState), performance.now());
-    this.gestureState = { kind: "IDLE" };
-    this.smoother.reset();
-    this.stabilizer.reset();
+    this.emitActions(this.pipeline.reset(), performance.now());
   }
 
   private handleTrackEnded = () => {
