@@ -36,9 +36,13 @@ test("production browser clients connect on the hosted origin without a localhos
     await a.getByRole("button", { name: "I'm ready" }).click();
     await b.getByRole("button", { name: "I'm ready" }).click();
     await expect(a.locator(".clock.active")).toBeVisible();
+    // Rolled traits can change max health and Incendio damage, so compare against the starting values.
+    const [hpA, hpB] = (await a.locator(".health-value").allTextContents()).map(Number);
     await a.keyboard.press("q");
-    await expect(a.locator(".health-value")).toHaveText(["100", "80"]);
-    await expect(b.locator(".health-value")).toHaveText(["80", "100"]);
+    await expect.poll(async () => Number(await a.locator(".health-value").nth(1).textContent())).toBeLessThan(hpB);
+    const after = await a.locator(".health-value").allTextContents();
+    expect(Number(after[0])).toBe(hpA);
+    await expect(b.locator(".health-value")).toHaveText([...after].reverse());
     expect(connections.length).toBeGreaterThanOrEqual(2);
     expect(connections.every((url) => url.startsWith("ws://127.0.0.1:4180/socket.io/"))).toBe(true);
   } finally { await aContext.close(); await bContext.close(); }

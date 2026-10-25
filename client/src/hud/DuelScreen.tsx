@@ -56,6 +56,9 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
   const [clashResult, setClashResult] = useState<ClashResult | null>(null);
   const [sixSevenFeedback, setSixSevenFeedback] = useState<SixSevenFeedback>({ visible: false, left: null, right: null, hint: "Keep both elbows and wrists in view." });
   const [toast, setToast] = useState<Banner | null>(null);
+  // Bumped whenever a new match starts its countdown, so each match reveals its traits once.
+  const [matchSeq, setMatchSeq] = useState(0);
+  const lastPhase = useRef(state?.phase);
   const [hype, setHype] = useState<Banner | null>(null);
   const hypeTracker = useRef(new HypeTracker());
   const [activeShake, setActiveShake] = useState<{ type: "hit" | "clash-impact"; id: number } | null>(null);
@@ -101,6 +104,8 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     () =>
       source.subscribe((next, events) => {
         setState(next);
+        if (next.phase === "countdown" && lastPhase.current !== undefined && lastPhase.current !== "countdown") setMatchSeq((seq) => seq + 1);
+        lastPhase.current = next.phase;
         scene.current?.pushEvents(events);
         playEvents(events, source.localSlot, hotseat);
         const callouts = hypeTracker.current.read(events);
@@ -313,7 +318,10 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
           </section>
         )}
         {state && ready && <CountdownOverlay state={state} now={source.now()} />}
-        {state && ready && <TraitRoll state={state} leftSlot={left} hotseat={hotseat} />}
+        {/* Not tied to the countdown: online, the server's 3-2-1 often ends while this screen is still loading. */}
+        {state && ready && state.phase !== "finished" && (
+          <TraitRoll key={`${matchSeq}:${state.players.A.trait}:${state.players.B.trait}`} state={state} leftSlot={left} hotseat={hotseat} />
+        )}
         {hype && (
           <div className="hype" key={hype.id}>
             {hype.text}

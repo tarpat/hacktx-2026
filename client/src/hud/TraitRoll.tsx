@@ -5,14 +5,23 @@ import { playerName, traitGlyph } from "../theme";
 
 /** The left reel stops first and the right one a beat later, both well before "1". */
 const LAND_MS = [1_400, 1_900];
+/** How long the cards stay up in all, counted from when they first appear. */
+const SHOW_MS = 3_600;
 
-/** Slot-machine reveal of both wizards' traits during the opening countdown. */
+/**
+ * Slot-machine reveal of both wizards' traits. Plays once from mount, which DuelScreen does as each
+ * match starts (and keys to the match), then gets out of the way; the health bars keep the traits.
+ */
 export function TraitRoll({ state, leftSlot, hotseat }: { state: MatchState; leftSlot: PlayerSlot; hotseat: boolean }) {
+  const [shown, setShown] = useState(true);
+  useEffect(() => {
+    const timeout = setTimeout(() => setShown(false), SHOW_MS);
+    return () => clearTimeout(timeout);
+  }, []);
   const slots: PlayerSlot[] = [leftSlot, leftSlot === "A" ? "B" : "A"];
-  if (state.phase !== "countdown" || slots.some((slot) => !state.players[slot].trait)) return null;
+  if (!shown || slots.some((slot) => !state.players[slot].trait)) return null;
   return (
-    // Remount (and spin again) whenever a new match or a training reroll brings new traits.
-    <div className="trait-roll" key={`${state.phaseEndsAt}:${state.players.A.trait}:${state.players.B.trait}`}>
+    <div className="trait-roll">
       {slots.map((slot, i) => (
         <TraitReel
           key={slot}
