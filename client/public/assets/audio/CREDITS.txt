@@ -26,4 +26,9 @@ music-menu
   "Determined Pursuit (Epic Orchestra Loop)" by Emma_MA
   (https://opengameart.org/content/determined-pursuit-epic-orchestra-loop). CC0.
 
+voice-fireball, voice-fahh, voice-sike, voice-scuba, voice-bull
+  Meme voice lines supplied by the team (Clash Royale wizard "Fireball", "FAHHH",
+  "SIKE", "Scuba", bull roar). Not CC0: third-party clips used for the hackathon demo
+  only; replace before any public release.
+
 All files trimmed, loudness-matched and converted to MP3.
