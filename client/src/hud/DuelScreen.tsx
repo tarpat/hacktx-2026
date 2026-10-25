@@ -325,7 +325,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       <div className="duel-top" ref={top}>
         <header className="duel-header">
           <span className="brand-mark">✦</span>
-          <span className="duel-brand">SPELLCASTER</span>
+          <span className="duel-brand">wizaaahhh!</span>
           {header}
         </header>
         {state && (

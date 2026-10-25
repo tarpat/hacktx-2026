@@ -38,7 +38,7 @@ export function WaitingView() {
         <StoryBackdrop />
         <header className="topbar">
           <Link to="/" className="brand-link">
-            <span className="brand-mark">✦</span> SPELLCASTER
+            <span className="brand-mark">✦</span> wizaaahhh!
           </Link>
         </header>
         <section className="calibration waiting-panel waiting-empty">
@@ -58,7 +58,7 @@ export function WaitingView() {
       <StoryBackdrop />
       <header className="topbar">
         <Link to="/" className="brand-link">
-          <span className="brand-mark">✦</span> SPELLCASTER
+          <span className="brand-mark">✦</span> wizaaahhh!
         </Link>
         <span className="step-label">Room: <strong>{room.code}</strong></span>
       </header>

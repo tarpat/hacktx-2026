@@ -46,10 +46,10 @@ function Lobby() {
 
   return <main className="shell lobby-shell">
     <StoryBackdrop />
-    <header className="topbar"><span className="brand-mark">✦</span><span>SPELLCASTER</span><span className="topbar-note">A DUEL OF WITS & WIZARDRY</span></header>
+    <header className="topbar"><span className="brand-mark">✦</span><span>wizaaahhh!</span><span className="topbar-note">A DUEL OF WITS & WIZARDRY</span></header>
     <section className="hero">
       <div className="hero-duelists" aria-hidden="true"><img className="hero-wizard a" src={art.portrait.A} alt="" /><span className="hero-vs">VS</span><img className="hero-wizard b" src={art.portrait.B} alt="" /></div>
-      <p className="eyebrow">THE ARENA AWAITS</p><h1>SpellCaster<span>:</span><br />Wizard Duel</h1>
+      <p className="eyebrow">THE ARENA AWAITS</p><h1>wizaaahhh<span>!</span></h1>
       <p className="intro">Raise your hands. Choose your spell. Outwit a rival in a duel of magic.</p>
       <div className="lobby-card">
         <label className="name-field">

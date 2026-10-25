@@ -108,7 +108,7 @@ export function CalibrationView() {
       <StoryBackdrop />
       <header className="topbar">
         <Link to="/" className="brand-link">
-          <span className="brand-mark">✦</span> SPELLCASTER
+          <span className="brand-mark">✦</span> wizaaahhh!
         </Link>
         <span className="step-label">
           {session && <>Room: <strong>{session.room.code}</strong></>}

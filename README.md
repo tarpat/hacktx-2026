@@ -1,4 +1,4 @@
-# SpellCaster: Wizard Duel
+# wizaaahhh!
 
 A real-time 1v1 browser game where two wizards cast spells with hand gestures, block attacks, and compete in camera-based collision challenges. Built for HackTX 2026 with React, Phaser, MediaPipe, and an authoritative Socket.IO server.
 

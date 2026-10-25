@@ -151,7 +151,7 @@ export function GestureTestView() {
   const live = status === "TRACKING" || status === "NO_HAND";
 
   return <main className="shell secondary-shell">
-    <header className="topbar"><Link to="/" className="brand-link"><span className="brand-mark">✦</span> SPELLCASTER</Link><span className="step-label">DEV / GESTURE TEST</span></header>
+    <header className="topbar"><Link to="/" className="brand-link"><span className="brand-mark">✦</span> wizaaahhh!</Link><span className="step-label">DEV / GESTURE TEST</span></header>
     <section className="gesture-test">
       <p className="eyebrow">LOCAL ONLY · NO FRAMES LEAVE THIS BROWSER</p>
       <h1>Gesture test</h1>
