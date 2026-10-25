@@ -71,11 +71,14 @@ export function GestureCamera({
   onRaceFeedback,
   compact = false,
   extraControls,
+  makeWay = false,
 }: {
   ultimateReady?: boolean;
   struggling?: boolean;
   /** False while the spell is on cooldown or the match isn't live; those gestures are ignored. */
   canCast?: (spell: SpellId) => boolean;
+  /** Fade out so an effect over the opponent (Fulmen's storm) isn't hidden behind the panel. */
+  makeWay?: boolean;
   raceTarget?: RacePoseId | null;
   onRaceFeedback?: (feedback: PoseFeedback) => void;
   compact?: boolean;
@@ -216,7 +219,7 @@ export function GestureCamera({
   return (
     <>
     {!compact && <ChargeOrb charge={charge} ultimateReady={ultimateReady} />}
-    <aside className={`gesture-cam${compact || raceTarget ? " pose-camera" : ""}${enabled ? " on" : ""}${charge ? ` is-charging charge-${charge.kind}` : ""}`}>
+    <aside className={`gesture-cam${compact || raceTarget ? " pose-camera" : ""}${enabled ? " on" : ""}${charge ? ` is-charging charge-${charge.kind}` : ""}${makeWay ? " make-way" : ""}`}>
       {(compact || raceTarget) && !enabled && <div className="pose-camera-placeholder"><span>Camera off</span><button className="gesture-cam-toggle" onClick={toggle}>Enable camera</button></div>}
       <div className="gesture-cam-view" hidden={!enabled}>
         <video ref={videoRef} className="mirrored" autoPlay playsInline muted />

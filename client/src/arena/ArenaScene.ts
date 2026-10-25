@@ -684,15 +684,24 @@ export class ArenaScene extends Phaser.Scene {
     if (this.storms.size > 0) this.gloom.setAlpha(gloom);
   }
 
-  /** A short fork dropping out of the cloud, longer as the storm grows. */
+  /**
+   * Lightning building in the storm: sheet lightning across the cloud, and once it is close,
+   * a leader reaching down toward the target that gets nearer as the strike approaches.
+   */
   private crackle(storm: StormView, t: number) {
-    const x = this.stormX(storm.target) + Phaser.Math.Between(-80, 80) * this.unit;
-    const y = this.stormY() + 14 * this.unit;
-    const length = (40 + 90 * t) * this.unit;
-    const points = this.jagged(x, y, x + Phaser.Math.Between(-30, 30) * this.unit, y + length, 6, 12);
+    const x = this.stormX(storm.target);
+    const y = this.stormY();
+    const span = Phaser.Math.Between(40, 80) * this.unit;
+    const from = x + Phaser.Math.Between(-60, 20) * this.unit;
+    const paths = [this.jagged(from, y + Phaser.Math.Between(-12, 12) * this.unit, from + span, y + Phaser.Math.Between(-12, 12) * this.unit, 6, 10)];
+    if (t > 0.45) {
+      const reach = (this.groundY - y) * Phaser.Math.Linear(0.25, 0.75, (t - 0.45) / 0.55);
+      paths.push(this.jagged(x, y + 10 * this.unit, x + Phaser.Math.Between(-14, 14) * this.unit, y + reach, 8, 14));
+    }
     const g = storm.crackle.clear().setAlpha(1);
     for (const [width, color, alpha] of [[12, LIGHTNING.glow, 0.25], [4.5, LIGHTNING.glow, 0.6], [1.8, LIGHTNING.core, 1]] as const) {
-      g.lineStyle(width * this.unit, color, alpha).strokePoints(points);
+      g.lineStyle(width * this.unit, color, alpha);
+      for (const path of paths) g.strokePoints(path);
     }
     this.tweens.add({ targets: g, alpha: 0, duration: 140 });
   }
@@ -701,9 +710,9 @@ export class ArenaScene extends Phaser.Scene {
     return this.getFrame().insets.top + 40 * this.unit;
   }
 
-  /** The storm gathers over the target but leans toward the middle, clear of the HUD and the camera panel in the corners. */
+  /** The storm gathers straight over the target. */
   private stormX(target: PlayerSlot) {
-    return Phaser.Math.Linear(this.anchor(target).x, this.scale.width / 2, 0.38);
+    return this.anchor(target).x;
   }
 
   private makeStorm(target: PlayerSlot): StormView {
@@ -745,17 +754,19 @@ export class ArenaScene extends Phaser.Scene {
     storm.cloud.stop();
     this.time.delayedCall(1800, () => storm.cloud.destroy());
 
-    const { x, y } = this.castPoint(storm.target);
-    const top = { x: this.stormX(storm.target), y: this.stormY() };
+    // Straight down out of the cloud and through the target to their feet.
+    const { y } = this.castPoint(storm.target);
+    const top = { x: this.stormX(storm.target), y: this.stormY() + 10 * this.unit };
+    const feet = this.groundY - 4 * this.unit;
     const bolt = this.add.graphics().setDepth(9).setBlendMode(Phaser.BlendModes.ADD);
     // Strike, go dark, restrike: real lightning flickers rather than fading.
     const flickers: [number, number][] = [[0, 1], [50, 0.3], [90, 1], [170, 0.4], [230, 1], [340, 0.5], [400, 1], [520, 0.85]];
-    flickers.forEach(([delay, alpha]) => this.time.delayedCall(delay, () => this.drawLightning(bolt.setAlpha(alpha), top.x, top.y, x, y)));
+    flickers.forEach(([delay, alpha]) => this.time.delayedCall(delay, () => this.drawLightning(bolt.setAlpha(alpha), top.x, top.y, top.x, feet)));
     this.tweens.add({ targets: bolt, alpha: 0, delay: 600, duration: 320, onComplete: () => bolt.destroy() });
 
-    this.playFx("lightning-strike", x, y - 42 * this.unit, 180);
-    this.playFx("lightning-burst", x, y - 66 * this.unit, 216);
-    this.burst(x, y, LIGHTNING.glow, 26, 1.6);
+    this.playFx("lightning-strike", top.x, feet - 60 * this.unit, 180);
+    this.playFx("lightning-burst", top.x, y, 216);
+    this.burst(top.x, y, LIGHTNING.glow, 26, 1.6);
     // A soft blue-white wash instead of a full white-out, so the bolt stays visible.
     const { width, height } = this.scale;
     const wash = this.add.rectangle(width / 2, height / 2, width, height, LIGHTNING.glow, 0.32).setDepth(8).setBlendMode(Phaser.BlendModes.ADD);

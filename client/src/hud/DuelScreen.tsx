@@ -256,7 +256,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       <div className={`duel-stage phase-${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
         <RisingEmbers />
-        {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
+        {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} makeWay={!!state?.projectiles.some((p) => p.spell === "ultimate" && p.owner === left)} />}
         {state?.struggle?.kind === "pump" && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} />}
         {state?.struggle?.kind === "pose" && <PoseRace key={state.struggle.poseRace.id} struggle={state.struggle} source={source} now={now} hotseat={hotseat} />}
         {clashResult && !state?.struggle && (

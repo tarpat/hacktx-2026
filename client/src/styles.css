@@ -1289,6 +1289,10 @@ kbd {
   justify-items: end;
 }
 
+/* Comes back a beat after Fulmen lands so the strike stays in view. */
+.gesture-cam { transition: opacity 0.3s ease 1s; }
+.gesture-cam.make-way { opacity: 0.12; transition-delay: 0s; }
+
 .gesture-cam-view {
   position: relative;
   width: 100%;
