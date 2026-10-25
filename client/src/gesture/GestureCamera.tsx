@@ -156,7 +156,7 @@ export function GestureCamera({
       }),
       controller.onDebugFrame((frame) => {
         if (!canvasRef.current) return;
-        if (frame.body) drawForearms(canvasRef.current, frame.body);
+        if (frame.body) drawForearms(canvasRef.current, frame.body, frame.hands);
         else drawHands(canvasRef.current, frame.hands, handColor);
       }),
     ];

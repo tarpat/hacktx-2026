@@ -1,28 +1,36 @@
 import type { Landmark } from "./types";
 import type { BodyLandmark } from "./sixSevenCounter";
 
-/** Upper-body overlay for framing the elbows and wrists used by the 6–7 counter. */
-export function drawForearms(canvas: HTMLCanvasElement, points: BodyLandmark[]) {
+/** The same golden hand skeleton, extended to the shoulders and elbows for 6–7. */
+export function drawForearms(canvas: HTMLCanvasElement, points: BodyLandmark[], hands: Landmark[][] = []) {
+  drawHands(canvas, hands);
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (const [a, b] of [[11, 13], [13, 15], [12, 14], [14, 16]]) {
+  ctx.save();
+  ctx.shadowColor = "#f6c453";
+  ctx.shadowBlur = 14;
+  ctx.strokeStyle = "#f6c453";
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  const joints = new Set<BodyLandmark>();
+  for (const [a, b] of [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16]]) {
     const start = points[a], end = points[b];
     if (!start || !end || start.visibility < 0.5 || end.visibility < 0.5) continue;
-    ctx.strokeStyle = end.y < start.y ? "#7dffb0" : "#f6c453";
-    ctx.lineWidth = 5;
-    ctx.lineCap = "round";
     ctx.beginPath();
     ctx.moveTo(start.x * canvas.width, start.y * canvas.height);
     ctx.lineTo(end.x * canvas.width, end.y * canvas.height);
     ctx.stroke();
-    ctx.fillStyle = "#fff4dc";
-    for (const p of [start, end]) {
-      ctx.beginPath();
-      ctx.arc(p.x * canvas.width, p.y * canvas.height, 5, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    joints.add(start);
+    joints.add(end);
   }
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = "#fff4dc";
+  for (const p of joints) {
+    ctx.beginPath();
+    ctx.arc(p.x * canvas.width, p.y * canvas.height, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 // Bone pairs for drawing the 21-point hand skeleton.

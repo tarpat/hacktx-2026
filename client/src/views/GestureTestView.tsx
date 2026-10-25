@@ -84,7 +84,7 @@ export function GestureTestView() {
       }),
       controller.onDebugFrame((frame) => {
         if (canvasRef.current) {
-          if (frame.body) drawForearms(canvasRef.current, frame.body);
+          if (frame.body) drawForearms(canvasRef.current, frame.body, frame.hands);
           else drawHands(canvasRef.current, frame.hands);
         }
         setDebug((d) => (d.fps === frame.fps && d.state === frame.state && d.handCount === frame.hands.length

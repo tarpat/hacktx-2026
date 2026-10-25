@@ -5,6 +5,7 @@ vi.mock("../src/gesture/handDetector", () => ({ getDetector: async () => ({ dete
 vi.mock("../src/gesture/sixSevenTracking", () => ({ loadSixSevenTracker: mocks.loadBody }));
 vi.mock("../src/gesture/raceFaceTracking", () => ({ loadRaceFaceTracker: async () => ({}), RaceFaceReader: class {} }));
 import { GestureController } from "../src/gesture/GestureController";
+import shieldRecording from "./fixtures/gestures/shield-20261025070119.json";
 
 const pose = (up: boolean) => {
   const points = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 1 }));
@@ -43,17 +44,34 @@ describe("6–7 controller input routing", () => {
   }
   async function beat() { await frame(false); await frame(false); await frame(true); await frame(true); }
 
-  it("preloads pose tracking and replaces hand casting with confirmed body lifts", async () => {
+  it("keeps hand skeletons visible while body lifts score and hand casting stays suspended", async () => {
     const actions: string[] = [];
+    const debug = vi.fn();
     controller.onAction((e) => actions.push(e.action));
+    controller.onDebugFrame(debug);
+    const hands = shieldRecording.frames.find((frame) => frame.landmarks.length === 2)!;
+    mocks.detect.mockResolvedValue(hands);
     await controller.start(video);
     expect(mocks.loadBody).toHaveBeenCalledOnce();
     controller.setStruggling(true);
     await beat(); await beat();
     expect(actions).toEqual(["STRUGGLE_PUSH", "STRUGGLE_PUSH"]);
-    expect(mocks.detect).not.toHaveBeenCalled();
+    expect(mocks.detect).toHaveBeenCalledTimes(8);
+    expect(debug.mock.lastCall?.[0].hands).toHaveLength(2);
+    expect(debug.mock.lastCall?.[0].body).toHaveLength(33);
     controller.setStruggling(false);
     await frame(true);
+    expect(mocks.detect).toHaveBeenCalledTimes(9);
+    expect(actions).toEqual(["STRUGGLE_PUSH", "STRUGGLE_PUSH"]);
+  });
+
+  it("continues scoring body beats when a hand-overlay detection is delayed", async () => {
+    mocks.detect.mockReturnValue(new Promise(() => {}));
+    const actions: string[] = [];
+    controller.onAction((e) => actions.push(e.action));
+    await controller.start(video);
+    controller.setStruggling(true);
+    await beat(); await beat();
     expect(mocks.detect).toHaveBeenCalledOnce();
     expect(actions).toEqual(["STRUGGLE_PUSH", "STRUGGLE_PUSH"]);
   });

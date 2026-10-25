@@ -4,7 +4,7 @@ Matching fireballs or ice spells randomly start either the 6–7 challenge or th
 
 Rock your forearms up and down with palms facing upward. A wrist moving from below its elbow to above it scores one beat. Either arm works; lifting both together scores one beat. The hand shape is a visual cue: the detector uses elbow and wrist positions. The first observed position establishes a baseline. Keep both elbows and wrists in frame, and step back when the live feedback asks.
 
-The panel includes an animated guide, camera preview with upper-arm/forearm overlays, framing feedback, beat counts, advantage bar, and a 6.7-second timer. At the limit, the leading player wins; a lead under the existing draw margin fizzles both spells. Pushing the advantage to the far end wins early. The winner's spell absorbs both attacks and continues toward the loser.
+The panel includes an animated guide, a camera preview with the game's glowing golden hand/finger skeleton extended through the wrists, elbows, and shoulders, framing feedback, beat counts, advantage bar, and a 6.7-second timer. At the limit, the leading player wins; a lead under the existing draw margin fizzles both spells. Pushing the advantage to the far end wins early. The winner's spell absorbs both attacks and continues toward the loser.
 
 ## Controls and recovery
 
@@ -16,7 +16,7 @@ The panel includes an animated guide, camera preview with upper-arm/forearm over
 
 ## Tracking
 
-The approach is inspired by [mannygonzalezj7/67counter](https://github.com/mannygonzalezj7/67counter/blob/main/src/PoseCounter.jsx), which uses MediaPipe Pose to compare wrist and elbow height. This integration uses the project's installed `@mediapipe/tasks-vision` version, a preloaded Pose Landmarker Lite, either-arm rising-edge detection, confidence/in-frame checks, a body-scaled dead band, and confirmation over at least two frames and 45 ms. Beats are separated by at least 120 ms; simultaneous lifts cannot double-count. Model inference replaces hand inference during the challenge and runs at most 20 times per second.
+The approach is inspired by [mannygonzalezj7/67counter](https://github.com/mannygonzalezj7/67counter/blob/main/src/PoseCounter.jsx), which uses MediaPipe Pose to compare wrist and elbow height. This integration uses the project's installed `@mediapipe/tasks-vision` version, a preloaded Pose Landmarker Lite, either-arm rising-edge detection, confidence/in-frame checks, a body-scaled dead band, and confirmation over at least two frames and 45 ms. Beats are separated by at least 120 ms; simultaneous lifts cannot double-count. Pose scoring and the hand overlay run at most 20 times per second. Hand detections only draw the skeleton during the challenge; elbow/wrist crossings supply all gesture beats. Pose scoring continues while a hand-overlay detection is in flight.
 
 The model and WASM are served by the app, including in production. Model source: [Google MediaPipe Pose Landmarker Lite, float16, version 1](https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task). The face model used by the separate pose race retains its existing loading behavior. Landmark/video processing stays in the browser; only a `STRUGGLE_PUSH` input is transmitted, alongside the game's existing face snapshots.
 

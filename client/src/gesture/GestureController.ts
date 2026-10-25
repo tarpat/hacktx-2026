@@ -47,6 +47,8 @@ export class GestureController {
   private bodyLoading = false;
   private bodyError = false;
   private lastBodyFrame = -Infinity;
+  private sixSevenHands: Landmark[][] = [];
+  private sixSevenHandsAt = -Infinity;
   private sixSevenListeners = new Set<(feedback: SixSevenFeedback) => void>();
   /** Invalidates in-flight hand detections when the input mode changes. */
   private inputEpoch = 0;
@@ -131,6 +133,8 @@ export class GestureController {
     this.inputEpoch++;
     this.sixSeven.reset();
     this.lastBodyFrame = -Infinity;
+    this.sixSevenHands = [];
+    this.sixSevenHandsAt = -Infinity;
     if (on && this.video && !this.raceTarget) this.prepareBodyTracker();
     this.emitActions(this.pipeline.setStruggling(on), performance.now());
   }
@@ -209,19 +213,19 @@ export class GestureController {
       if (generation !== this.generation || !this.video) return;
       this.rafId = requestAnimationFrame(tick);
       const video = this.video;
-      // Skip until metadata is ready, skip frames we've already processed, and keep one frame in flight.
-      if (busy || video.videoWidth === 0 || video.currentTime === this.lastVideoTime) return;
+      const bodyMode = this.struggling && !this.raceTarget;
+      // Keep pose scoring live while the worker processes a hand-overlay frame.
+      if ((!bodyMode && busy) || video.videoWidth === 0 || video.currentTime === this.lastVideoTime) return;
       this.lastVideoTime = video.currentTime;
 
       const now = performance.now();
-      // Pose inference replaces hand inference in this mode. Cap it at 20 Hz so
-      // the lightweight model leaves room for the arena and the camera preview.
-      if (this.struggling && !this.raceTarget) {
-        if (now - this.lastBodyFrame >= 50 && !document.hidden) {
-          this.lastBodyFrame = now;
-          this.processBodyFrame(video, now);
-        }
-        return;
+      // Cap pose scoring and the hand overlay at 20 Hz. Hand detections in this
+      // mode are visual only; they must never cast spells or score fist flips.
+      if (bodyMode) {
+        if (now - this.lastBodyFrame < 50 || document.hidden) return;
+        this.lastBodyFrame = now;
+        this.processBodyFrame(video, now);
+        if (busy) return;
       }
       const epoch = this.inputEpoch;
       busy = true;
@@ -229,6 +233,11 @@ export class GestureController {
         ({ landmarks: raw, handedness }) => {
           busy = false;
           if (generation !== this.generation || epoch !== this.inputEpoch || document.hidden) return;
+          if (bodyMode) {
+            this.sixSevenHands = this.pipeline.step(raw, handedness, now, false).hands;
+            this.sixSevenHandsAt = now;
+            return;
+          }
           for (const listener of this.detectionListeners) listener({ timestampMs: now, landmarks: raw, handedness });
           this.processFrame(this.pipeline.step(raw, handedness, now, !this.raceTarget), now);
         },
@@ -258,7 +267,7 @@ export class GestureController {
     this.hand = undefined;
     for (const listener of this.sixSevenListeners) listener({ ...feedback, hint });
     if (feedback.push) this.emitActions(["STRUGGLE_PUSH"], now);
-    this.notify("NONE", "NONE", [], now, points);
+    this.notify("NONE", "NONE", now - this.sixSevenHandsAt <= 150 ? this.sixSevenHands : [], now, points);
   }
 
   private processFrame({ hands, pose, rawPose, hand, actions }: PipelineFrame, now: number) {
@@ -309,6 +318,8 @@ export class GestureController {
     this.inputEpoch++;
     this.sixSeven.reset();
     this.lastBodyFrame = -Infinity;
+    this.sixSevenHands = [];
+    this.sixSevenHandsAt = -Infinity;
     this.emitActions(this.pipeline.reset(), performance.now());
   }
 
