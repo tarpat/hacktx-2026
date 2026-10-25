@@ -67,7 +67,7 @@ export type Struggle = StruggleBase & ({ kind: "pump" } | { kind: "pose"; poseRa
 
 export interface MatchState {
   phase: MatchPhase;
-  /** Shared arena layout selected by the server for online matches. */
+  /** Random arena layout; shared by the server online. Omitted in hotseat, which allows a local choice. */
   stageId?: number;
   /** Server clock when this snapshot was taken; clients use it to estimate offset. */
   now: number;

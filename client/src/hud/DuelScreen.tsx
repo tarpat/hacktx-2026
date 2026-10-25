@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import { DEFAULT_MATCH_CONFIG, opponentOf, type GameEvent, type MatchState, type PlayerSlot, type SpellId } from "@spellcaster/shared";
 import { RisingEmbers } from "../arena/RisingEmbers";
 import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
-import { loadMapChoice, type MapId } from "../arena/maps";
+import { MAP_ORDER, type MapId } from "../arena/maps";
 import { playEvents, setMusic, sfx } from "../audio/sound";
 import { GestureCamera } from "../gesture/GestureCamera";
 import { SpellStruggle } from "./SpellStruggle";
@@ -24,7 +24,7 @@ interface DuelScreenProps {
   rematchLabel?: string;
   onLeave?: () => void;
   header?: React.ReactNode;
-  /** Arena map; defaults to the one picked in the lobby. */
+  /** Local hotseat map. Other modes use the stage in the match snapshot. */
   map?: MapId;
   /** Extra content under the spell trays, e.g. the practice spellbook. */
   footer?: React.ReactNode;
@@ -47,7 +47,7 @@ function useMatchNow(source: DuelSource) {
   return now;
 }
 
-export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, footer, map = loadMapChoice() }: DuelScreenProps) {
+export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, footer, map = MAP_ORDER[0] }: DuelScreenProps) {
   const [state, setState] = useState<MatchState | null>(() => source.state());
   const [clashResult, setClashResult] = useState<ClashResult | null>(null);
   const [toast, setToast] = useState<Banner | null>(null);
@@ -206,7 +206,7 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
     : "";
 
   return (
-    <main className={`duel${shakeClass}`} style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
+    <main className={`duel${shakeClass}`} data-arena={state?.stageId === undefined ? map : MAP_ORDER[state.stageId] ?? map} style={{ "--top-inset": `${insets.top}px`, "--bottom-inset": `${insets.bottom}px` } as React.CSSProperties}>
       <div className={`duel-stage phase-${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
         <RisingEmbers />

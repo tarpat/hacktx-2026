@@ -4,6 +4,7 @@ import {
   DuelEngine,
   EASY_BOT,
   makeMatchConfig,
+  randomStageId,
   type GameEvent,
   type MatchState,
   type PlayerSlot,
@@ -54,6 +55,7 @@ export class LocalDuel implements DuelSource {
   readonly poseAssist = true;
   readonly localSlot: PlayerSlot = "A";
   private engine: DuelEngine;
+  private stageId: number | undefined;
   private bot: DuelBot | null;
   private latest: MatchState;
   private readonly listeners = new Set<DuelListener>();
@@ -62,7 +64,7 @@ export class LocalDuel implements DuelSource {
   constructor(private readonly mode: LocalMode) {
     this.engine = this.newEngine();
     this.bot = this.newBot();
-    this.latest = this.engine.snapshot(Date.now());
+    this.latest = this.snapshot(Date.now());
     this.timer = setInterval(() => this.step(), TICK_MS);
   }
 
@@ -110,7 +112,12 @@ export class LocalDuel implements DuelSource {
   }
 
   private newEngine() {
+    this.stageId = this.mode === "hotseat" ? undefined : randomStageId();
     return new DuelEngine(Date.now(), this.mode === "training" ? TRAINING_CONFIG : DEFAULT_MATCH_CONFIG);
+  }
+
+  private snapshot(now: number): MatchState {
+    return { ...this.engine.snapshot(now), ...(this.stageId === undefined ? {} : { stageId: this.stageId }) };
   }
 
   private newBot() {
@@ -124,7 +131,7 @@ export class LocalDuel implements DuelSource {
 
   private step() {
     const now = Date.now();
-    const snapshot = this.engine.snapshot(now);
+    const snapshot = this.snapshot(now);
     const botSpell = this.bot?.decide(snapshot, now);
     if (botSpell) this.engine.cast("B", botSpell, now);
     if (this.bot?.wantsPush(snapshot, now)) this.engine.push("B", now);
@@ -135,7 +142,7 @@ export class LocalDuel implements DuelSource {
       const matched = now >= race.readyAt + p.step * 1_600 + POSE_RACE.releaseMs + 400;
       this.engine.poseSample("B", { struggleId: race.id, step: p.step, matched }, now);
     }
-    this.latest = this.engine.snapshot(now);
+    this.latest = this.snapshot(now);
     const events = this.engine.drainEvents();
     this.listeners.forEach((listener) => listener(this.latest, events));
   }

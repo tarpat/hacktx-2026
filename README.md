@@ -4,6 +4,8 @@ A real-time 1v1 browser duel. npm workspaces: a React/Vite/TypeScript + Phaser c
 
 Matching spell collisions choose 50/50 between fist pumping and a five-image pose race. See [pose matching, rules and limitations](docs/POSE_RACE.md).
 
+Online, bot and training matches choose uniformly from all three arenas (1/3 each), with a fresh independent draw on every rematch. Hotseat keeps a map picker for testing; its saved choice never affects other modes.
+
 ## Getting started
 
 ```sh
