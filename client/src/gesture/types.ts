@@ -12,7 +12,7 @@ export type GestureAction =
   | "ICE_CAST"
   /** 🤘 Hook 'em, held. */
   | "TAURUS_CAST"
-  /** One fist pump during a spell struggle. */
+  /** One confirmed forearm lift during the 6–7 collision challenge. */
   | "STRUGGLE_PUSH";
 
 export type TrackingStatus = "CAMERA_OFF" | "STARTING" | "TRACKING" | "NO_HAND" | "ERROR";

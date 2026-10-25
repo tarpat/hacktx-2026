@@ -1,4 +1,29 @@
 import type { Landmark } from "./types";
+import type { BodyLandmark } from "./sixSevenCounter";
+
+/** Upper-body overlay for framing the elbows and wrists used by the 6–7 counter. */
+export function drawForearms(canvas: HTMLCanvasElement, points: BodyLandmark[]) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const [a, b] of [[11, 13], [13, 15], [12, 14], [14, 16]]) {
+    const start = points[a], end = points[b];
+    if (!start || !end || start.visibility < 0.5 || end.visibility < 0.5) continue;
+    ctx.strokeStyle = end.y < start.y ? "#7dffb0" : "#f6c453";
+    ctx.lineWidth = 5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(start.x * canvas.width, start.y * canvas.height);
+    ctx.lineTo(end.x * canvas.width, end.y * canvas.height);
+    ctx.stroke();
+    ctx.fillStyle = "#fff4dc";
+    for (const p of [start, end]) {
+      ctx.beginPath();
+      ctx.arc(p.x * canvas.width, p.y * canvas.height, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
 
 // Bone pairs for drawing the 21-point hand skeleton.
 const BONES: [number, number][] = [

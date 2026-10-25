@@ -6,7 +6,8 @@ import { ArenaScene, type ArenaFrame } from "../arena/ArenaScene";
 import { MAP_ORDER, type MapId } from "../arena/maps";
 import { playEvents, setMusic, sfx } from "../audio/sound";
 import { GestureCamera } from "../gesture/GestureCamera";
-import { SpellStruggle } from "./SpellStruggle";
+import type { SixSevenFeedback } from "../gesture/sixSevenCounter";
+import { SpellStruggle, StruggleOrb } from "./SpellStruggle";
 import { PoseRace } from "./PoseRace";
 import type { DuelSource } from "../game/duelSource";
 import { bindKeyboard, spellInput } from "../game/input";
@@ -52,6 +53,7 @@ function useMatchNow(source: DuelSource) {
 export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again", onLeave = () => {}, header, footer, map = MAP_ORDER[0] }: DuelScreenProps) {
   const [state, setState] = useState<MatchState | null>(() => source.state());
   const [clashResult, setClashResult] = useState<ClashResult | null>(null);
+  const [sixSevenFeedback, setSixSevenFeedback] = useState<SixSevenFeedback>({ visible: false, left: null, right: null, hint: "Keep both elbows and wrists in view." });
   const [toast, setToast] = useState<Banner | null>(null);
   const [hype, setHype] = useState<Banner | null>(null);
   const hypeTracker = useRef(new HypeTracker());
@@ -245,10 +247,9 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
 
   const castAs = (slot: PlayerSlot) => (slot === left || hotseat ? (spell: SpellId) => spellInput.cast(spell, slot) : undefined);
 
-  const shakeClass = activeShake
+  // Keep the camera and tap targets stationary throughout the 6–7 challenge.
+  const shakeClass = activeShake && state?.struggle?.kind !== "pump"
     ? ` screen-shake-${activeShake.type}-${(activeShake.id % 2) + 1}`
-    : state?.struggle?.kind === "pump"
-    ? " screen-shake-clash"
     : "";
 
   return (
@@ -256,8 +257,11 @@ export function DuelScreen({ source, hotseat = false, rematchLabel = "Duel again
       <div className={`duel-stage phase-${state?.phase ?? "waiting"}`}>
         <div className="duel-canvas" ref={host} />
         <RisingEmbers />
-        {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
-        {state?.struggle?.kind === "pump" && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} />}
+        <div className={state?.struggle?.kind === "pump" ? "six-seven-event" : "collision-inputs"}>
+          {state?.struggle?.kind !== "pose" && <GestureCamera ultimateReady={!state || state.players[left].ultimate >= DEFAULT_MATCH_CONFIG.ultimateMax} struggling={!!state?.struggle} onSixSevenFeedback={setSixSevenFeedback} canCast={(spell) => !!state && !castBlocker(state, left, spell, source.now())} />}
+          {state?.struggle?.kind === "pump" && <SpellStruggle state={state} now={now} leftSlot={left} hotseat={hotseat} feedback={sixSevenFeedback} />}
+        </div>
+        {state?.struggle?.kind === "pump" && <StruggleOrb state={state} leftSlot={left} />}
         {state?.struggle?.kind === "pose" && <PoseRace key={state.struggle.poseRace.id} struggle={state.struggle} source={source} now={now} hotseat={hotseat} />}
         {clashResult && !state?.struggle && (
           <section className={`clash-result ${clashResult.winner ? `player-${clashResult.winner}` : "draw"}`} role="status" key={clashResult.id}>

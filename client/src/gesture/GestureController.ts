@@ -1,11 +1,12 @@
-import type { FaceLandmarker } from "@mediapipe/tasks-vision";
+import type { FaceLandmarker, PoseLandmarker } from "@mediapipe/tasks-vision";
 import { POSE_RACE, type RacePoseId } from "@spellcaster/shared";
 import { loadRaceFaceTracker, RaceFaceReader } from "./raceFaceTracking";
 import { matchRacePose, type PoseFeedback } from "./racePoseMatcher";
 import { classifyPose, combinePoses, PoseSmoother } from "./poseClassifier";
 import { getDetector, type HandDetector } from "./handDetector";
 import { filterHands, HandStabilizer } from "./handTracking";
-import { PumpCounter } from "./pumpCounter";
+import { SixSevenCounter, type BodyLandmark, type SixSevenFeedback } from "./sixSevenCounter";
+import { loadSixSevenTracker } from "./sixSevenTracking";
 import { DEFAULT_TIMINGS, resetGesture, stepGesture, type GestureState, type GestureTimings } from "./gestureStateMachine";
 import type { GestureAction, GestureActionEvent, GestureObservation, Handedness, HandPose, Landmark, TrackingStatus } from "./types";
 
@@ -13,6 +14,7 @@ import type { GestureAction, GestureActionEvent, GestureObservation, Handedness,
 export interface DebugFrame {
   /** One entry per tracked hand (0–2). */
   hands: Landmark[][];
+  body?: BodyLandmark[];
   fps: number;
   state: GestureState["kind"] | "STRUGGLE";
 }
@@ -37,8 +39,15 @@ export class GestureController {
   /** 4-of-6 frame vote: a pose has to persist ~130 ms at 30 fps, which filters single-frame misreads. */
   private smoother = new PoseSmoother(6, 4);
   private stabilizer = new HandStabilizer();
-  private pumps = new PumpCounter();
-  /** During a spell struggle, hands pump to push instead of casting. */
+  private sixSeven = new SixSevenCounter();
+  private bodyTracker: PoseLandmarker | null = null;
+  private bodyLoading = false;
+  private bodyError = false;
+  private lastBodyFrame = -Infinity;
+  private sixSevenListeners = new Set<(feedback: SixSevenFeedback) => void>();
+  /** Invalidates in-flight hand detections when the input mode changes. */
+  private inputEpoch = 0;
+  /** During a spell struggle, forearm lifts push instead of casting. */
   private struggling = false;
   private raceTarget: RacePoseId | null = null;
   private faceTracker: FaceLandmarker | null = null;
@@ -97,6 +106,7 @@ export class GestureController {
 
       // Preload alongside normal play so a collision does not wait for the face model.
       this.prepareFaceTracker();
+      this.prepareBodyTracker();
 
       this.setStatus("NO_HAND");
       this.loop(detector, generation);
@@ -108,18 +118,20 @@ export class GestureController {
     }
   }
 
-  /** Switch between casting and spell-struggle pumping. */
+  /** Switch between casting and the 6–7 collision challenge. */
   setStruggling(on: boolean): void {
     if (on === this.struggling) return;
     this.struggling = on;
-    this.pumps.reset();
-    // Entering: drop any half-made gesture. Leaving: hands are mid-pump, so wait for them to relax before casting again.
+    if (on && this.video && !this.raceTarget) this.prepareBodyTracker();
+    // Entering: drop any half-made gesture. Leaving: wait for hands to relax before casting again.
     this.flushGestureState();
     if (!on) this.gestureState = { kind: "REARM", blockedPoses: ["FIST", "BOTH_FISTS", "OPEN_PALM", "BOTH_PALMS", "POINT"] };
   }
 
   setRaceTarget(target: RacePoseId | null): void {
+    if (target === this.raceTarget) return;
     this.raceTarget = target;
+    this.flushGestureState();
     this.lastRaceFrame = 0;
     if (target) this.prepareFaceTracker();
   }
@@ -132,6 +144,23 @@ export class GestureController {
   onRaceFeedback(callback: (feedback: PoseFeedback) => void): () => void {
     this.raceListeners.add(callback);
     return () => this.raceListeners.delete(callback);
+  }
+
+  onSixSevenFeedback(callback: (feedback: SixSevenFeedback) => void): () => void {
+    this.sixSevenListeners.add(callback);
+    return () => this.sixSevenListeners.delete(callback);
+  }
+
+  retryBodyTracking(): void {
+    this.bodyError = false;
+    this.sixSeven.reset();
+    this.prepareBodyTracker();
+  }
+
+  private prepareBodyTracker(): void {
+    if (this.bodyTracker || this.bodyLoading || this.bodyError) return;
+    this.bodyLoading = true;
+    loadSixSevenTracker().then((tracker) => { this.bodyTracker = tracker; }).catch(() => { this.bodyError = true; }).finally(() => { this.bodyLoading = false; });
   }
 
   private prepareFaceTracker(): void {
@@ -173,11 +202,21 @@ export class GestureController {
       this.lastVideoTime = video.currentTime;
 
       const now = performance.now();
+      // Pose inference replaces hand inference in this mode. Cap it at 20 Hz so
+      // the lightweight model leaves room for the arena and the camera preview.
+      if (this.struggling && !this.raceTarget) {
+        if (now - this.lastBodyFrame >= 50 && !document.hidden) {
+          this.lastBodyFrame = now;
+          this.processBodyFrame(video, now);
+        }
+        return;
+      }
+      const epoch = this.inputEpoch;
       busy = true;
       detector.detect(video, now).then(
         ({ landmarks: raw, handedness }) => {
           busy = false;
-          if (generation !== this.generation) return;
+          if (generation !== this.generation || epoch !== this.inputEpoch || document.hidden) return;
           const hands = this.stabilizer.update(filterHands(raw), now);
           // Handedness is only meaningful for one-hand gestures.
           this.hand = hands.length === 1 && raw.length === 1 ? handedness[0] : undefined;
@@ -189,6 +228,27 @@ export class GestureController {
       );
     };
     this.rafId = requestAnimationFrame(tick);
+  }
+
+  private processBodyFrame(video: HTMLVideoElement, now: number): void {
+    let points: BodyLandmark[] = [];
+    let interrupted = false;
+    let hint = this.bodyError ? "6–7 tracking unavailable. Retry tracking or use SPACE / tap." : "Loading 6–7 tracking… Use SPACE / tap while you wait.";
+    if (this.bodyTracker) {
+      try {
+        points = this.bodyTracker.detectForVideo(video, now).landmarks[0] ?? [];
+      } catch {
+        interrupted = true;
+        hint = "Tracking interrupted. Keep elbows in view or use SPACE / tap.";
+      }
+    }
+    const feedback = this.sixSeven.update(points, now);
+    if (this.bodyTracker && !interrupted) hint = feedback.hint;
+    this.setStatus(feedback.visible ? "TRACKING" : "NO_HAND");
+    this.hand = undefined;
+    for (const listener of this.sixSevenListeners) listener({ ...feedback, hint });
+    if (feedback.push) this.emitActions(["STRUGGLE_PUSH"], now);
+    this.notify("NONE", "NONE", [], now, points);
   }
 
   private processFrame(hands: Landmark[][], now: number) {
@@ -214,7 +274,6 @@ export class GestureController {
       return;
     }
     if (this.struggling) {
-      if (this.pumps.update(rawPose)) this.emitActions(["STRUGGLE_PUSH"], now);
       this.notify(pose, rawPose, hands, now);
       return;
     }
@@ -225,7 +284,7 @@ export class GestureController {
     this.notify(pose, rawPose, hands, now);
   }
 
-  private notify(pose: HandPose, rawPose: HandPose, hands: Landmark[][], now: number) {
+  private notify(pose: HandPose, rawPose: HandPose, hands: Landmark[][], now: number, body?: BodyLandmark[]) {
     for (const listener of this.observationListeners) {
       listener({ pose, rawPose, status: this.status, hand: this.hand, timestampMs: now });
     }
@@ -233,7 +292,7 @@ export class GestureController {
     this.frameTimes.push(now);
     while (this.frameTimes.length > 0 && now - this.frameTimes[0] > 1000) this.frameTimes.shift();
     for (const listener of this.debugListeners) {
-      listener({ hands, fps: this.frameTimes.length, state: this.struggling ? "STRUGGLE" : this.gestureState.kind });
+      listener({ hands, body, fps: this.frameTimes.length, state: this.struggling ? "STRUGGLE" : this.gestureState.kind });
     }
   }
 
@@ -245,6 +304,9 @@ export class GestureController {
 
   /** Force CHARGE_CANCEL so the game never shows a dangling charge. */
   private flushGestureState() {
+    this.inputEpoch++;
+    this.sixSeven.reset();
+    this.lastBodyFrame = -Infinity;
     this.emitActions(resetGesture(this.gestureState), performance.now());
     this.gestureState = { kind: "IDLE" };
     this.smoother.reset();
